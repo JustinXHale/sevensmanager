@@ -6394,3 +6394,72 @@ button.competitions-sticky-dropdown-item:hover {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* ---- PWA install prompt (Chromium install + iOS Add to Home Screen hint) ---- */
+
+.install-toast {
+  position: fixed;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10199;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  animation: update-toast-in 0.3s ease-out;
+  max-width: calc(100vw - 2rem);
+}
+
+.install-toast--ios {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.install-toast-text {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  white-space: normal;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.install-toast-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.install-toast-btn {
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 32px;
+}
+
+.install-toast-btn:active {
+  opacity: 0.8;
+}
+
+.install-toast-btn--secondary {
+  background: transparent;
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.install-toast-btn--single {
+  align-self: center;
+}

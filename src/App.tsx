@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AppNavDrawer } from '@/components/AppNavDrawer';
+import { InstallPrompt } from '@/components/InstallPrompt';
 import { UpdatePrompt } from '@/components/UpdatePrompt';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAppChrome } from '@/context/AppChromeContext';
@@ -103,6 +104,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <AppHeader />
+      <InstallPrompt />
       <UpdatePrompt />
       <main className="app-main">
         <ErrorBoundary>

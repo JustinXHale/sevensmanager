@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- PWA install prompt — Chromium/Android shows Install / Not now using `beforeinstallprompt`; iOS Safari shows a short Add to Home Screen tip; each dismiss snoozes 30 days; banner sits above the update toast when both appear
 - Stats glossary help icons — info (ⓘ) button next to every section title in both per-match and global stats; opens a bottom sheet with full names and descriptions for all abbreviations (M, X, LB, Tr, Pen, YC, Z1–Z6, etc.)
 - PWA update prompt — toast notification appears when a new version is deployed; users tap "Reload" to update on their own schedule
 - Edit pencil button on team rows (competition detail page) with rename modal
