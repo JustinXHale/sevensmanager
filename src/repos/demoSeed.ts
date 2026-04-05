@@ -11,10 +11,11 @@ import { seedPoolGameOneFullTimeline } from './demoSeedPoolGameOne';
 import { db } from './db';
 
 /** Shown in the competitions list; idempotent \u2014 second run is a no-op. */
-export const DEMO_COMPETITION_NAME = 'Demo: Coastal 7s 2026';
+export const DEMO_COMPETITION_NAME = 'Bloodfest Sevens';
+const DEMO_COMPETITION_NAME_2 = 'Club Nationals';
 
-const TEAM_A = 'Northside Huns';
-const TEAM_B = 'South Bay RFC';
+const TEAM_A = 'Hellraisers';
+const TEAM_B = "Sofia's Princesses";
 
 /** Jersey labels for a full squad (1\u201313). */
 const DEMO_SQUAD_NAMES = [
@@ -43,16 +44,28 @@ export type DemoSeedResult =
  */
 export async function seedDemoCoastalPack(clubId: string): Promise<DemoSeedResult> {
   const comps = await db.competitions.toArray();
-  if (comps.some((c) => c.name === DEMO_COMPETITION_NAME)) {
+  if (comps.some((c) => c.name === DEMO_COMPETITION_NAME || c.name === DEMO_COMPETITION_NAME_2)) {
     return {
       ok: false,
       message: `"${DEMO_COMPETITION_NAME}" is already in your list. Delete it first if you want a fresh sample.`,
     };
   }
 
-  const comp = await createCompetition(DEMO_COMPETITION_NAME, clubId);
+  const comp = await createCompetition({
+    name: DEMO_COMPETITION_NAME,
+    clubId,
+    startDate: '2026-06-20',
+    location: 'Austin, TX',
+  });
+  const comp2 = await createCompetition({
+    name: DEMO_COMPETITION_NAME_2,
+    clubId,
+    startDate: '2026-08-08',
+    endDate: '2026-08-09',
+    location: 'TBA',
+  });
   const north = await createTeam(comp.id, TEAM_A);
-  const south = await createTeam(comp.id, TEAM_B);
+  const south = await createTeam(comp2.id, TEAM_B);
 
   const northMembers = await listTeamMembers(north.id);
   for (const m of northMembers) {
@@ -63,10 +76,16 @@ export async function seedDemoCoastalPack(clubId: string): Promise<DemoSeedResul
     }
   }
 
+  const SOUTH_SQUAD_NAMES = [
+    'Sofia R.', 'Mia K.', 'Ava T.', 'Isla M.', 'Zara P.',
+    'Leah F.', 'Noa S.', 'Jade W.', 'Lily H.', 'Chloe B.',
+    'Ruby D.', 'Grace L.', 'Emma V.',
+  ];
   const southMembers = await listTeamMembers(south.id);
-  for (let i = 0; i < Math.min(7, southMembers.length); i++) {
-    const m = southMembers[i]!;
-    await updateTeamMember(m.id, { name: `Guest ${i + 1}` });
+  for (const sm of southMembers) {
+    const idx = (sm.number ?? 1) - 1;
+    const nm = SOUTH_SQUAD_NAMES[idx] ?? '';
+    if (nm) await updateTeamMember(sm.id, { name: nm });
   }
 
   const m1 = await createMatch({
@@ -106,14 +125,14 @@ export async function seedDemoCoastalPack(clubId: string): Promise<DemoSeedResul
   });
 
   const m4 = await createMatch({
-    title: 'South Bay \u00b7 Pool match',
+    title: 'Pool B \u00b7 Game 1',
     ourTeamName: TEAM_B,
     opponentName: 'Harbor United',
     opponentAbbreviation: 'HBU',
     kickoffDate: new Date('2026-06-14T12:45:00').toISOString(),
     location: 'Training Ground B',
-    competition: DEMO_COMPETITION_NAME,
-    competitionId: comp.id,
+    competition: DEMO_COMPETITION_NAME_2,
+    competitionId: comp2.id,
     teamId: south.id,
   });
 
@@ -201,6 +220,80 @@ export async function seedDemoCoastalPack(clubId: string): Promise<DemoSeedResul
       matchId: m1.id,
       recordedAt: t0 + 3.5 * 60 * 60 * 1000,
       weightKg: 73.6,
+      phase: 'post',
+    });
+  }
+
+  // Sofia's Princesses: full squad pre/post weigh-ins with varied loss profiles
+  const sortedSouth = (await listTeamMembers(south.id)).sort((a, b) => (a.number ?? 99) - (b.number ?? 99));
+  const southWeights: [number, number][] = [
+    [62.0, 61.2],  // #1  1.3% — normal
+    [58.5, 57.4],  // #2  1.9% — borderline
+    [65.8, 64.2],  // #3  2.4% — flagged
+    [60.2, 59.5],  // #4  1.2% — normal
+    [57.0, 55.5],  // #5  2.6% — flagged
+    [63.4, 62.6],  // #6  1.3% — normal
+    [59.8, 58.9],  // #7  1.5% — normal
+    [66.1, 65.3],  // #8  1.2% — normal
+    [61.5, 60.0],  // #9  2.4% — flagged
+    [55.2, 54.6],  // #10 1.1% — normal
+    [64.0, 63.1],  // #11 1.4% — normal
+    [58.0, 56.7],  // #12 2.2% — flagged
+    [62.5, 61.8],  // #13 1.1% — normal
+  ];
+  const t0South = new Date('2026-06-14T11:30:00').getTime();
+  for (let i = 0; i < Math.min(sortedSouth.length, southWeights.length); i++) {
+    const sm = sortedSouth[i]!;
+    const [preKg, postKg] = southWeights[i]!;
+    await addWeighIn({
+      teamMemberId: sm.id,
+      matchId: m4.id,
+      recordedAt: t0South + i * 2 * 60 * 1000,
+      weightKg: preKg,
+      phase: 'pre',
+    });
+    await addWeighIn({
+      teamMemberId: sm.id,
+      matchId: m4.id,
+      recordedAt: t0South + 3 * 60 * 60 * 1000 + i * 2 * 60 * 1000,
+      weightKg: postKg,
+      phase: 'post',
+    });
+  }
+
+  // Also add full squad weigh-ins for Hellraisers (north) match 1
+  const northWeights: [number, number][] = [
+    [79.4, 78.6],  // #1  1.0% — normal
+    [74.2, 73.6],  // #2  0.8% — normal
+    [82.5, 80.8],  // #3  2.1% — flagged
+    [77.0, 76.1],  // #4  1.2% — normal
+    [85.3, 83.5],  // #5  2.1% — flagged
+    [70.8, 69.9],  // #6  1.3% — normal
+    [76.5, 75.7],  // #7  1.0% — normal
+    [81.0, 80.2],  // #8  1.0% — normal
+    [73.6, 71.8],  // #9  2.4% — flagged
+    [68.2, 67.5],  // #10 1.0% — normal
+    [78.0, 77.1],  // #11 1.2% — normal
+    [72.4, 70.6],  // #12 2.5% — flagged
+    [80.1, 79.3],  // #13 1.0% — normal
+  ];
+  for (let i = 0; i < Math.min(sortedNorth.length, northWeights.length); i++) {
+    const nm = sortedNorth[i]!;
+    const [preKg, postKg] = northWeights[i]!;
+    // Skip the first two — they already have weigh-ins seeded above
+    if (i < 2) continue;
+    await addWeighIn({
+      teamMemberId: nm.id,
+      matchId: m1.id,
+      recordedAt: t0 + i * 2 * 60 * 1000,
+      weightKg: preKg,
+      phase: 'pre',
+    });
+    await addWeighIn({
+      teamMemberId: nm.id,
+      matchId: m1.id,
+      recordedAt: t0 + 3.5 * 60 * 60 * 1000 + i * 2 * 60 * 1000,
+      weightKg: postKg,
       phase: 'post',
     });
   }

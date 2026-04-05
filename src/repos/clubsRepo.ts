@@ -51,7 +51,7 @@ export type UpdateClubInput = {
 export async function updateClub(id: string, patch: UpdateClubInput): Promise<ClubRecord> {
   const row = await db.clubs.get(id);
   if (!row) {
-    throw new Error('Team not found.');
+    throw new Error('Club not found.');
   }
   const now = Date.now();
   const next: ClubRecord = {

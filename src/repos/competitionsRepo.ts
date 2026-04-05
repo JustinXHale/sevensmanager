@@ -26,12 +26,25 @@ export async function getOrCreateDefaultCompetitionId(): Promise<string> {
   return rec.id;
 }
 
-export async function createCompetition(name: string, clubId?: string): Promise<CompetitionRecord> {
+export type CreateCompetitionInput = {
+  name: string;
+  clubId?: string;
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+};
+
+export async function createCompetition(nameOrInput: string | CreateCompetitionInput, clubId?: string): Promise<CompetitionRecord> {
+  const input: CreateCompetitionInput =
+    typeof nameOrInput === 'string' ? { name: nameOrInput, clubId } : nameOrInput;
   const now = Date.now();
   const row: CompetitionRecord = {
     id: crypto.randomUUID(),
-    name: name.trim() || 'Untitled competition',
-    ...(clubId ? { clubId } : {}),
+    name: input.name.trim() || 'Untitled competition',
+    ...(input.clubId ? { clubId: input.clubId } : {}),
+    ...(input.startDate ? { startDate: input.startDate } : {}),
+    ...(input.endDate ? { endDate: input.endDate } : {}),
+    ...(input.location?.trim() ? { location: input.location.trim() } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -53,10 +66,21 @@ export async function getCompetition(id: string): Promise<CompetitionRecord | un
   return db.competitions.get(id);
 }
 
-export async function updateCompetition(id: string, name: string): Promise<void> {
+export async function updateCompetition(
+  id: string,
+  patch: { name?: string; startDate?: string; endDate?: string; location?: string },
+): Promise<void> {
   const row = await db.competitions.get(id);
   if (!row) return;
-  await db.competitions.put({ ...row, name: name.trim() || row.name, updatedAt: Date.now() });
+  const next: CompetitionRecord = {
+    ...row,
+    name: patch.name?.trim() || row.name,
+    updatedAt: Date.now(),
+  };
+  if (patch.startDate !== undefined) next.startDate = patch.startDate || undefined;
+  if (patch.endDate !== undefined) next.endDate = patch.endDate || undefined;
+  if (patch.location !== undefined) next.location = patch.location.trim() || undefined;
+  await db.competitions.put(next);
 }
 
 export async function deleteCompetition(id: string): Promise<void> {

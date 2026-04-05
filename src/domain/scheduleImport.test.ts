@@ -4,11 +4,11 @@ import { parseScheduleCsv } from './scheduleImport';
 describe('parseScheduleCsv', () => {
   it('parses header and rows', () => {
     const { rows, errors } = parseScheduleCsv(
-      `ourTeamName,opponentName,kickoffDate\nHuns,Eagles,2026-06-01T14:00:00.000Z\n`,
+      `ourTeamName,opponentName,kickoffDate\nReds,Eagles,2026-06-01T14:00:00.000Z\n`,
     );
     expect(errors).toHaveLength(0);
     expect(rows).toHaveLength(1);
-    expect(rows[0].ourTeamName).toBe('Huns');
+    expect(rows[0].ourTeamName).toBe('Reds');
     expect(rows[0].opponentName).toBe('Eagles');
   });
 

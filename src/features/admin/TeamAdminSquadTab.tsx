@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 import { Link } from 'react-router-dom';
+import { SectionHelp, type GlossaryEntry } from '@/components/SectionHelp';
 import { formatSessionMassLossPercentDisplay } from '@/domain/weighInPolicy';
 import type { MatchRecord, MatchSessionRecord } from '@/domain/match';
 import { matchListSortKey } from '@/domain/match';
@@ -21,6 +22,13 @@ import type { TeamRecord } from '@/domain/team';
 import { formatLbStringFromKg, parseWeightLbToKg } from '@/domain/weightUnits';
 import { createTeamMember, deleteTeamMember, updateTeamMember } from '@/repos/teamMembersRepo';
 import { addWeighIn, deleteWeighIn } from '@/repos/weighInsRepo';
+
+const ROSTER_HELP: GlossaryEntry[] = [
+  { abbr: 'Jerseys', full: 'Jersey slots', desc: 'Jerseys 1–13 are seeded automatically when a team is created. Use Add player for extra slots.' },
+  { abbr: 'Weigh-ins', full: 'Game weights', desc: 'Tap a player row then open Game weights to record pre/post weigh-ins. Loss > 2% of body weight is flagged red.' },
+  { abbr: 'Details', full: 'Player details', desc: 'Open Player details to edit name, jersey number, or notes.' },
+  { abbr: 'Minutes', full: 'Match minutes', desc: 'Minutes are tracked by jersey number in each game\'s match roster. They update automatically.' },
+];
 
 /** Session + roster for squad admin: minutes played per jersey per match. */
 export type SquadMatchPlayContext = {
@@ -144,13 +152,10 @@ export function TeamAdminSquadTab({
           {error ? <p className="error-text">{error}</p> : null}
 
           <section className="card admin-section admin-squad-roster-card">
-            <h2 className="admin-card-title">Roster</h2>
-            <p className="muted admin-squad-hint">
-              Jerseys <strong>1–13</strong> are seeded. Tap a <strong>row</strong> for weigh-ins; open{' '}
-              <strong>Game weights</strong> for pre/post, and <strong>Player details</strong> to edit name, jersey, or notes.
-              Minutes match your jersey in each game&apos;s match roster. Use <strong>Add player</strong> below for extra
-              slots.
-            </p>
+            <div className="tgs-card-title-row">
+              <h2 className="admin-card-title">Roster</h2>
+              <SectionHelp title="Roster" entries={ROSTER_HELP} />
+            </div>
 
             {members.length === 0 ? (
               <p className="muted">
@@ -560,7 +565,7 @@ function GameWeightRow({
         />
       </td>
       <td
-        className={`tabular-nums admin-weigh-loss-pct${lossPctWarn ? ' admin-weigh-loss-pct--warn' : ''}`}
+        className={`tabular-nums admin-weigh-loss-pct${lossPctWarn ? ' admin-weigh-loss-pct--warn' : lossPctText.includes('%') ? ' admin-weigh-loss-pct--ok' : ''}`}
         title="Body mass change from pre to post as % of pre weight (positive = mass lost)"
       >
         {lossPctText}

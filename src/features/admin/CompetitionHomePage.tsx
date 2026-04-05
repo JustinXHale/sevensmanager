@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { ClubRecord } from '@/domain/club';
-import type { CompetitionRecord } from '@/domain/competition';
+import { formatCompetitionDateLabel, type CompetitionRecord } from '@/domain/competition';
 import { useAppChrome } from '@/context/AppChromeContext';
 import { ClubTeamFormModal } from '@/features/clubs/ClubTeamFormModal';
 import { getClub } from '@/repos/clubsRepo';
-import { createCompetition, deleteCompetition, listCompetitionsForClub } from '@/repos/competitionsRepo';
+import { createCompetition, deleteCompetition, listCompetitionsForClub, updateCompetition } from '@/repos/competitionsRepo';
 import { seedDemoCoastalPack } from '@/repos/demoSeed';
-import { CompetitionSwipeRow } from './CompetitionSwipeRow';
 
 export function CompetitionHomePage() {
   const { clubId } = useParams<{ clubId: string }>();
@@ -16,14 +15,22 @@ export function CompetitionHomePage() {
   const [clubRecord, setClubRecord] = useState<ClubRecord | null>(null);
   const [rows, setRows] = useState<CompetitionRecord[] | null>(null);
   const [teamEditOpen, setTeamEditOpen] = useState(false);
-  const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sampleMsg, setSampleMsg] = useState<string | null>(null);
   const [sampleBusy, setSampleBusy] = useState(false);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createName, setCreateName] = useState('');
+  const [createStartDate, setCreateStartDate] = useState('');
+  const [createEndDate, setCreateEndDate] = useState('');
+  const [createLocation, setCreateLocation] = useState('');
   const [createBusy, setCreateBusy] = useState(false);
+  const [editComp, setEditComp] = useState<CompetitionRecord | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
 
@@ -38,7 +45,7 @@ export function CompetitionHomePage() {
       if (!c) {
         setRows([]);
         setClubRecord(null);
-        setError('Team not found.');
+        setError('Club not found.');
         return;
       }
       setClubRecord(c);
@@ -85,8 +92,17 @@ export function CompetitionHomePage() {
     if (!n || !clubId) return;
     setCreateBusy(true);
     try {
-      const rec = await createCompetition(n, clubId);
+      const rec = await createCompetition({
+        name: n,
+        clubId,
+        startDate: createStartDate,
+        endDate: createEndDate,
+        location: createLocation,
+      });
       setCreateName('');
+      setCreateStartDate('');
+      setCreateEndDate('');
+      setCreateLocation('');
       setCreateModalOpen(false);
       navigate(`/competition/${rec.id}`);
     } catch (err) {
@@ -99,8 +115,35 @@ export function CompetitionHomePage() {
   async function onDelete(id: string, label: string) {
     if (!confirm(`Delete “${label}” and all teams under it? Linked matches keep their log but lose admin links.`)) return;
     await deleteCompetition(id);
-    setSwipeOpenId(null);
     await load();
+  }
+
+  function openEdit(c: CompetitionRecord) {
+    setEditComp(c);
+    setEditName(c.name);
+    setEditStartDate(c.startDate ?? '');
+    setEditEndDate(c.endDate ?? '');
+    setEditLocation(c.location ?? '');
+  }
+
+  async function onSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editComp || !editName.trim()) return;
+    setEditBusy(true);
+    try {
+      await updateCompetition(editComp.id, {
+        name: editName,
+        startDate: editStartDate,
+        endDate: editEndDate,
+        location: editLocation,
+      });
+      setEditComp(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update');
+    } finally {
+      setEditBusy(false);
+    }
   }
 
   async function onLoadSampleData() {
@@ -112,7 +155,6 @@ export function CompetitionHomePage() {
       const r = await seedDemoCoastalPack(clubId);
       if (r.ok) {
         await load();
-        navigate(`/competition/${r.competitionId}`);
       } else {
         setSampleMsg(r.message);
       }
@@ -131,8 +173,8 @@ export function CompetitionHomePage() {
   if (!clubId) {
     return (
       <section className="card">
-        <p>Missing team context.</p>
-        <Link to="/">Back to teams</Link>
+        <p>Missing club context.</p>
+        <Link to="/">Back to clubs</Link>
       </section>
     );
   }
@@ -145,11 +187,11 @@ export function CompetitionHomePage() {
     );
   }
 
-  if (error === 'Team not found.') {
+  if (error === 'Club not found.') {
     return (
       <section className="card">
         <p>{error}</p>
-        <Link to="/">Back to teams</Link>
+        <Link to="/">Back to clubs</Link>
       </section>
     );
   }
@@ -175,20 +217,36 @@ export function CompetitionHomePage() {
             <p className="muted">No competitions yet. Use <strong>New competition</strong> below to add one.</p>
           </div>
         ) : (
-          <>
-            <ul className="match-list comp-swipe-list">
-              {rows.map((c) => (
-                <CompetitionSwipeRow
-                  key={c.id}
-                  competition={c}
-                  swipeOpenId={swipeOpenId}
-                  setSwipeOpenId={setSwipeOpenId}
-                  onDelete={onDelete}
-                  formatDate={formatDate}
-                />
-              ))}
-            </ul>
-          </>
+          <ul className="match-list">
+            {rows.map((c) => (
+              <li key={c.id} className="match-row match-row--with-action">
+                <Link to={`/competition/${c.id}`} className="match-row-main">
+                  <span className="match-title">{c.name}</span>
+                  <span className="match-meta">
+                    {[formatCompetitionDateLabel(c), c.location].filter(Boolean).join(' · ') || `Updated ${formatDate(c.updatedAt)}`}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  className="match-row-action"
+                  title={`Edit ${c.name}`}
+                  aria-label={`Edit ${c.name}`}
+                  onClick={() => openEdit(c)}
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
+                  className="match-row-delete"
+                  title={`Delete ${c.name}`}
+                  aria-label={`Delete ${c.name}`}
+                  onClick={() => void onDelete(c.id, c.name)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
@@ -296,12 +354,112 @@ export function CompetitionHomePage() {
                   aria-label="Competition name"
                 />
               </label>
+              <div className="form-row-inline">
+                <label className="field field--half">
+                  <span>Start date</span>
+                  <input
+                    type="date"
+                    className="filter-select"
+                    value={createStartDate}
+                    onChange={(e) => setCreateStartDate(e.target.value)}
+                    aria-label="Start date"
+                  />
+                </label>
+                <label className="field field--half">
+                  <span>End date</span>
+                  <input
+                    type="date"
+                    className="filter-select"
+                    value={createEndDate}
+                    onChange={(e) => setCreateEndDate(e.target.value)}
+                    aria-label="End date"
+                  />
+                </label>
+              </div>
+              <label className="field">
+                <span>Location</span>
+                <input
+                  className="filter-select"
+                  value={createLocation}
+                  onChange={(e) => setCreateLocation(e.target.value)}
+                  placeholder="e.g. Austin, TX"
+                  aria-label="Competition location"
+                />
+              </label>
               <div className="form-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setCreateModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={!createName.trim() || createBusy}>
                   {createBusy ? 'Saving…' : 'Continue'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {editComp ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditComp(null)}>
+          <div
+            className="modal-card card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="comp-edit-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="comp-edit-title" className="admin-card-title">
+              Edit competition
+            </h2>
+            <form className="form" onSubmit={(e) => void onSaveEdit(e)}>
+              <label className="field">
+                <span>Name</span>
+                <input
+                  className="filter-select"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  autoFocus
+                  aria-label="Competition name"
+                />
+              </label>
+              <div className="form-row-inline">
+                <label className="field field--half">
+                  <span>Start date</span>
+                  <input
+                    type="date"
+                    className="filter-select"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    aria-label="Start date"
+                  />
+                </label>
+                <label className="field field--half">
+                  <span>End date</span>
+                  <input
+                    type="date"
+                    className="filter-select"
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    aria-label="End date"
+                  />
+                </label>
+              </div>
+              <label className="field">
+                <span>Location</span>
+                <input
+                  className="filter-select"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  placeholder="e.g. Austin, TX"
+                  aria-label="Competition location"
+                />
+              </label>
+              <div className="form-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setEditComp(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={!editName.trim() || editBusy}>
+                  {editBusy ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>

@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AppNavDrawer } from '@/components/AppNavDrawer';
+import { UpdatePrompt } from '@/components/UpdatePrompt';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAppChrome } from '@/context/AppChromeContext';
 import { CompetitionDetailPage } from '@/features/admin/CompetitionDetailPage';
@@ -68,7 +69,7 @@ function AppHeader() {
               {clubBar.teamName}
             </div>
           ) : teamHeader && (teamHeader.title || teamHeader.subtitle) ? (
-            <div className="app-header-team" aria-label="Current team">
+            <div className="app-header-team" aria-label="Current club">
               <span className="app-header-team-name">{teamHeader.title ?? ''}</span>
               {teamHeader.subtitle ? (
                 <span className="app-header-team-sub">{teamHeader.subtitle}</span>
@@ -83,7 +84,7 @@ function AppHeader() {
             type="button"
             className="app-header-icon-btn"
             onClick={() => clubBar.onEditTeam()}
-            aria-label="Edit team"
+            aria-label="Edit club"
           >
             <svg className="app-header-pencil-icon" viewBox="0 0 24 24" width={20} height={20} aria-hidden>
               <path
@@ -102,6 +103,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <AppHeader />
+      <UpdatePrompt />
       <main className="app-main">
         <ErrorBoundary>
           <Routes>

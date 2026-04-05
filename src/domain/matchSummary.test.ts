@@ -8,7 +8,7 @@ describe('buildMatchSummaryText', () => {
     const match: MatchRecord = {
       id: 'm1',
       title: 'Cup semi',
-      ourTeamName: 'Huns',
+      ourTeamName: 'Reds',
       opponentName: 'Eagles',
       competition: 'Regional',
       kickoffDate: '2026-04-01',
@@ -17,7 +17,7 @@ describe('buildMatchSummaryText', () => {
     };
     const text = buildMatchSummaryText(match, [], [], new Map());
     expect(text).toContain('Cup semi');
-    expect(text).toContain('Huns vs Eagles');
+    expect(text).toContain('Reds vs Eagles');
     expect(text).toContain('Competition: Regional');
     expect(text).toContain('(no events)');
   });

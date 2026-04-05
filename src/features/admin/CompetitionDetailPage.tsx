@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useAppChrome } from '@/context/AppChromeContext';
 import type { CompetitionRecord } from '@/domain/competition';
 import type { TeamRecord } from '@/domain/team';
-import { deleteCompetition, getCompetition } from '@/repos/competitionsRepo';
-import { createTeam, listTeamsForCompetition } from '@/repos/teamsRepo';
+import { getCompetition } from '@/repos/competitionsRepo';
+import { createTeam, deleteTeamCascade, listTeamsForCompetition, updateTeam } from '@/repos/teamsRepo';
 
 export function CompetitionDetailPage() {
   const { competitionId } = useParams<{ competitionId: string }>();
-  const navigate = useNavigate();
   const { setTeamHeader } = useAppChrome();
   const [comp, setComp] = useState<CompetitionRecord | null | undefined>(undefined);
   const [teams, setTeams] = useState<TeamRecord[] | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [addTeamModalOpen, setAddTeamModalOpen] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [editTeam, setEditTeam] = useState<TeamRecord | null>(null);
+  const [editName, setEditName] = useState('');
 
   const load = useCallback(async () => {
     if (!competitionId) return;
@@ -49,25 +49,30 @@ export function CompetitionDetailPage() {
     return () => setTeamHeader(null);
   }, [comp, teams, competitionId, setTeamHeader]);
 
-  async function onDeleteCompetition() {
-    if (!competitionId || !comp || deleteBusy) return;
-    if (
-      !confirm(
-        `Delete “${comp.name}” and all teams under it? Linked matches keep their log but lose admin links.`,
-      )
-    ) {
-      return;
-    }
-    setDeleteBusy(true);
+  async function onDeleteTeam(teamId: string, teamName: string) {
+    if (!confirm(`Delete "${teamName}", its roster, weigh-ins, and schedule? Linked matches keep their log but unlink.`)) return;
     setError(null);
     try {
-      await deleteCompetition(competitionId);
-      navigate(comp.clubId ? `/club/${comp.clubId}/competitions` : '/');
+      await deleteTeamCascade(teamId);
+      await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not delete competition');
-    } finally {
-      setDeleteBusy(false);
+      setError(e instanceof Error ? e.message : 'Could not delete team');
     }
+  }
+
+  function openEditTeam(t: TeamRecord) {
+    setEditTeam(t);
+    setEditName(t.name);
+  }
+
+  async function onSaveEditTeam(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTeam) return;
+    const n = editName.trim();
+    if (!n) return;
+    await updateTeam(editTeam.id, n);
+    setEditTeam(null);
+    await load();
   }
 
   async function onCreateTeam(e: React.FormEvent) {
@@ -114,26 +119,33 @@ export function CompetitionDetailPage() {
         ) : (
           <ul className="match-list">
             {teams.map((t) => (
-              <li key={t.id} className="match-row">
+              <li key={t.id} className="match-row match-row--with-action">
                 <Link to={`/team/${t.id}?tab=admin&section=roster`} className="match-row-main">
                   <span className="match-title">{t.name}</span>
-                  <span className="match-meta">Open for admin</span>
+                  <span className="match-meta">Updated {formatDate(t.updatedAt)}</span>
                 </Link>
+                <button
+                  type="button"
+                  className="match-row-action"
+                  title={`Rename ${t.name}`}
+                  aria-label={`Rename ${t.name}`}
+                  onClick={() => openEditTeam(t)}
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
+                  className="match-row-delete"
+                  title={`Delete ${t.name}`}
+                  aria-label={`Delete ${t.name}`}
+                  onClick={() => void onDeleteTeam(t.id, t.name)}
+                >
+                  ×
+                </button>
               </li>
             ))}
           </ul>
         )}
-
-        <p className="competition-delete-wrap">
-          <button
-            type="button"
-            className="competition-delete-link"
-            disabled={deleteBusy}
-            onClick={() => void onDeleteCompetition()}
-          >
-            {deleteBusy ? 'Deleting…' : 'Delete competition'}
-          </button>
-        </p>
       </div>
 
       <div className="competitions-sticky-footer" role="toolbar" aria-label="Add team">
@@ -183,6 +195,46 @@ export function CompetitionDetailPage() {
           </div>
         </div>
       ) : null}
+
+      {editTeam ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditTeam(null)}>
+          <div
+            className="modal-card card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="comp-edit-team-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="comp-edit-team-title" className="admin-card-title">
+              Rename team
+            </h2>
+            <form className="form" onSubmit={(e) => void onSaveEditTeam(e)}>
+              <label className="field">
+                <span>Team name</span>
+                <input
+                  className="filter-select"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  autoFocus
+                  aria-label="Team name"
+                />
+              </label>
+              <div className="form-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setEditTeam(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={!editName.trim()}>
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function formatDate(ts: number): string {
+  return new Date(ts).toLocaleString(undefined, { dateStyle: 'medium' });
 }

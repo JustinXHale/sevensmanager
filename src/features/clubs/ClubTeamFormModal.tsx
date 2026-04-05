@@ -180,20 +180,20 @@ export function ClubTeamFormModal(props: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id={`${formId}-title`} className="admin-card-title">
-          {variant === 'edit' ? 'Edit team' : 'New team'}
+          {variant === 'edit' ? 'Edit club' : 'New club'}
         </h2>
         <p className="muted form-subtitle">Name, nickname, and abbreviation are required.</p>
         {error ? <p className="error-text">{error}</p> : null}
         <form className="form" onSubmit={(e) => void onSubmit(e)}>
           <label className="field">
-            <span>Team name</span>
+            <span>Club name</span>
             <input
               className="filter-select"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Northside Rugby Football Club"
+              placeholder="e.g. Metro Rugby Football Club"
               autoFocus={variant === 'create'}
-              aria-label="Team name"
+              aria-label="Club name"
               required
             />
           </label>
@@ -203,7 +203,7 @@ export function ClubTeamFormModal(props: Props) {
               className="filter-select"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="e.g. Huns"
+              placeholder="e.g. Hellraisers"
               aria-label="Nickname"
               required
             />
@@ -214,7 +214,7 @@ export function ClubTeamFormModal(props: Props) {
               className="filter-select"
               value={abbreviation}
               onChange={(e) => setAbbreviation(e.target.value.toUpperCase())}
-              placeholder="e.g. NSR"
+              placeholder="e.g. MRC"
               maxLength={8}
               aria-label="Abbreviation"
               required
@@ -270,7 +270,7 @@ export function ClubTeamFormModal(props: Props) {
                   : undefined
               }
             >
-              {busy ? 'Saving…' : variant === 'edit' ? 'Save changes' : 'Save team'}
+              {busy ? 'Saving…' : variant === 'edit' ? 'Save changes' : 'Save club'}
             </button>
           </div>
         </form>

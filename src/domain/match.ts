@@ -5,7 +5,7 @@ export interface MatchRecord {
   /** Your team label on the fixture (optional; used with opponent for “Us vs Them”). */
   ourTeamName?: string;
   opponentName?: string;
-  /** Short abbreviation for the scoreboard timer (e.g. "NSR"). Auto-filled from club. */
+  /** Short abbreviation for the scoreboard timer (e.g. "HLR"). Auto-filled from club. */
   ourAbbreviation?: string;
   /** Short abbreviation for the opponent on the scoreboard (e.g. "EEM"). */
   opponentAbbreviation?: string;

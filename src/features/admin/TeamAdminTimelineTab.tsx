@@ -96,7 +96,10 @@ export function TeamAdminTimelineTab({ team, onScheduleChanged, error, setError 
                 <button
                   type="button"
                   className="btn btn-ghost btn-small"
-                  onClick={() => void deleteDayScheduleItem(it.id).then(loadDay).then(onScheduleChanged)}
+                  onClick={() => {
+                    if (!confirm('Remove this schedule item?')) return;
+                    void deleteDayScheduleItem(it.id).then(loadDay).then(onScheduleChanged);
+                  }}
                 >
                   Remove
                 </button>

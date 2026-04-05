@@ -14,8 +14,8 @@ function m(p: Partial<MatchRecord>): MatchRecord {
 
 describe('derivedFixtureLabel', () => {
   it('prefers us vs them when both set', () => {
-    expect(derivedFixtureLabel(m({ ourTeamName: 'Huns', opponentName: 'Eagles', title: 'Pool A' }))).toBe(
-      'Huns vs Eagles',
+    expect(derivedFixtureLabel(m({ ourTeamName: 'Reds', opponentName: 'Eagles', title: 'Pool A' }))).toBe(
+      'Reds vs Eagles',
     );
   });
 

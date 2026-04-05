@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 
 const LINKS: { to: string; label: string }[] = [
-  { to: '/', label: 'Teams' },
+  { to: '/', label: 'Clubs' },
   { to: '/matches/new', label: 'Add game' },
   { to: '/matches/import', label: 'Import schedule' },
 ];

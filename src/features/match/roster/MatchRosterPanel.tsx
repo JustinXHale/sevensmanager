@@ -108,6 +108,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
   }
 
   async function onRemovePlayer(playerId: string) {
+    if (!confirm('Remove this player from the match roster?')) return;
     setBanner(null);
     await removePlayer(playerId);
     await load();

@@ -132,6 +132,6 @@ export function parseCsvLine(line: string): string[] {
 }
 
 export const SCHEDULE_CSV_EXAMPLE = `title,ourTeamName,opponentName,kickoffDate,location,competition
-Pool A — Game 1,Huns 7s,Valley RFC,2026-07-12T10:00:00.000Z,Main pitch,Summer 7s
-,Huns 7s,City Sevens,2026-07-12T11:00:00.000Z,Field 2,Summer 7s
+Pool A — Game 1,Hellraisers,Valley RFC,2026-07-12T10:00:00.000Z,Main pitch,Summer 7s
+,Hellraisers,City Sevens,2026-07-12T11:00:00.000Z,Field 2,Summer 7s
 `;

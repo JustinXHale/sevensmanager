@@ -506,6 +506,11 @@
   min-width: 0;
 }
 
+.match-row--with-action {
+  flex-direction: row;
+  align-items: center;
+}
+
 .match-row-main {
   flex: 1;
   padding: var(--app-list-item-padding);
@@ -521,16 +526,37 @@
   background: #1a222d;
 }
 
+.match-row-action,
 .match-row-delete {
   flex-shrink: 0;
-  margin: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: none;
-  border-top: 1px solid #2d3848;
-  border-radius: 0;
-  background: #121820;
-  min-height: 48px;
-  width: 100%;
-  justify-content: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  opacity: 0.5;
+}
+
+.match-row-delete {
+  margin-right: 0.5rem;
+}
+
+.match-row-action:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.match-row-delete:hover {
+  opacity: 1;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .match-row-delete:hover:not(:disabled) {
@@ -549,72 +575,6 @@
     border-top: none;
     border-left: 1px solid #2d3848;
   }
-}
-
-/* Competitions list: swipe left to reveal delete */
-.comp-swipe-hint {
-  font-size: 0.8125rem;
-  margin: 0 0 var(--pf-t--global--spacer--sm) !important;
-}
-
-.comp-swipe-list {
-  gap: 0.5rem;
-}
-
-.comp-swipe-row {
-  overflow: hidden;
-  border-radius: 10px;
-  border: 1px solid #2d3848;
-  background: var(--surface);
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.comp-swipe-inner {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  width: calc(100% + 88px);
-  will-change: transform;
-}
-
-.comp-swipe-inner--snap {
-  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-.comp-swipe-front {
-  flex: 0 0 100%;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-.comp-swipe-delete {
-  flex: 0 0 88px;
-  width: 88px;
-  min-height: 3.25rem;
-  align-self: stretch;
-  margin: 0;
-  padding: 0 0.35rem;
-  border: none;
-  border-radius: 0;
-  background: #5c2020;
-  color: #ffb4b4;
-  font-weight: 600;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.comp-swipe-delete:hover {
-  background: #702828;
-}
-
-.comp-swipe-delete:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 
 .match-title {
@@ -719,6 +679,16 @@
   color: var(--text);
   font-size: 16px;
   font-family: inherit;
+}
+
+.form-row-inline {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.field--half {
+  flex: 1;
+  min-width: 0;
 }
 
 .form-actions {
@@ -1143,8 +1113,8 @@
 }
 
 .btn-small {
-  min-height: 40px;
-  padding: 0.4rem 0.65rem;
+  min-height: 44px;
+  padding: 0.5rem 0.65rem;
   font-size: 0.875rem;
 }
 
@@ -1512,8 +1482,8 @@
 
 .live-tab-strip-3 .live-tab,
 .live-tab-strip-4 .live-tab {
-  min-height: 40px;
-  padding: 0.35rem 0.4rem;
+  min-height: 44px;
+  padding: 0.45rem 0.4rem;
   font-size: 0.75rem;
 }
 
@@ -4353,7 +4323,8 @@ button.live-stats-cell--btn.live-stats-cell--open {
   margin: 0 0 0.45rem;
 }
 
-.tgs-card-title-row .tgs-card-title {
+.tgs-card-title-row .tgs-card-title,
+.tgs-card-title-row .admin-card-title {
   margin: 0;
 }
 
@@ -5245,14 +5216,23 @@ button.competitions-sticky-dropdown-item:hover {
   background: rgba(0, 0, 0, 0.55);
   z-index: 100;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 1rem;
+  padding: 0;
 }
 
 .modal-card {
-  max-width: 22rem;
+  max-width: 28rem;
   width: 100%;
+  border-radius: 16px 16px 0 0;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modal-slide-up 0.25s ease-out;
+}
+
+@keyframes modal-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* Squad accordion (admin) */
@@ -5385,6 +5365,10 @@ button.competitions-sticky-dropdown-item:hover {
 .admin-weigh-loss-pct {
   font-size: 0.8125rem;
   color: var(--muted);
+}
+
+.admin-weigh-loss-pct--ok {
+  color: #3dd68c;
 }
 
 .admin-weigh-loss-pct--warn {
@@ -5588,6 +5572,34 @@ button.competitions-sticky-dropdown-item:hover {
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--muted);
+}
+
+.club-landing-hero-wrap {
+  position: relative;
+}
+
+.club-card-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+  z-index: 1;
+}
+
+.club-card-delete:hover {
+  opacity: 1;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .club-landing-grid-outer {
@@ -6327,4 +6339,58 @@ button.competitions-sticky-dropdown-item:hover {
   gap: 1rem;
   font-size: 0.7rem;
   margin-top: 0.15rem;
+}
+
+/* ---- PWA update toast ---- */
+
+.update-toast {
+  position: fixed;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10200;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  animation: update-toast-in 0.3s ease-out;
+  max-width: calc(100vw - 2rem);
+}
+
+.update-toast-text {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.update-toast-btn {
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 32px;
+}
+
+.update-toast-btn:active {
+  opacity: 0.8;
+}
+
+@keyframes update-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }

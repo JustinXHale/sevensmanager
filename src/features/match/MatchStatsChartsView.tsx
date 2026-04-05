@@ -331,7 +331,7 @@ export function MatchStatsChartsView({
             </div>
           </div>
         ) : (
-          <p className="muted live-stats-chart-empty">—</p>
+          <p className="muted live-stats-chart-empty">No tackle outcomes recorded yet.</p>
         )}
       </ChartBlock>
 

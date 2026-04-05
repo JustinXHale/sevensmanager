@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ClubRecord } from '@/domain/club';
-import { listClubs } from '@/repos/clubsRepo';
+import { deleteClubCascade, listClubs } from '@/repos/clubsRepo';
 import { ClubTeamFormModal } from './ClubTeamFormModal';
 
 export function ClubLandingPage() {
@@ -32,6 +32,16 @@ export function ClubLandingPage() {
     );
   }
 
+  async function onDeleteClub(c: ClubRecord) {
+    if (!confirm(`Delete "${c.name}" and all its competitions, teams, and data?`)) return;
+    try {
+      await deleteClubCascade(c.id);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete club');
+    }
+  }
+
   const empty = clubs.length === 0;
   const single = clubs.length === 1;
 
@@ -45,33 +55,42 @@ export function ClubLandingPage() {
             <button
               type="button"
               className="club-landing-fab"
-              aria-label="Add your first team"
+              aria-label="Add your first club"
               onClick={() => setModalOpen(true)}
             >
               <span className="club-landing-fab-ring" aria-hidden>
                 <span className="club-landing-fab-plus">+</span>
               </span>
             </button>
-            <p className="muted club-landing-hint">Add a team to get started</p>
+            <p className="muted club-landing-hint">Add a club to get started</p>
           </div>
         ) : single ? (
           <div className="club-landing-single">
             {clubs.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="club-landing-hero"
-                onClick={() => navigate(`/club/${c.id}/competitions`)}
-              >
-                <span className="club-landing-hero-avatar">
-                  {c.logoDataUrl ? (
-                    <img src={c.logoDataUrl} alt="" className="club-landing-hero-logo" />
-                  ) : (
-                    <span className="club-landing-hero-fallback">{c.nickname}</span>
-                  )}
-                </span>
-                <span className="club-landing-hero-caption">{c.name}</span>
-              </button>
+              <div key={c.id} className="club-landing-hero-wrap">
+                <button
+                  type="button"
+                  className="club-landing-hero"
+                  onClick={() => navigate(`/club/${c.id}/competitions`)}
+                >
+                  <span className="club-landing-hero-avatar">
+                    {c.logoDataUrl ? (
+                      <img src={c.logoDataUrl} alt="" className="club-landing-hero-logo" />
+                    ) : (
+                      <span className="club-landing-hero-fallback">{c.nickname}</span>
+                    )}
+                  </span>
+                  <span className="club-landing-hero-caption">{c.name}</span>
+                </button>
+                <button
+                  type="button"
+                  className="club-card-delete"
+                  aria-label={`Delete ${c.name}`}
+                  onClick={() => void onDeleteClub(c)}
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         ) : (
@@ -103,6 +122,14 @@ export function ClubLandingPage() {
                     </div>
                     <span className="visually-hidden">{c.name}</span>
                   </button>
+                  <button
+                    type="button"
+                    className="club-card-delete"
+                    aria-label={`Delete ${c.name}`}
+                    onClick={() => void onDeleteClub(c)}
+                  >
+                    ×
+                  </button>
                 </li>
               ))}
             </ul>
@@ -111,9 +138,9 @@ export function ClubLandingPage() {
       </div>
 
       {!empty ? (
-        <div className="competitions-sticky-footer" role="toolbar" aria-label="Add team">
+        <div className="competitions-sticky-footer" role="toolbar" aria-label="Add club">
           <button type="button" className="btn btn-primary competitions-sticky-main" onClick={() => setModalOpen(true)}>
-            Add another team
+            Add another club
           </button>
         </div>
       ) : null}
