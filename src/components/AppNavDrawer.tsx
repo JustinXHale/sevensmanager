@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
+import { APP_LOGO_URL } from '@/config/appMeta';
 
 const LINKS: { to: string; label: string }[] = [
   { to: '/', label: 'Clubs' },
@@ -38,7 +39,9 @@ export function AppNavDrawer() {
         />
         <nav id={panelId} className="app-nav-drawer app-nav-drawer-open" aria-hidden={false}>
           <div className="app-nav-drawer-head">
-            <p className="app-nav-drawer-title">Navigate</p>
+            <div className="app-nav-drawer-brand">
+              <img src={APP_LOGO_URL} alt="" className="app-nav-drawer-logo" width={144} height={144} />
+            </div>
             <button
               type="button"
               className="app-nav-drawer-close"

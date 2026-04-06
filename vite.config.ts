@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
     ghPages404(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['7smanager.svg'],
       manifest: {
         name: appName,
         short_name: appName,
@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
         start_url: './',
         icons: [
           {
-            src: 'favicon.svg',
+            src: '7smanager.svg',
             sizes: '512x512',
             type: 'image/svg+xml',
             purpose: 'any maskable',

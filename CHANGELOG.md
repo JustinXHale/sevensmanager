@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- App branding — `public/7smanager.svg` used as favicon, PWA icon, and logo in the main header (bundled `?url` for reliable paths), drill/minimal headers, and the navigation drawer
 - PWA install prompt — Chromium/Android shows Install / Not now using `beforeinstallprompt`; iOS Safari shows a short Add to Home Screen tip; each dismiss snoozes 30 days; banner sits above the update toast when both appear
 - Stats glossary help icons — info (ⓘ) button next to every section title in both per-match and global stats; opens a bottom sheet with full names and descriptions for all abbreviations (M, X, LB, Tr, Pen, YC, Z1–Z6, etc.)
 - PWA update prompt — toast notification appears when a new version is deployed; users tap "Reload" to update on their own schedule
@@ -29,6 +30,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT License
 
 ### Changed
+- Navigation drawer: drawer head uses a top-aligned grid so the logo and close control share the same top edge
+- Navigation drawer: larger logo (~9rem, ~3× the prior size) and no “Navigate” label
+- Shell header and nav drawer show the logo only (no “SevensManager” wordmark); home link keeps an accessible name via `aria-label`
+- Removed unused `public/favicon.svg` — favicon and PWA use `7smanager.svg` only
+- Main header logo scaled up (~5rem) so it reads about twice the wordmark height; drill/minimal headers use a slightly larger compact mark
 - Section titles now always visible on stats cards (previously hidden when viewing a single section via the dropdown)
 - SW registration moved from vanilla `registerSW` in main.tsx to React `useRegisterSW` hook (enables the update prompt)
 - Landing page renamed from "Teams" to "Clubs" to clarify hierarchy (clubs → competitions → teams)

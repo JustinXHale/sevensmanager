@@ -12,7 +12,7 @@ import { MatchLivePage } from '@/features/match/MatchLivePage';
 import { MatchRosterRedirect } from '@/features/match/MatchRosterRedirect';
 import { NewMatchPage } from '@/features/match/NewMatchPage';
 import { ScheduleImportPage } from '@/features/match/ScheduleImportPage';
-import { APP_DISPLAY_NAME } from '@/config/appMeta';
+import { APP_DISPLAY_NAME, APP_LOGO_URL } from '@/config/appMeta';
 import './App.css';
 
 function AppHeader() {
@@ -27,6 +27,9 @@ function AppHeader() {
           aria-label={teamHeader.backAriaLabel ?? 'Go back'}
         >
           ← Back
+        </Link>
+        <Link to="/" className="app-header-brand-mark" aria-label={`${APP_DISPLAY_NAME} home`}>
+          <img src={APP_LOGO_URL} alt="" className="app-header-logo app-header-logo--compact" width={32} height={32} />
         </Link>
         <AppNavDrawer />
       </header>
@@ -43,6 +46,9 @@ function AppHeader() {
             aria-label={teamHeader.backAriaLabel ?? 'Go back'}
           >
             ←
+          </Link>
+          <Link to="/" className="app-header-brand-mark" aria-label={`${APP_DISPLAY_NAME} home`}>
+            <img src={APP_LOGO_URL} alt="" className="app-header-logo app-header-logo--compact" width={32} height={32} />
           </Link>
           <span className="app-header-drill-title" title={teamHeader.title ?? ''}>
             {teamHeader.title ?? ''}
@@ -62,8 +68,20 @@ function AppHeader() {
       </div>
       <div className="app-header-title-wrap">
         <div className="app-header-title-block">
-          <Link to="/" className="app-title">
-            {APP_DISPLAY_NAME}
+          <Link
+            to="/"
+            className="app-title app-title--branded"
+            aria-label={`${APP_DISPLAY_NAME} home`}
+          >
+            <img
+              src={APP_LOGO_URL}
+              alt=""
+              className="app-header-logo"
+              width={80}
+              height={80}
+              decoding="async"
+              fetchPriority="high"
+            />
           </Link>
           {clubBar ? (
             <div className="app-header-club-name" title={clubBar.teamName}>
