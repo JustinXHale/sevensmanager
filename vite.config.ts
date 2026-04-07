@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
     ghPages404(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['7smanager.svg'],
+      includeAssets: ['7smanager.svg', '7smanager.png'],
       manifest: {
         name: appName,
         short_name: appName,
@@ -45,9 +45,15 @@ export default defineConfig(({ mode }) => {
         icons: [
           {
             src: '7smanager.svg',
-            sizes: '512x512',
+            sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'any maskable',
+            purpose: 'any',
+          },
+          {
+            src: '7smanager.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
