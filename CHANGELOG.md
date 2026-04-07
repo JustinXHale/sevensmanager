@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Nav drawer overhaul**: removed Add match / Import schedule; new layout with icons, divider, and two groups (navigation + utility); items: Clubs, Recent match (conditional shortcut to last-visited match), Glossary, Settings, Profile (disabled / coming soon), Other projects, About
+- **Glossary page** (`/glossary`): aggregates all abbreviation data (tracking, match stats, global stats) into a single scrollable grouped reference
+- **Settings page** (`/settings`): stub with coming-soon placeholder for future preferences
+- **Other projects** bottom sheet: links to RefLog and Referee IQ (coming soon); also added as a section inside the About sheet
+- **Recent match** nav shortcut: stores last-visited match ID and opponent label in `localStorage`; shows a contextual link in the nav drawer
 - Live match **Restart** chip (next to Scrum / Lineout / Ruck): zone → kick depth (10m / 22m / dead) → outcome (Won / Lost / Free kick); logs `restart` events with `restartKickDepth` for kick vs receive from Attack/Defense mode
 - Set-piece outcomes: **Free kick** (FK) on scrum, lineout, and ruck flowers between Lost and Penalized; analytics and bars include a free-kick segment
 - **One Tap tracking mode** uses dedicated `SimplePlayerActions` component with true single-tap counters (P / O / LB / Tr / Neg in attack, M / X in defense) and simple W / L buttons for set pieces — no zone flower pickers; pass differentiates standard (P) vs offload (O) via `passVariant`
@@ -42,10 +47,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT License
 
 ### Changed
+- **Settings** nav item disabled with "Coming soon" badge (matches Profile); route kept as a safety net for bookmarks
+- Recent match nav shortcut cleared automatically when a match is deleted (`clearRecentMatchIfStale`)
 - Stats tab: three-way **Full / One Tap / Tally** toggle (rounded, matching the Tracking tab style) with section dropdown below the title row; unified title "Match stats" across all modes; help icon sits inline with the title
 - Match **One Tap** stats: overview, grouped Attack / Defense / Set pieces event-count cards, Scoring by player, and Involvement (per-player breakdown without tackle quality); tracking mode persists per match in `sessionStorage`
 - Match **Tally** stats: grouped Attack / Defense / Set pieces event-count cards only — no player detail, no zones, no scoring-by-player
-- About sheet copy — first-person story: coaching return, live analytics when video isn’t available, open source, refereeing background in brief, family, and design work at Red Hat
+- About sheet: updated name to Justin X. Hale; added Other projects section (RefLog link + Referee IQ coming soon) before the copyright
 - Card padding/radius consolidated via `--_card-pad` / `--_card-radius` on `.card`, with `.tgs-card` overriding padding only; inline rem margins on stats panels replaced with spacing utilities (M9/M10 UX audit)
 - Semantic CSS color tokens in `index.css` (`--border`, `--danger`, `--overlay-bg`, etc.); `App.css` uses `var(--bg)`, `var(--text)`, `var(--border)`, and related tokens instead of repeated hex literals (M7 UX audit)
 - UX/accessibility audit: `role="alert"` on inline error text; destructive actions use `btn-danger`; clock/event edit dialogs disable primary actions and show progress while saving; install toasts use `aria-live="polite"`; Team live panel dropdown uses `role="list"`; main header team block `aria-label` reflects current title; roster name buttons get `:focus-visible` outline; “game/segment” copy standardized to “match/period” across nav, stats, squad, and clock UI; Other penalty requires description with inline error; global stats matches list glossary key renamed for consistency

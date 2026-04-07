@@ -80,6 +80,7 @@ import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
 import { SectionHelp, TRACKING_GLOSSARY } from '@/components/SectionHelp';
+import { writeRecentMatch } from '@/components/AppNavDrawer';
 import type { ZoneId } from '@/domain/zone';
 
 /** When no zone flower pick: default width zone for set-pieces, tackles without pick, etc. */
@@ -228,6 +229,13 @@ export function MatchLivePage() {
       setLastMatchIdForTeam(match.teamId, matchId);
     }
   }, [match?.teamId, matchId]);
+
+  useEffect(() => {
+    if (matchId && match) {
+      const label = match.opponentName ? `vs ${match.opponentName}` : 'Match';
+      writeRecentMatch(matchId, label);
+    }
+  }, [matchId, match]);
 
   useEffect(() => {
     if (!actionToast) return;

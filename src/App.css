@@ -361,7 +361,9 @@
 }
 
 .app-nav-drawer-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
   color: var(--text);
@@ -370,21 +372,17 @@
   text-decoration: none;
 }
 
+.app-nav-drawer-link svg {
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
 .app-nav-drawer-link:hover {
   background: #1a222c;
   color: var(--accent);
 }
 
-.app-nav-drawer-footer {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-
-.app-nav-about-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.app-nav-drawer-btn {
   width: 100%;
   background: none;
   border: none;
@@ -392,9 +390,38 @@
   text-align: left;
 }
 
-.app-nav-about-icon {
-  flex-shrink: 0;
+.app-nav-drawer-link--disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+.app-nav-coming-soon {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   opacity: 0.6;
+  color: var(--accent, #5e9ed6);
+}
+
+.app-nav-link-stack {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.app-nav-link-sub {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.app-nav-drawer-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.5rem 0;
 }
 
 /* About sheet */
@@ -472,6 +499,198 @@
   font-size: 0.75rem;
   color: var(--muted);
   margin: 0;
+}
+
+.about-other-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.about-other-project {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.about-other-project a {
+  color: var(--accent, #5e9ed6);
+}
+
+/* Other projects sheet */
+.other-projects-body {
+  padding: 0.75rem 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.other-project-card {
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.other-project-card--soon {
+  opacity: 0.6;
+}
+
+.other-project-name {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.other-project-desc {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted, #999);
+}
+
+.other-project-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.other-project-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent, #5e9ed6);
+  opacity: 0.8;
+}
+
+/* Glossary page */
+.glossary-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 2rem;
+}
+
+.glossary-search-wrap {
+  position: relative;
+}
+
+.glossary-search {
+  width: 100%;
+  padding: 0.6rem 2.2rem 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.glossary-search::placeholder {
+  color: var(--muted, #888);
+}
+
+.glossary-search:focus {
+  border-color: var(--accent, #5e9ed6);
+}
+
+.glossary-search-clear {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  line-height: 1;
+}
+
+.glossary-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.glossary-section {
+  padding: 1rem 1.25rem;
+}
+
+.glossary-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.glossary-group-heading {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent, #5e9ed6);
+}
+
+.glossary-list {
+  margin: 0;
+  padding: 0;
+}
+
+.glossary-entry {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glossary-entry:last-child {
+  border-bottom: none;
+}
+
+.glossary-term {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent, #5e9ed6);
+}
+
+.glossary-def {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Settings page stub */
+.settings-page {
+  padding-bottom: 2rem;
+}
+
+.settings-stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  gap: 0.5rem;
+}
+
+.settings-stub-icon {
+  width: 3rem;
+  height: 3rem;
+  opacity: 0.2;
+  margin-bottom: 0.5rem;
+}
+
+.settings-stub-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .app-header-link {

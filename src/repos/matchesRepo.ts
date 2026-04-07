@@ -3,6 +3,7 @@ import { defaultSessionForMatch, matchListSortKey, normalizeSession } from '@/do
 import type { ScheduleImportRow } from '@/domain/scheduleImport';
 import { getOrCreateDefaultCompetitionId } from './competitionsRepo';
 import { getClub } from './clubsRepo';
+import { clearRecentMatchIfStale } from '@/components/AppNavDrawer';
 import { db } from './db';
 import { seedSevensRosterForNewMatch, syncMatchPlayerNamesFromTeam } from './rosterRepo';
 import { getTeam } from './teamsRepo';
@@ -179,6 +180,7 @@ export async function deleteMatch(id: string): Promise<void> {
     await db.matchSessions.delete(id);
     await db.matches.delete(id);
   });
+  clearRecentMatchIfStale(id);
 }
 
 export async function getSession(matchId: string): Promise<MatchSessionRecord | undefined> {
