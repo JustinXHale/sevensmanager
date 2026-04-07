@@ -42,6 +42,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   const [periodStr, setPeriodStr] = useState('0:00');
   const [periodSegment, setPeriodSegment] = useState(1);
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -93,7 +94,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
     if (!session) return;
     const lenMs = parseMmSsToMs(countdownLenStr);
     if (lenMs === null || lenMs <= 0) {
-      setFormError('Period segment length must be positive (e.g. 7:00).');
+      setFormError('Period length must be positive (e.g. 7:00).');
       return;
     }
     const matchLenParsed = parseMmSsToMs(matchLenStr);
@@ -136,11 +137,14 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
       matchDisplayedMs: matchMs,
       periodDisplayedMs: periodMs,
     };
+    setSaving(true);
     try {
       await onApply(payload);
       onClose();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Could not apply settings.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -164,7 +168,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
         </p>
 
         <div className="field ref-clock-settings-field">
-          <span>Period segment (1–{SESSION_PERIOD_MAX})</span>
+          <span>Period (1–{SESSION_PERIOD_MAX})</span>
           <input
             type="number"
             className="filter-select"
@@ -249,7 +253,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
         </fieldset>
 
         <div className="field ref-clock-settings-field">
-          <span>Period segment length (for period countdown)</span>
+          <span>Period length (for period countdown)</span>
           <input
             type="text"
             className="filter-select"
@@ -274,12 +278,12 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
           />
           {session && bankedMs > 0 ? (
             <p className="muted ref-clock-settings-hint">
-              <strong>{formatClock(bankedMs)}</strong> is already counted from before this segment (Next / Halftime).
+              <strong>{formatClock(bankedMs)}</strong> is already counted from before this period (Next / Halftime).
               Match total can’t go below that when counting up.
             </p>
           ) : (
             <p className="muted ref-clock-settings-hint">
-              When counting up, minimum match total is any time stored from earlier segments (Next / Halftime).
+              When counting up, minimum match total is any time stored from earlier periods (Next / Halftime).
             </p>
           )}
         </div>
@@ -297,7 +301,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
           />
         </div>
 
-        {formError ? <p className="error-text ref-clock-settings-error">{formError}</p> : null}
+        {formError ? <p className="error-text ref-clock-settings-error" role="alert">{formError}</p> : null}
 
         <div className="roster-dialog-actions ref-clock-settings-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -306,8 +310,8 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
           <button type="button" className="btn btn-secondary" onClick={() => void handleReset()}>
             Reset match clock
           </button>
-          <button type="submit" className="btn btn-primary">
-            Apply
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Applying…' : 'Apply'}
           </button>
         </div>
       </form>

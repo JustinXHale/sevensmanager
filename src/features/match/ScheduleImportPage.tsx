@@ -44,8 +44,8 @@ export function ScheduleImportPage() {
         <h1 className="page-title">Import schedule</h1>
         <p className="muted import-lead">
           Paste <strong>CSV</strong> from a spreadsheet (first row = column names). Include optional columns like{' '}
-          <code className="inline-code">location</code> or <code className="inline-code">venue</code>. To add games one
-          at a time instead, use <Link to="/matches/new">Add game</Link>.
+          <code className="inline-code">location</code> or <code className="inline-code">venue</code>. To add matches one
+          at a time instead, use <Link to="/matches/new">Add match</Link>.
         </p>
         <p className="muted import-lead">
           Each row becomes a match on your list—tap one to run the clock. Export comma-separated from Excel or Google

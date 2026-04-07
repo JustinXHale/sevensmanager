@@ -7,6 +7,7 @@ import { ClubTeamFormModal } from '@/features/clubs/ClubTeamFormModal';
 import { getClub } from '@/repos/clubsRepo';
 import { createCompetition, deleteCompetition, listCompetitionsForClub, updateCompetition } from '@/repos/competitionsRepo';
 import { seedDemoCoastalPack } from '@/repos/demoSeed';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 
 export function CompetitionHomePage() {
   const { clubId } = useParams<{ clubId: string }>();
@@ -33,6 +34,13 @@ export function CompetitionHomePage() {
   const [editBusy, setEditBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
+  const createDlgRef = useRef<HTMLDialogElement>(null);
+  const editDlgRef = useRef<HTMLDialogElement>(null);
+  const [quickBusy, setQuickBusy] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useBeforeUnload(createModalOpen && createName.trim() !== '');
+  useBeforeUnload(editComp !== null && editName.trim() !== '');
 
   const load = useCallback(async () => {
     if (!clubId) {
@@ -86,6 +94,26 @@ export function CompetitionHomePage() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
 
+  useEffect(() => {
+    const el = createDlgRef.current;
+    if (!el) return;
+    if (createModalOpen && !el.open) el.showModal();
+    else if (!createModalOpen && el.open) el.close();
+  }, [createModalOpen]);
+
+  useEffect(() => {
+    const el = editDlgRef.current;
+    if (!el) return;
+    if (editComp && !el.open) el.showModal();
+    else if (!editComp && el.open) el.close();
+  }, [editComp]);
+
+  useEffect(() => {
+    if (!successMsg) return;
+    const t = window.setTimeout(() => setSuccessMsg(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [successMsg]);
+
   async function onCreateFromModal(e: React.FormEvent) {
     e.preventDefault();
     const n = createName.trim();
@@ -104,6 +132,7 @@ export function CompetitionHomePage() {
       setCreateEndDate('');
       setCreateLocation('');
       setCreateModalOpen(false);
+      setSuccessMsg('Competition created.');
       navigate(`/competition/${rec.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create');
@@ -116,6 +145,7 @@ export function CompetitionHomePage() {
     if (!confirm(`Delete “${label}” and all teams under it? Linked matches keep their log but lose admin links.`)) return;
     await deleteCompetition(id);
     await load();
+    setSuccessMsg('Competition deleted.');
   }
 
   function openEdit(c: CompetitionRecord) {
@@ -139,6 +169,7 @@ export function CompetitionHomePage() {
       });
       setEditComp(null);
       await load();
+      setSuccessMsg('Competition updated.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update');
     } finally {
@@ -166,8 +197,13 @@ export function CompetitionHomePage() {
   }
 
   function openQuickCreate() {
-    setMenuOpen(false);
-    setCreateModalOpen(true);
+    setQuickBusy(true);
+    try {
+      setMenuOpen(false);
+      setCreateModalOpen(true);
+    } finally {
+      setQuickBusy(false);
+    }
   }
 
   if (!clubId) {
@@ -205,7 +241,12 @@ export function CompetitionHomePage() {
           </div>
         </div>
 
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
+        {successMsg ? (
+          <p className="success-toast" role="status">
+            {successMsg}
+          </p>
+        ) : null}
         {sampleMsg ? (
           <p className={sampleMsg.includes('already') ? 'muted' : 'error-text'} role="status">
             {sampleMsg}
@@ -237,7 +278,7 @@ export function CompetitionHomePage() {
                 </button>
                 <button
                   type="button"
-                  className="match-row-delete"
+                  className="match-row-delete btn-danger"
                   title={`Delete ${c.name}`}
                   aria-label={`Delete ${c.name}`}
                   onClick={() => void onDelete(c.id, c.name)}
@@ -267,40 +308,37 @@ export function CompetitionHomePage() {
             className="btn btn-secondary competitions-sticky-caret"
             aria-label="More options"
             aria-expanded={menuOpen}
-            aria-haspopup="menu"
             onClick={() => setMenuOpen((o) => !o)}
           >
             ▾
           </button>
           {menuOpen ? (
-            <ul className="competitions-sticky-dropdown" role="menu">
-              <li role="none">
+            <ul className="competitions-sticky-dropdown" role="list">
+              <li>
                 <button
                   type="button"
                   className="competitions-sticky-dropdown-item competitions-sticky-dropdown-item--detail"
-                  role="menuitem"
+                  disabled={quickBusy}
                   onClick={() => openQuickCreate()}
                 >
                   <span className="competitions-sticky-dropdown-label">Quick create</span>
                   <span className="competitions-sticky-dropdown-desc">Name a competition and open it to add teams.</span>
                 </button>
               </li>
-              <li role="none">
+              <li>
                 <Link
                   to="/matches/import"
                   className="competitions-sticky-dropdown-item competitions-sticky-dropdown-item--detail"
-                  role="menuitem"
                   onClick={() => setMenuOpen(false)}
                 >
                   <span className="competitions-sticky-dropdown-label">Upload schedule</span>
-                  <span className="competitions-sticky-dropdown-desc">Import many games from pasted CSV.</span>
+                  <span className="competitions-sticky-dropdown-desc">Import many matches from pasted CSV.</span>
                 </Link>
               </li>
-              <li role="none">
+              <li>
                 <button
                   type="button"
                   className="competitions-sticky-dropdown-item competitions-sticky-dropdown-item--detail"
-                  role="menuitem"
                   disabled={sampleBusy}
                   onClick={() => void onLoadSampleData()}
                 >
@@ -329,31 +367,33 @@ export function CompetitionHomePage() {
         />
       ) : null}
 
-      {createModalOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setCreateModalOpen(false)}>
-          <div
-            className="modal-card card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="comp-create-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="comp-create-title" className="admin-card-title">
-              New competition
-            </h2>
-            <p className="muted form-subtitle">Enter a name — you’ll add teams on the next screen.</p>
-            <form className="form" onSubmit={(e) => void onCreateFromModal(e)}>
-              <label className="field">
-                <span>Name</span>
-                <input
-                  className="filter-select"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="e.g. Summer 7s"
-                  autoFocus
-                  aria-label="Competition name"
-                />
-              </label>
+      <dialog
+        ref={createDlgRef}
+        className="modal-dialog"
+        aria-labelledby="comp-create-title"
+        onCancel={() => setCreateModalOpen(false)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setCreateModalOpen(false);
+        }}
+      >
+        <div className="modal-card card">
+          <h2 id="comp-create-title" className="admin-card-title">
+            New competition
+          </h2>
+          <p className="muted form-subtitle">Enter a name — you’ll add teams on the next screen.</p>
+          <form className="form" onSubmit={(e) => void onCreateFromModal(e)}>
+            <label className="field">
+              <span>Name</span>
+              <input
+                className="filter-select"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="e.g. Summer 7s"
+                autoFocus
+                aria-label="Competition name"
+                required
+              />
+            </label>
               <div className="form-row-inline">
                 <label className="field field--half">
                   <span>Start date</span>
@@ -386,32 +426,32 @@ export function CompetitionHomePage() {
                   aria-label="Competition location"
                 />
               </label>
-              <div className="form-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setCreateModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={!createName.trim() || createBusy}>
-                  {createBusy ? 'Saving…' : 'Continue'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="form-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setCreateModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={!createName.trim() || createBusy}>
+                {createBusy ? 'Saving…' : 'Continue'}
+              </button>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </dialog>
 
-      {editComp ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setEditComp(null)}>
-          <div
-            className="modal-card card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="comp-edit-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="comp-edit-title" className="admin-card-title">
-              Edit competition
-            </h2>
-            <form className="form" onSubmit={(e) => void onSaveEdit(e)}>
+      <dialog
+        ref={editDlgRef}
+        className="modal-dialog"
+        aria-labelledby="comp-edit-title"
+        onCancel={() => setEditComp(null)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setEditComp(null);
+        }}
+      >
+        <div className="modal-card card">
+          <h2 id="comp-edit-title" className="admin-card-title">
+            Edit competition
+          </h2>
+          <form className="form" onSubmit={(e) => void onSaveEdit(e)}>
               <label className="field">
                 <span>Name</span>
                 <input
@@ -454,18 +494,17 @@ export function CompetitionHomePage() {
                   aria-label="Competition location"
                 />
               </label>
-              <div className="form-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setEditComp(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={!editName.trim() || editBusy}>
-                  {editBusy ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="form-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setEditComp(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={!editName.trim() || editBusy}>
+                {editBusy ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </dialog>
     </div>
   );
 }

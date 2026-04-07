@@ -115,6 +115,7 @@ type PenaltySubpanelProps = {
 function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit }: PenaltySubpanelProps) {
   const [card, setCard] = useState<PenaltyCard | null>(null);
   const [otherText, setOtherText] = useState('');
+  const [otherError, setOtherError] = useState<string | null>(null);
 
   const yellowRowLocked = card === 'yellow' && yellowSecondsLeft > 0;
 
@@ -127,7 +128,11 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
 
   function logOther() {
     const detail = otherText.trim();
-    if (!detail) return;
+    if (!detail) {
+      setOtherError('Enter a description first.');
+      return;
+    }
+    setOtherError(null);
     onSubmit({
       penaltyType: 'other',
       card: card ?? undefined,
@@ -142,7 +147,6 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
         className={`live-penalty-cards${yellowRowLocked ? ' live-penalty-cards-locked' : ''}`}
         role="group"
         aria-label="Discipline card (optional)"
-        aria-disabled={yellowRowLocked}
       >
         <button
           type="button"
@@ -211,15 +215,23 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
           type="text"
           className="live-penalty-other-input"
           value={otherText}
-          onChange={(e) => setOtherText(e.target.value)}
+          onChange={(e) => {
+            setOtherText(e.target.value);
+            setOtherError(null);
+          }}
           placeholder="Type the infraction…"
           autoComplete="off"
+          aria-label="Penalty detail"
           onClick={(e) => e.stopPropagation()}
         />
+        {otherError ? (
+          <p className="error-text live-penalty-other-error" role="alert">
+            {otherError}
+          </p>
+        ) : null}
         <button
           type="button"
           className="btn btn-secondary live-penalty-other-log"
-          disabled={!otherText.trim()}
           onClick={(e) => {
             e.stopPropagation();
             logOther();

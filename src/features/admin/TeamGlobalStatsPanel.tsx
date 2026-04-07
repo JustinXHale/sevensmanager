@@ -33,7 +33,7 @@ type MatchWithStats = {
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'points', label: 'Points by game' },
+  { id: 'points', label: 'Points by match' },
   { id: 'phase', label: 'Offense / Defense' },
   { id: 'zones', label: 'Zone heat map' },
   { id: 'ruck', label: 'Ruck speed' },
@@ -41,14 +41,14 @@ const SECTIONS = [
   { id: 'negatives', label: 'Negatives' },
   { id: 'players', label: 'Top players' },
   { id: 'lineup', label: 'Lineup efficiency' },
-  { id: 'games', label: 'Games' },
+  { id: 'matches', label: 'Matches' },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'] | 'all';
 
 function opponentLabel(m: MatchRecord): string {
   const opp = m.opponentName?.trim();
-  return opp ? `vs ${opp}` : m.title?.trim() || 'Game';
+  return opp ? `vs ${opp}` : m.title?.trim() || 'Match';
 }
 
 const RUCK_BUCKET_TONE: Record<string, string> = {
@@ -184,7 +184,13 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     return (
       <section className="card team-global-stats">
         <h2 className="team-global-stats-title">Global stats</h2>
-        <p className="muted">{'Loading\u2026'}</p>
+        <div className="skeleton-loader" aria-label="Loading statistics">
+          <div className="skeleton-bar skeleton-bar--lg" />
+          <div className="skeleton-bar skeleton-bar--md" />
+          <div className="skeleton-bar skeleton-bar--sm" />
+          <div className="skeleton-bar skeleton-bar--lg" />
+          <div className="skeleton-bar skeleton-bar--md" />
+        </div>
       </section>
     );
   }
@@ -193,10 +199,10 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     return (
       <section className="card team-global-stats">
         <h2 className="team-global-stats-title">Global stats</h2>
-        <p className="muted team-global-stats-empty">No games linked to this team yet.</p>
+        <p className="muted team-global-stats-empty">No matches linked to this team yet.</p>
         <p className="team-global-stats-actions">
           <Link to={`/matches/new?teamId=${team.id}&competitionId=${team.competitionId}&returnTo=${encodeURIComponent(`/team/${team.id}?tab=match`)}`} className="btn btn-primary">
-            Add game
+            Add match
           </Link>
         </p>
       </section>
@@ -207,10 +213,10 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     return (
       <section className="card team-global-stats">
         <h2 className="team-global-stats-title">Global stats</h2>
-        <p className="muted team-global-stats-empty">No games with logged events yet.</p>
+        <p className="muted team-global-stats-empty">No matches with logged events yet.</p>
         <p className="team-global-stats-actions">
           <Link to={`/team/${team.id}?tab=match`} className="btn btn-secondary">
-            Open games
+            Open matches
           </Link>
         </p>
       </section>
@@ -265,7 +271,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
           {sectionTitle('overview')}
           <div className="team-global-kpi-row">
             <div className="team-global-kpi">
-              <span className="team-global-kpi-label">Games</span>
+              <span className="team-global-kpi-label">Matches</span>
               <span className="team-global-kpi-value tabular-nums">{aggregate.gameCount}</span>
             </div>
             <div className="team-global-kpi">
@@ -297,11 +303,11 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         </section>
       )}
 
-      {/* Points by game */}
+      {/* Points by match */}
       {show('points') && (
         <section className="card tgs-card">
           {sectionTitle('points')}
-          <ul className="tgs-points-list" aria-label="Points per game">
+          <ul className="tgs-points-list" aria-label="Points per match">
             {withStats.map((r) => {
               const own = r.snapshot.ownPoints;
               const opp = r.snapshot.oppPoints;
@@ -352,8 +358,8 @@ export function TeamGlobalStatsPanel({ team }: Props) {
               <span className="tgs-phase-time muted tabular-nums">{fmtMs(deep.phaseTime.defenseMs)}</span>
             </div>
           </div>
-          <p className="muted tgs-card-sub" style={{ marginTop: '0.35rem' }}>
-            Estimated from event classification across all logged games. Gaps &gt; 90 s are capped.
+          <p className="muted tgs-card-sub mt-xs">
+            Estimated from event classification across all logged matches. Gaps &gt; 90 s are capped.
           </p>
         </section>
       )}
@@ -362,7 +368,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       {show('zones') && deep.zoneHeatRows.length > 0 && (
         <section className="card tgs-card">
           {sectionTitle('zones')}
-          <div className="deep-heat-table" role="table" aria-label="Zone heat map across games">
+          <div className="deep-heat-table" role="table" aria-label="Zone heat map across matches">
             <div className="deep-heat-header" role="row">
               <span className="deep-heat-label" role="columnheader" />
               {ZONE_IDS.map((z) => (
@@ -549,7 +555,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
               </div>
               <div className="le-bottom muted">
                 {variant !== 'unqualified' && <span className="le-stats">{statLine(r.profile)}</span>}
-                <span className="le-meta tabular-nums">{r.gamesPlayed}G{' \u00b7 '}{fmtMin(r.minutesPlayedMs)}</span>
+                <span className="le-meta tabular-nums">{r.gamesPlayed}M{' \u00b7 '}{fmtMin(r.minutesPlayedMs)}</span>
               </div>
             </div>
           </div>
@@ -571,7 +577,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
 
             {bench.length > 0 && (
               <>
-                <h4 className="tgs-card-subtitle" style={{ marginTop: '0.75rem' }}>Bench / depth</h4>
+                <h4 className="tgs-card-subtitle mt-lg">Bench / depth</h4>
                 <div className="le-list">
                   {bench.map((r, i) => (
                     <EffRow key={r.playerKey} r={r} rank={starters.length + i + 1} variant="bench" />
@@ -581,7 +587,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             )}
 
             {unqualifiedRows.length > 0 && (
-              <details className="le-unqualified" style={{ marginTop: '0.65rem' }}>
+              <details className="le-unqualified mt-md">
                 <summary className="muted">Insufficient data ({unqualifiedRows.length})</summary>
                 <div className="le-list">
                   {unqualifiedRows.map((r) => (
@@ -591,7 +597,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
               </details>
             )}
 
-            <details className="le-formula" style={{ marginTop: '0.5rem' }}>
+            <details className="le-formula mt-sm">
               <summary className="muted">How is the score calculated?</summary>
               <div className="le-formula-body muted">
                 <p>
@@ -624,8 +630,8 @@ export function TeamGlobalStatsPanel({ team }: Props) {
                   </div>
                 </div>
                 <p>
-                  Minimum: 2 games + 10 min total.{' '}
-                  <span className="le-consistency le-consistency--steady" style={{ display: 'inline-block', verticalAlign: 'middle' }} /> steady = all games within 1 stddev.{' '}
+                  Minimum: 2 matches + 10 min total.{' '}
+                  <span className="le-consistency le-consistency--steady" style={{ display: 'inline-block', verticalAlign: 'middle' }} /> steady = all matches within 1 stddev.{' '}
                   <span className="le-consistency le-consistency--variable" style={{ display: 'inline-block', verticalAlign: 'middle' }} /> variable = scores fluctuate.
                 </p>
               </div>
@@ -634,10 +640,10 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         );
       })()}
 
-      {/* Games list */}
-      {show('games') && (
+      {/* Matches list */}
+      {show('matches') && (
         <section className="card tgs-card">
-          {sectionTitle('games')}
+          {sectionTitle('matches')}
           <ul className="team-global-game-list">
             {withStats.map((r) => {
               const m = r.match;

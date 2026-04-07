@@ -30,6 +30,7 @@ export function MatchEventEditDialog({ event, open, onClose, onSaved }: Props) {
   const [conversionOutcomeValue, setConversionOutcomeValue] = useState<string>('');
   const [opponentCardValue, setOpponentCardValue] = useState<string>('yellow');
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -104,35 +105,40 @@ export function MatchEventEditDialog({ event, open, onClose, onSaved }: Props) {
       return;
     }
 
-    await updateMatchEvent(event.id, {
-      matchTimeMs,
-      period,
-      zoneId,
-      ...(showBand ? { fieldLengthBand } : {}),
-      ...(passOrLb && passDeliveryValue === 'standard'
-        ? { passVariant: 'standard' as const, offloadTone: null }
-        : passOrLb && passDeliveryValue === 'offload'
+    setSaving(true);
+    try {
+      await updateMatchEvent(event.id, {
+        matchTimeMs,
+        period,
+        zoneId,
+        ...(showBand ? { fieldLengthBand } : {}),
+        ...(passOrLb && passDeliveryValue === 'standard'
+          ? { passVariant: 'standard' as const, offloadTone: null }
+          : passOrLb && passDeliveryValue === 'offload'
+            ? {
+                passVariant: 'offload' as const,
+                offloadTone: offloadToneValue as OffloadTone,
+              }
+            : passOrLb && passDeliveryValue === 'legacy'
+              ? {}
+              : {}),
+        ...(event.kind === 'conversion' || event.kind === 'opponent_conversion'
           ? {
-              passVariant: 'offload' as const,
-              offloadTone: offloadToneValue as OffloadTone,
+              conversionOutcome:
+                conversionOutcomeValue === ''
+                  ? null
+                  : (conversionOutcomeValue as ConversionOutcome),
             }
-          : passOrLb && passDeliveryValue === 'legacy'
-            ? {}
-            : {}),
-      ...(event.kind === 'conversion' || event.kind === 'opponent_conversion'
-        ? {
-            conversionOutcome:
-              conversionOutcomeValue === ''
-                ? null
-                : (conversionOutcomeValue as ConversionOutcome),
-          }
-        : {}),
-      ...(event.kind === 'opponent_card'
-        ? { penaltyCard: opponentCardValue as PenaltyCard }
-        : {}),
-    });
-    onSaved();
-    onClose();
+          : {}),
+        ...(event.kind === 'opponent_card'
+          ? { penaltyCard: opponentCardValue as PenaltyCard }
+          : {}),
+      });
+      onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -140,7 +146,7 @@ export function MatchEventEditDialog({ event, open, onClose, onSaved }: Props) {
       <form className="roster-dialog-inner" onSubmit={(e) => void onSubmit(e)}>
         <h2 className="roster-dialog-title">Edit event</h2>
         <p className="muted roster-dialog-lead">
-          Adjust logged match time, segment, and zone. Player and penalty details are unchanged.
+          Adjust logged match time, period, and zone. Player and penalty details are unchanged.
         </p>
 
         <div className="field">
@@ -158,7 +164,7 @@ export function MatchEventEditDialog({ event, open, onClose, onSaved }: Props) {
         </div>
 
         <div className="field">
-          <span>Period (segment)</span>
+          <span>Period number</span>
           <input
             type="number"
             className="filter-select"
@@ -284,14 +290,14 @@ export function MatchEventEditDialog({ event, open, onClose, onSaved }: Props) {
           </>
         ) : null}
 
-        {formError ? <p className="error-text">{formError}</p> : null}
+        {formError ? <p className="error-text" role="alert">{formError}</p> : null}
 
         <div className="roster-dialog-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary">
-            Save
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </form>

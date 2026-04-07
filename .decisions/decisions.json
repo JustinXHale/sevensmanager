@@ -1,0 +1,21 @@
+{
+  "projectName": "SevensManager",
+  "projectDescription": "Rugby sevens match tracking PWA with Full and Simple logging modes",
+  "createdAt": "2026-04-06T00:00:00.000Z",
+  "decisions": [
+    {
+      "id": "decision-001",
+      "slug": "tracking-mode-ui",
+      "title": "Tracking Mode UI Pattern",
+      "category": "visual",
+      "status": "pending",
+      "chosenOption": null,
+      "chosenTitle": null,
+      "options": ["A", "B", "C", "D"],
+      "recommended": "B",
+      "htmlFile": "decision-001-tracking-mode-ui.html",
+      "decidedAt": null,
+      "summary": "How users switch between Simple (1-tap) and Full (detailed) tracking modes"
+    }
+  ]
+}

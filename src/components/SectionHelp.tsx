@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 
 export type GlossaryEntry = {
   abbr: string;
   full: string;
   desc: string;
+  group?: string;
 };
 
 type Props = {
@@ -14,17 +14,14 @@ type Props = {
 
 export function SectionHelp({ title, entries }: Props) {
   const [open, setOpen] = useState(false);
-
-  const close = useCallback(() => setOpen(false), []);
+  const dlgRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, close]);
+    const el = dlgRef.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    else if (!open && el.open) el.close();
+  }, [open]);
 
   if (entries.length === 0) return null;
 
@@ -40,37 +37,43 @@ export function SectionHelp({ title, entries }: Props) {
           <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
         </svg>
       </button>
-      {open && createPortal(
-        <div className="bottom-sheet-backdrop" onClick={close}>
-          <div
-            className="bottom-sheet"
-            role="dialog"
-            aria-label={title ? `${title} glossary` : 'Glossary'}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bottom-sheet-handle" aria-hidden="true" />
-            <div className="bottom-sheet-header">
-              <h3 className="bottom-sheet-title">{title ?? 'Glossary'}</h3>
-              <button type="button" className="bottom-sheet-close" aria-label="Close" onClick={close}>
-                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                </svg>
-              </button>
-            </div>
-            <dl className="bottom-sheet-glossary">
-              {entries.map((e) => (
-                <div key={e.abbr} className="section-help-entry">
-                  <dt className="section-help-term">{e.abbr}</dt>
-                  <dd className="section-help-def">
-                    <strong>{e.full}</strong> — {e.desc}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+      <dialog
+        ref={dlgRef}
+        className="bottom-sheet-dialog"
+        aria-label={title ? `${title} glossary` : 'Glossary'}
+        onCancel={() => setOpen(false)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setOpen(false);
+        }}
+      >
+        <div className="bottom-sheet">
+          <div className="bottom-sheet-handle" aria-hidden="true" />
+          <div className="bottom-sheet-header">
+            <h3 className="bottom-sheet-title">{title ?? 'Glossary'}</h3>
+            <button type="button" className="bottom-sheet-close" aria-label="Close" onClick={() => setOpen(false)}>
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+            </button>
           </div>
-        </div>,
-        document.body,
-      )}
+          <dl className="bottom-sheet-glossary">
+            {entries.map((e, i) => {
+              const showGroup = e.group && (i === 0 || entries[i - 1].group !== e.group);
+              return (
+                <div key={e.abbr}>
+                  {showGroup && <h4 className="section-help-group-heading">{e.group}</h4>}
+                  <div className="section-help-entry">
+                    <dt className="section-help-term">{e.abbr}</dt>
+                    <dd className="section-help-def">
+                      <strong>{e.full}</strong> — {e.desc}
+                    </dd>
+                  </div>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
+      </dialog>
     </>
   );
 }
@@ -93,11 +96,11 @@ const OVERVIEW_MATCH: GlossaryEntry[] = [
 ];
 
 const OVERVIEW_GLOBAL: GlossaryEntry[] = [
-  { abbr: 'Games', full: 'Games played', desc: 'Total number of matches with at least one logged event.' },
-  { abbr: 'Events', full: 'Total events', desc: 'Sum of all logged events (tries, tackles, passes, etc.) across every game.' },
-  { abbr: 'Points (Σ)', full: 'Total points', desc: 'Cumulative points scored and conceded across all games. Shown as Us – Opponent.' },
-  { abbr: 'Tries (Σ)', full: 'Total tries', desc: 'Cumulative tries scored and conceded across all games.' },
-  { abbr: 'Tackle % (pooled)', full: 'Pooled tackle completion', desc: 'All tackles made \u00f7 all tackles attempted across every game, as a single percentage.' },
+  { abbr: 'Matches', full: 'Matches played', desc: 'Total number of matches with at least one logged event.' },
+  { abbr: 'Events', full: 'Total events', desc: 'Sum of all logged events (tries, tackles, passes, etc.) across every match.' },
+  { abbr: 'Points (Σ)', full: 'Total points', desc: 'Cumulative points scored and conceded across all matches. Shown as Us – Opponent.' },
+  { abbr: 'Tries (Σ)', full: 'Total tries', desc: 'Cumulative tries scored and conceded across all matches.' },
+  { abbr: 'Tackle % (pooled)', full: 'Pooled tackle completion', desc: 'All tackles made \u00f7 all tackles attempted across every match, as a single percentage.' },
   { abbr: 'M', full: 'Tackles made', desc: 'Successful tackles where the ball carrier was brought down or held.' },
   { abbr: 'X', full: 'Tackles missed', desc: 'Attempted tackles where the ball carrier broke free or was not stopped.' },
 ];
@@ -177,24 +180,24 @@ const EVENT_COUNTS: GlossaryEntry[] = [
   { abbr: 'Substitutions', full: 'Substitutions', desc: 'Your team\u2019s player changes during the match.' },
 ];
 
-const POINTS_BY_GAME: GlossaryEntry[] = [
-  { abbr: 'Points by game', full: 'Points per game', desc: 'Stacked bar showing your points vs opponent points for each match.' },
+const POINTS_BY_MATCH: GlossaryEntry[] = [
+  { abbr: 'Points by match', full: 'Points per match', desc: 'Stacked bar showing your points vs opponent points for each match.' },
 ];
 
 const LINEUP_EFFICIENCY: GlossaryEntry[] = [
   { abbr: 'Score', full: 'Efficiency score', desc: 'Positive contributions minus negative costs, divided by minutes played, scaled 0\u2013100.' },
-  { abbr: 'Tr', full: 'Tries', desc: 'Tries scored by this player across all games.' },
-  { abbr: 'LB', full: 'Line breaks', desc: 'Line breaks made by this player across all games.' },
-  { abbr: 'T', full: 'Tackles made', desc: 'Successful tackles across all games.' },
-  { abbr: 'X', full: 'Tackles missed', desc: 'Missed tackles across all games.' },
-  { abbr: 'P', full: 'Passes', desc: 'Total passes across all games.' },
-  { abbr: 'Neg', full: 'Negative actions', desc: 'Errors (knock-ons, bad passes, etc.) across all games.' },
-  { abbr: 'Pen', full: 'Penalties', desc: 'Penalties conceded across all games.' },
-  { abbr: 'G', full: 'Games played', desc: 'Number of matches this player appeared in.' },
+  { abbr: 'Tr', full: 'Tries', desc: 'Tries scored by this player across all matches.' },
+  { abbr: 'LB', full: 'Line breaks', desc: 'Line breaks made by this player across all matches.' },
+  { abbr: 'T', full: 'Tackles made', desc: 'Successful tackles across all matches.' },
+  { abbr: 'X', full: 'Tackles missed', desc: 'Missed tackles across all matches.' },
+  { abbr: 'P', full: 'Passes', desc: 'Total passes across all matches.' },
+  { abbr: 'Neg', full: 'Negative actions', desc: 'Errors (knock-ons, bad passes, etc.) across all matches.' },
+  { abbr: 'Pen', full: 'Penalties', desc: 'Penalties conceded across all matches.' },
+  { abbr: 'G', full: 'Matches played', desc: 'Number of matches this player appeared in.' },
 ];
 
-const GAMES: GlossaryEntry[] = [
-  { abbr: 'Games', full: 'Games list', desc: 'All matches with logged events. Tap \u201cStats\u201d to open that game\u2019s per-match analytics.' },
+const MATCHES_LIST_GLOSSARY: GlossaryEntry[] = [
+  { abbr: 'Matches', full: 'Matches list', desc: 'All matches with logged events. Tap \u201cStats\u201d to open that match\u2019s analytics.' },
 ];
 
 export const MATCH_GLOSSARY: Record<string, GlossaryEntry[]> = {
@@ -212,7 +215,7 @@ export const MATCH_GLOSSARY: Record<string, GlossaryEntry[]> = {
 
 export const GLOBAL_GLOSSARY: Record<string, GlossaryEntry[]> = {
   overview: OVERVIEW_GLOBAL,
-  points: POINTS_BY_GAME,
+  points: POINTS_BY_MATCH,
   phase: PHASE,
   zones: ZONES,
   ruck: RUCK,
@@ -220,5 +223,18 @@ export const GLOBAL_GLOSSARY: Record<string, GlossaryEntry[]> = {
   negatives: NEGATIVES,
   players: INVOLVEMENT,
   lineup: LINEUP_EFFICIENCY,
-  games: GAMES,
+  matches: MATCHES_LIST_GLOSSARY,
 };
+
+export const TRACKING_GLOSSARY: GlossaryEntry[] = [
+  { abbr: 'P', full: 'Pass', desc: 'A deliberate throw or hand-off to a teammate.', group: 'Attack' },
+  { abbr: 'O', full: 'Offload', desc: 'A pass made in contact while being tackled.', group: 'Attack' },
+  { abbr: 'LB', full: 'Line break', desc: 'Ball carrier breaks through the defensive line.', group: 'Attack' },
+  { abbr: 'Tr', full: 'Try', desc: 'Grounding the ball in the opponent\u2019s in-goal area (5 pts).', group: 'Attack' },
+  { abbr: 'C', full: 'Conversion', desc: 'Kick at goal after a try (2 pts).', group: 'Attack' },
+  { abbr: 'M', full: 'Tackle made', desc: 'Successful tackle — ball carrier brought down or held.', group: 'Defense' },
+  { abbr: 'X', full: 'Tackle missed', desc: 'Attempted tackle where the ball carrier broke free.', group: 'Defense' },
+  { abbr: 'Neg', full: 'Negative action', desc: 'An error: knock-on, bad pass, or forward pass.', group: 'Shared' },
+  { abbr: '!', full: 'Penalty', desc: 'Infringement conceded by your team.', group: 'Shared' },
+  { abbr: 'W/L', full: 'Won / Lost', desc: 'Set piece outcome — whether your team retained or lost possession.', group: 'Set pieces' },
+];

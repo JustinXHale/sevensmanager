@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { ClubRecord } from '@/domain/club';
 import { createClub, updateClub } from '@/repos/clubsRepo';
 import { LOGO_FIELD_REQUIREMENTS, preflightImageFileForLogo, readLogoFileAsDataUrl } from '@/utils/imageCompress';
@@ -38,6 +39,17 @@ export function ClubTeamFormModal(props: Props) {
   const [logoDataUrl, setLogoDataUrl] = useState<string | undefined>(undefined);
   const [logoFileName, setLogoFileName] = useState<string | null>(null);
   const [logoUi, setLogoUi] = useState<LogoUiState>({ phase: 'idle' });
+  const dlgRef = useRef<HTMLDialogElement>(null);
+
+  const formDirty = open && (() => {
+    if (logoDirty !== 'unchanged') return true;
+    if (variant === 'edit') {
+      const c = props.club;
+      return name.trim() !== c.name || nickname.trim() !== c.nickname || abbreviation.trim() !== c.abbreviation;
+    }
+    return !!(name.trim() || nickname.trim() || abbreviation.trim());
+  })();
+  useBeforeUnload(formDirty);
 
   const initKey =
     variant === 'edit' ? `${props.club.id}:${props.club.updatedAt}` : 'create';
@@ -64,14 +76,37 @@ export function ClubTeamFormModal(props: Props) {
     }
   }, [open, variant, initKey]);
 
-  if (!open) return null;
+  useEffect(() => {
+    const el = dlgRef.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    else if (!open && el.open) el.close();
+  }, [open]);
+
+  function isDirty() {
+    if (logoDirty !== 'unchanged') return true;
+    if (variant === 'edit') {
+      const c = props.club;
+      return name.trim() !== c.name || nickname.trim() !== c.nickname || abbreviation.trim() !== c.abbreviation;
+    }
+    return !!(name.trim() || nickname.trim() || abbreviation.trim());
+  }
+
+  function tryClose() {
+    if (busy) return;
+    if (isDirty() && !confirm('Discard unsaved changes?')) return;
+    onClose();
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const n = name.trim();
     const nick = nickname.trim();
     const abbr = abbreviation.trim();
-    if (!n || !nick || !abbr) return;
+    if (!n || !nick || !abbr) {
+      setError('Name, nickname, and abbreviation are all required.');
+      return;
+    }
     if (logoUi.phase === 'processing' || logoUi.phase === 'error') {
       return;
     }
@@ -164,26 +199,34 @@ export function ClubTeamFormModal(props: Props) {
   const logoBlocksSave = logoUi.phase === 'processing' || logoUi.phase === 'error';
 
   return (
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onClick={() => {
+    <dialog
+      ref={dlgRef}
+      className="modal-dialog"
+      aria-labelledby={`${formId}-title`}
+      onCancel={(e) => {
+        if (busy) {
+          e.preventDefault();
+          return;
+        }
+        if (isDirty() && !confirm('Discard unsaved changes?')) {
+          e.preventDefault();
+          return;
+        }
+        onClose();
+      }}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
         if (busy) return;
+        if (isDirty() && !confirm('Discard unsaved changes?')) return;
         onClose();
       }}
     >
-      <div
-        className="modal-card card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${formId}-title`}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-card card">
         <h2 id={`${formId}-title`} className="admin-card-title">
           {variant === 'edit' ? 'Edit club' : 'New club'}
         </h2>
         <p className="muted form-subtitle">Name, nickname, and abbreviation are required.</p>
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
         <form className="form" onSubmit={(e) => void onSubmit(e)}>
           <label className="field">
             <span>Club name</span>
@@ -253,7 +296,7 @@ export function ClubTeamFormModal(props: Props) {
             </div>
           ) : null}
           <div className="form-actions">
-            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onClose()}>
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => tryClose()}>
               Cancel
             </button>
             <button
@@ -275,6 +318,6 @@ export function ClubTeamFormModal(props: Props) {
           </div>
         </form>
       </div>
-    </div>
+    </dialog>
   );
 }

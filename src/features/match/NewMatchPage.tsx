@@ -89,7 +89,7 @@ export function NewMatchPage() {
         </Link>
       </div>
       <div className="card">
-        <h1 className="page-title">Add game</h1>
+        <h1 className="page-title">Add match</h1>
         <p className="muted form-subtitle">
           Link to a competition and team for admin (weigh-ins, schedule). Same fields as{' '}
           <Link to="/matches/import">Import schedule</Link>.
@@ -147,7 +147,7 @@ export function NewMatchPage() {
               name="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Optional if both teams set (e.g. Pool A — Game 2)"
+              placeholder="Optional if both teams set (e.g. Pool A — Match 2)"
               autoComplete="off"
             />
           </label>

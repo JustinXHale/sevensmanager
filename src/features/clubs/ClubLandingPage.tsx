@@ -47,8 +47,9 @@ export function ClubLandingPage() {
 
   return (
     <div className="club-landing-page competitions-page">
+      <h1 className="sr-only">Clubs</h1>
       <div className={`club-landing-body competitions-page-body${empty ? ' club-landing-body--empty' : ''}`}>
-        {error && !modalOpen ? <p className="error-text">{error}</p> : null}
+        {error && !modalOpen ? <p className="error-text" role="alert">{error}</p> : null}
 
         {empty ? (
           <div className="club-landing-empty">
@@ -84,7 +85,7 @@ export function ClubLandingPage() {
                 </button>
                 <button
                   type="button"
-                  className="club-card-delete"
+                  className="club-card-delete btn-danger"
                   aria-label={`Delete ${c.name}`}
                   onClick={() => void onDeleteClub(c)}
                 >
@@ -124,7 +125,7 @@ export function ClubLandingPage() {
                   </button>
                   <button
                     type="button"
-                    className="club-card-delete"
+                    className="club-card-delete btn-danger"
                     aria-label={`Delete ${c.name}`}
                     onClick={() => void onDeleteClub(c)}
                   >

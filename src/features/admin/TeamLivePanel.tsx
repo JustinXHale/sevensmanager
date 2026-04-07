@@ -102,10 +102,10 @@ export function TeamLivePanel({ team }: Props) {
     <div className="team-live-panel">
       <div className="team-live-panel-scroll">
         {matches === null ? (
-          <p className="muted">Loading games…</p>
+          <p className="muted">Loading matches…</p>
         ) : matches.length === 0 ? (
           <div className="card empty-card">
-            <p className="muted">No games linked to this team yet. Create one to start logging.</p>
+            <p className="muted">No matches linked to this team yet. Create one to start logging.</p>
           </div>
         ) : (
           <>
@@ -165,9 +165,9 @@ export function TeamLivePanel({ team }: Props) {
         )}
       </div>
 
-      <div className="competitions-sticky-footer" role="toolbar" aria-label="Add games">
+      <div className="competitions-sticky-footer" role="toolbar" aria-label="Add matches">
         <Link to={newMatchHref} className="btn btn-primary competitions-sticky-main">
-          Add game
+          Add match
         </Link>
         <div className="competitions-sticky-menu-wrap" ref={menuWrapRef}>
           <button
@@ -175,18 +175,16 @@ export function TeamLivePanel({ team }: Props) {
             className="btn btn-secondary competitions-sticky-caret"
             aria-label="More options"
             aria-expanded={menuOpen}
-            aria-haspopup="menu"
             onClick={() => setMenuOpen((o) => !o)}
           >
             ▾
           </button>
           {menuOpen ? (
-            <ul className="competitions-sticky-dropdown" role="menu">
-              <li role="none">
+            <ul className="competitions-sticky-dropdown" role="list">
+              <li>
                 <Link
                   to={importHref}
                   className="competitions-sticky-dropdown-item"
-                  role="menuitem"
                   onClick={() => setMenuOpen(false)}
                 >
                   Upload schedule

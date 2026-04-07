@@ -88,7 +88,7 @@ function AppHeader() {
               {clubBar.teamName}
             </div>
           ) : teamHeader && (teamHeader.title || teamHeader.subtitle) ? (
-            <div className="app-header-team" aria-label="Current club">
+            <div className="app-header-team" aria-label={teamHeader?.title ?? 'Current context'}>
               <span className="app-header-team-name">{teamHeader.title ?? ''}</span>
               {teamHeader.subtitle ? (
                 <span className="app-header-team-sub">{teamHeader.subtitle}</span>

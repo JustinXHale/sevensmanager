@@ -103,10 +103,8 @@ export function MatchEventTimeline({ events, playersById, onDelete, onEditSaved 
                     </button>
                     <button
                       type="button"
-                      className="btn btn-ghost btn-small live-timeline-delete"
-                      onClick={() => {
-                        if (window.confirm('Remove this event from the log?')) onDelete(e.id);
-                      }}
+                      className="btn btn-ghost btn-small btn-danger live-timeline-delete"
+                      onClick={() => onDelete(e.id)}
                     >
                       Remove
                     </button>

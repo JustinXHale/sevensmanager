@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- About section in the navigation drawer — bottom sheet with app description, version (pulled from package.json at build time), creator bio, and copyright
+- `useBeforeUnload` hook — warns on tab close when competition create/edit modals or the club form have unsaved text
+- Spacing utility classes (`.mt-*`, `.mb-*`), skeleton loader styles, and first-visit stats tip (`.stats-hint`) in App.css
+- Match stats panel: dismissible first-visit tip for the section dropdown; global stats loading state uses skeleton placeholders
+- Match live timeline: undo toast after removing an event (soft-delete + restore); `.undo-toast` styles in App.css
+- `.sr-only` utility for visually hidden accessible headings; screen-reader `<h1>` on Clubs landing page
+- CSS type scale (`--fs-*`) and weight (`--fw-*`) tokens in `index.css` `:root`
 - App branding — `public/7smanager.svg` used as favicon, PWA icon, and logo in the main header (bundled `?url` for reliable paths), drill/minimal headers, and the navigation drawer
 - PWA install prompt — Chromium/Android shows Install / Not now using `beforeinstallprompt`; iOS Safari shows a short Add to Home Screen tip; each dismiss snoozes 30 days; banner sits above the update toast when both appear
 - Stats glossary help icons — info (ⓘ) button next to every section title in both per-match and global stats; opens a bottom sheet with full names and descriptions for all abbreviations (M, X, LB, Tr, Pen, YC, Z1–Z6, etc.)
@@ -30,6 +37,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT License
 
 ### Changed
+- About sheet copy — first-person story: coaching return, live analytics when video isn’t available, open source, refereeing background in brief, family, and design work at Red Hat
+- Card padding/radius consolidated via `--_card-pad` / `--_card-radius` on `.card`, with `.tgs-card` overriding padding only; inline rem margins on stats panels replaced with spacing utilities (M9/M10 UX audit)
+- Semantic CSS color tokens in `index.css` (`--border`, `--danger`, `--overlay-bg`, etc.); `App.css` uses `var(--bg)`, `var(--text)`, `var(--border)`, and related tokens instead of repeated hex literals (M7 UX audit)
+- UX/accessibility audit: `role="alert"` on inline error text; destructive actions use `btn-danger`; clock/event edit dialogs disable primary actions and show progress while saving; install toasts use `aria-live="polite"`; Team live panel dropdown uses `role="list"`; main header team block `aria-label` reflects current title; roster name buttons get `:focus-visible` outline; “game/segment” copy standardized to “match/period” across nav, stats, squad, and clock UI; Other penalty requires description with inline error; global stats matches list glossary key renamed for consistency
+- Modals and overlays (competition/team admin, club form, roster add-player, glossary bottom sheet, nav drawer) use native `<dialog>` with `showModal()` for focus trap, Escape, and `::backdrop`
+- Match live page: fixture label uses `<h1 class="live-compact-title">` instead of `<p>`
+- Timeline “Remove” no longer uses `window.confirm` (undo toast replaces confirmation)
+- OnFieldPlayerActions: removed `aria-disabled` from penalty card `role="group"` (child buttons keep `disabled`)
 - Navigation drawer: drawer head uses a top-aligned grid so the logo and close control share the same top edge
 - Navigation drawer: larger logo (~9rem, ~3× the prior size) and no “Navigate” label
 - Shell header and nav drawer show the logo only (no “SevensManager” wordmark); home link keeps an accessible name via `aria-label`
@@ -51,6 +66,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tackle chart empty state improved from "—" to "No tackle outcomes recorded yet."
 - Touch targets for `.btn-small` and 3/4-column tab strips bumped from 40px to 44px (WCAG 2.5.8)
 - Sample data load stays on competitions page instead of auto-navigating into a single competition
+
+### Fixed
+- Club edit modal no longer shows "Discard unsaved changes?" prompt when opened without making any changes (isDirty compared against initial values in edit mode)
+- Native `<dialog>` CSS uses `[open]` / `:not([open])` selectors so closed dialogs are properly hidden instead of rendering inline
+- Added missing `.success-toast` CSS styling for admin CRUD success messages
 
 ### Removed
 - "Quick sub" button from roster header (substitutions already easy inline)

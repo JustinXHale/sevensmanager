@@ -1,8 +1,10 @@
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 /** GitHub Pages serves 404.html for unknown routes — copy index.html so SPA routing works. */
 function ghPages404(): Plugin {
@@ -21,6 +23,9 @@ export default defineConfig(({ mode }) => {
   const appName = env.VITE_APP_NAME || 'SevensManager';
 
   return {
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   base: '/sevensmanager/',
   plugins: [
     react(),

@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Link } from 'react-router-dom';
@@ -25,9 +26,9 @@ import { addWeighIn, deleteWeighIn } from '@/repos/weighInsRepo';
 
 const ROSTER_HELP: GlossaryEntry[] = [
   { abbr: 'Jerseys', full: 'Jersey slots', desc: 'Jerseys 1–13 are seeded automatically when a team is created. Use Add player for extra slots.' },
-  { abbr: 'Weigh-ins', full: 'Game weights', desc: 'Tap a player row then open Game weights to record pre/post weigh-ins. Loss > 2% of body weight is flagged red.' },
+  { abbr: 'Weigh-ins', full: 'Match weights', desc: 'Tap a player row then open Match weights to record pre/post weigh-ins. Loss > 2% of body weight is flagged red.' },
   { abbr: 'Details', full: 'Player details', desc: 'Open Player details to edit name, jersey number, or notes.' },
-  { abbr: 'Minutes', full: 'Match minutes', desc: 'Minutes are tracked by jersey number in each game\'s match roster. They update automatically.' },
+  { abbr: 'Minutes', full: 'Match minutes', desc: 'Minutes are tracked by jersey number in each match\'s roster. They update automatically.' },
 ];
 
 /** Session + roster for squad admin: minutes played per jersey per match. */
@@ -90,10 +91,18 @@ export function TeamAdminSquadTab({
   const [memberName, setMemberName] = useState('');
   const [memberNum, setMemberNum] = useState('');
   const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
+  const addPlayerDlgRef = useRef<HTMLDialogElement>(null);
 
   const sortedMatches = useMemo(() => {
     return [...matches].sort((a, b) => matchListSortKey(a) - matchListSortKey(b));
   }, [matches]);
+
+  useEffect(() => {
+    const el = addPlayerDlgRef.current;
+    if (!el) return;
+    if (addPlayerModalOpen && !el.open) el.showModal();
+    else if (!addPlayerModalOpen && el.open) el.close();
+  }, [addPlayerModalOpen]);
 
   const replaceSlotWeight = useCallback(
     async (memberId: string, matchId: string, phase: WeighInPhase, rawLb: string) => {
@@ -149,7 +158,7 @@ export function TeamAdminSquadTab({
     <div className="squad-tab-page">
       <div className="squad-tab-body">
         <div className="team-admin-squad-tab">
-          {error ? <p className="error-text">{error}</p> : null}
+          {error ? <p className="error-text" role="alert">{error}</p> : null}
 
           <section className="card admin-section admin-squad-roster-card">
             <div className="tgs-card-title-row">
@@ -216,54 +225,54 @@ export function TeamAdminSquadTab({
         </button>
       </div>
 
-      {addPlayerModalOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setAddPlayerModalOpen(false)}>
-          <div
-            className="modal-card card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="squad-add-player-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="squad-add-player-title" className="admin-card-title">
-              Add player
-            </h2>
-            <p className="muted form-subtitle">Name and/or jersey # (optional slots beyond 1–13).</p>
-            <form className="form" onSubmit={(e) => void onAddMember(e)}>
-              <label className="field">
-                <span>Name</span>
-                <input
-                  className="filter-select"
-                  value={memberName}
-                  onChange={(e) => setMemberName(e.target.value)}
-                  placeholder="Optional if # set"
-                  autoFocus
-                  aria-label="Player name"
-                />
-              </label>
-              <label className="field">
-                <span>#</span>
-                <input
-                  className="filter-select"
-                  inputMode="numeric"
-                  value={memberNum}
-                  onChange={(e) => setMemberNum(e.target.value)}
-                  placeholder="14+"
-                  aria-label="Jersey number"
-                />
-              </label>
-              <div className="form-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setAddPlayerModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={!memberName.trim() && !memberNum.trim()}>
-                  Add player
-                </button>
-              </div>
-            </form>
-          </div>
+      <dialog
+        ref={addPlayerDlgRef}
+        className="modal-dialog"
+        aria-labelledby="squad-add-player-title"
+        onCancel={() => setAddPlayerModalOpen(false)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setAddPlayerModalOpen(false);
+        }}
+      >
+        <div className="modal-card card">
+          <h2 id="squad-add-player-title" className="admin-card-title">
+            Add player
+          </h2>
+          <p className="muted form-subtitle">Name and/or jersey # (optional slots beyond 1–13).</p>
+          <form className="form" onSubmit={(e) => void onAddMember(e)}>
+            <label className="field">
+              <span>Name</span>
+              <input
+                className="filter-select"
+                value={memberName}
+                onChange={(e) => setMemberName(e.target.value)}
+                placeholder="Optional if # set"
+                autoFocus
+                aria-label="Player name"
+              />
+            </label>
+            <label className="field">
+              <span>#</span>
+              <input
+                className="filter-select"
+                inputMode="numeric"
+                value={memberNum}
+                onChange={(e) => setMemberNum(e.target.value)}
+                placeholder="14+"
+                aria-label="Jersey number"
+              />
+            </label>
+            <div className="form-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setAddPlayerModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={!memberName.trim() && !memberNum.trim()}>
+                Add player
+              </button>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </dialog>
     </div>
   );
 }
@@ -330,7 +339,7 @@ function SquadPlayerExpandedSection({
 
       {sortedMatches.length === 0 ? (
         <div className="card empty-card admin-squad-empty-matches">
-          <p className="muted">No games linked yet.</p>
+          <p className="muted">No matches linked yet.</p>
           <Link
             to={`/matches/new?teamId=${team.id}&competitionId=${team.competitionId}&returnTo=${newMatchReturn}`}
             className="btn btn-secondary"
@@ -348,7 +357,7 @@ function SquadPlayerExpandedSection({
             id={gameWeightsTriggerId}
             onClick={() => setGameWeightsOpen((v) => !v)}
           >
-            <span>Game weights</span>
+            <span>Match weights</span>
             <span className="roster-expand-chevron" aria-hidden>
               {gameWeightsOpen ? '▾' : '▸'}
             </span>
@@ -498,7 +507,7 @@ function SquadMemberProfileForm({
           />
         </label>
       </div>
-      {formError ? <p className="error-text">{formError}</p> : null}
+      {formError ? <p className="error-text" role="alert">{formError}</p> : null}
       <div className="admin-squad-profile-actions">
         <button type="submit" className="btn btn-primary btn-small">
           Save profile
@@ -550,7 +559,7 @@ function GameWeightRow({
           onChange={(e) => setPre(e.target.value)}
           onBlur={() => onCommitPre(pre)}
           placeholder="—"
-          aria-label={`Game ${gameIndex} pre weight lb`}
+          aria-label={`Match ${gameIndex} pre weight lb`}
         />
       </td>
       <td>
@@ -561,7 +570,7 @@ function GameWeightRow({
           onChange={(e) => setPost(e.target.value)}
           onBlur={() => onCommitPost(post)}
           placeholder="—"
-          aria-label={`Game ${gameIndex} post weight lb`}
+          aria-label={`Match ${gameIndex} post weight lb`}
         />
       </td>
       <td

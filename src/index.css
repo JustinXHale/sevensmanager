@@ -6,6 +6,34 @@
   --muted: #8b9cad;
   --accent: #7cb342;
 
+  /* Semantic tokens */
+  --border: #2d3848;
+  --border-strong: #3d4a5c;
+  --danger: #f85149;
+  --danger-muted: rgba(248, 81, 73, 0.15);
+  --success: #7cb342;
+  --success-muted: rgba(124, 179, 66, 0.15);
+  --warning: #d29922;
+  --surface-raised: #1c2430;
+  --overlay-bg: rgba(0, 0, 0, 0.55);
+
+  /* Type scale */
+  --fs-3xs: 0.625rem;
+  --fs-2xs: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.25rem;
+
+  /* Weight scale */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+
   /* PatternFly v6 global spacers (16px root). See docs/UX_STANDARDS.md */
   --pf-t--global--spacer--xs: 0.25rem;
   --pf-t--global--spacer--sm: 0.5rem;

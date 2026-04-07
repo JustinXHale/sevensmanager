@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAppChrome } from '@/context/AppChromeContext';
 import type { CompetitionRecord } from '@/domain/competition';
@@ -16,6 +16,9 @@ export function CompetitionDetailPage() {
   const [addTeamModalOpen, setAddTeamModalOpen] = useState(false);
   const [editTeam, setEditTeam] = useState<TeamRecord | null>(null);
   const [editName, setEditName] = useState('');
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const addDlgRef = useRef<HTMLDialogElement>(null);
+  const editDlgRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async () => {
     if (!competitionId) return;
@@ -34,6 +37,26 @@ export function CompetitionDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const el = addDlgRef.current;
+    if (!el) return;
+    if (addTeamModalOpen && !el.open) el.showModal();
+    else if (!addTeamModalOpen && el.open) el.close();
+  }, [addTeamModalOpen]);
+
+  useEffect(() => {
+    const el = editDlgRef.current;
+    if (!el) return;
+    if (editTeam && !el.open) el.showModal();
+    else if (!editTeam && el.open) el.close();
+  }, [editTeam]);
+
+  useEffect(() => {
+    if (!successMsg) return;
+    const t = window.setTimeout(() => setSuccessMsg(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [successMsg]);
 
   useEffect(() => {
     if (comp === undefined || teams === null) return;
@@ -55,6 +78,7 @@ export function CompetitionDetailPage() {
     try {
       await deleteTeamCascade(teamId);
       await load();
+      setSuccessMsg('Team deleted.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not delete team');
     }
@@ -73,6 +97,7 @@ export function CompetitionDetailPage() {
     await updateTeam(editTeam.id, n);
     setEditTeam(null);
     await load();
+    setSuccessMsg('Team renamed.');
   }
 
   async function onCreateTeam(e: React.FormEvent) {
@@ -84,6 +109,7 @@ export function CompetitionDetailPage() {
     setName('');
     setAddTeamModalOpen(false);
     await load();
+    setSuccessMsg('Team added.');
   }
 
   if (comp === undefined || teams === null) {
@@ -107,7 +133,12 @@ export function CompetitionDetailPage() {
     <div className="competitions-page competition-detail-page">
       <div className="competitions-page-body">
         <h1 className="visually-hidden">{comp.name}</h1>
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
+        {successMsg ? (
+          <p className="success-toast" role="status">
+            {successMsg}
+          </p>
+        ) : null}
 
         <h2 className="admin-card-title section-title-teams">Teams</h2>
         {teams.length === 0 ? (
@@ -135,7 +166,7 @@ export function CompetitionDetailPage() {
                 </button>
                 <button
                   type="button"
-                  className="match-row-delete"
+                  className="match-row-delete btn-danger"
                   title={`Delete ${t.name}`}
                   aria-label={`Delete ${t.name}`}
                   onClick={() => void onDeleteTeam(t.id, t.name)}
@@ -158,79 +189,79 @@ export function CompetitionDetailPage() {
         </button>
       </div>
 
-      {addTeamModalOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setAddTeamModalOpen(false)}>
-          <div
-            className="modal-card card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="comp-add-team-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="comp-add-team-title" className="admin-card-title">
-              Add team
-            </h2>
-            <p className="muted form-subtitle">Enter a team name — then open it for roster, timeline, and weigh-ins.</p>
-            <form className="form" onSubmit={(e) => void onCreateTeam(e)}>
-              <label className="field">
-                <span>Team name</span>
-                <input
-                  className="filter-select"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. U18 Boys"
-                  autoFocus
-                  aria-label="Team name"
-                />
-              </label>
-              <div className="form-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setAddTeamModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
-                  Add team
-                </button>
-              </div>
-            </form>
-          </div>
+      <dialog
+        ref={addDlgRef}
+        className="modal-dialog"
+        aria-labelledby="comp-add-team-title"
+        onCancel={() => setAddTeamModalOpen(false)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setAddTeamModalOpen(false);
+        }}
+      >
+        <div className="modal-card card">
+          <h2 id="comp-add-team-title" className="admin-card-title">
+            Add team
+          </h2>
+          <p className="muted form-subtitle">Enter a team name — then open it for roster, timeline, and weigh-ins.</p>
+          <form className="form" onSubmit={(e) => void onCreateTeam(e)}>
+            <label className="field">
+              <span>Team name</span>
+              <input
+                className="filter-select"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. U18 Boys"
+                autoFocus
+                aria-label="Team name"
+              />
+            </label>
+            <div className="form-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setAddTeamModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
+                Add team
+              </button>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </dialog>
 
-      {editTeam ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setEditTeam(null)}>
-          <div
-            className="modal-card card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="comp-edit-team-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="comp-edit-team-title" className="admin-card-title">
-              Rename team
-            </h2>
-            <form className="form" onSubmit={(e) => void onSaveEditTeam(e)}>
-              <label className="field">
-                <span>Team name</span>
-                <input
-                  className="filter-select"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  autoFocus
-                  aria-label="Team name"
-                />
-              </label>
-              <div className="form-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setEditTeam(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={!editName.trim()}>
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
+      <dialog
+        ref={editDlgRef}
+        className="modal-dialog"
+        aria-labelledby="comp-edit-team-title"
+        onCancel={() => setEditTeam(null)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setEditTeam(null);
+        }}
+      >
+        <div className="modal-card card">
+          <h2 id="comp-edit-team-title" className="admin-card-title">
+            Rename team
+          </h2>
+          <form className="form" onSubmit={(e) => void onSaveEditTeam(e)}>
+            <label className="field">
+              <span>Team name</span>
+              <input
+                className="filter-select"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                autoFocus
+                aria-label="Team name"
+              />
+            </label>
+            <div className="form-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setEditTeam(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={!editName.trim()}>
+                Save
+              </button>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </dialog>
     </div>
   );
 }

@@ -98,7 +98,7 @@ export function RefClockBar({
                 {running ? '⏸' : '▶'}
               </button>
               <div className="ref-clk-block ref-clk-block--period">
-                <span className="ref-clk-block-label" title="Current period; Next advances segment">
+                <span className="ref-clk-block-label" title="Current period; Next advances period">
                   {periodLabel}
                 </span>
                 <span

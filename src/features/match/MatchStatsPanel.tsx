@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { computeMatchAnalyticsSnapshot } from '@/domain/matchAnalytics';
 import { kickDecidedSuccessPct, type SetPieceSplit } from '@/domain/matchAnalytics';
 import { formatClock } from '@/domain/matchClock';
@@ -241,7 +241,18 @@ function SetPieceBar({ label, split }: { label: string; split: SetPieceSplit }) 
 export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
   const [activeSection, setActiveSection] = useState<SectionId>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [hintVisible, setHintVisible] = useState(false);
   const idPrefix = useId().replace(/:/g, '');
+
+  useEffect(() => {
+    const key = 'stats-hint-dismissed';
+    if (!localStorage.getItem(key)) setHintVisible(true);
+  }, []);
+
+  function dismissHint() {
+    localStorage.setItem('stats-hint-dismissed', '1');
+    setHintVisible(false);
+  }
 
   const byKind = countEventsByKind(events);
   const { made: tacklesMade, missed: tacklesMissed } = tackleMadeMissed(events);
@@ -325,6 +336,12 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
 
   return (
     <div className="tgs-root">
+      {hintVisible ? (
+        <div className="stats-hint" role="status">
+          <span>Tip: Use the dropdown to focus on a single section, or scroll to see all stats.</span>
+          <button type="button" className="stats-hint-close" aria-label="Dismiss tip" onClick={dismissHint}>×</button>
+        </div>
+      ) : null}
       <div className="tgs-header">
         <h2 className="team-global-stats-title">Match analytics</h2>
         <select
@@ -380,7 +397,7 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
             </div>
           </div>
 
-          <div className="live-analytics-compare" aria-label="Subs and discipline" style={{ marginTop: '0.6rem' }}>
+          <div className="live-analytics-compare mt-md" aria-label="Subs and discipline">
             <CompareRow label="Subs" left={snapshot.subsOurs} right={snapshot.subsOpp} />
             <CompareRow label="YC" left={snapshot.cardsOurs.yc} right={snapshot.cardsOpp.yc} tone="yc" />
             <CompareRow label="RC" left={snapshot.cardsOurs.rc} right={snapshot.cardsOpp.rc} tone="rc" />
@@ -501,7 +518,7 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
           {scrumTotal > 0 && (
             <>
               <h4 className="tgs-card-subtitle">Scrums</h4>
-              <div className="team-global-kpi-row" style={{ marginBottom: '0.5rem' }}>
+              <div className="team-global-kpi-row mb-sm">
                 <div className="team-global-kpi">
                   <span className="team-global-kpi-label">Our ball won</span>
                   <span className="team-global-kpi-value tabular-nums">{scrumOurWon}</span>
@@ -520,10 +537,10 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
             </>
           )}
 
-          <h4 className="tgs-card-subtitle" style={scrumTotal > 0 ? { marginTop: '0.65rem' } : undefined}>Lineouts</h4>
+          <h4 className={`tgs-card-subtitle${scrumTotal > 0 ? ' mt-md' : ''}`}>Lineouts</h4>
           <SetPieceBar label="Lineouts" split={snapshot.lineouts} />
 
-          <h4 className="tgs-card-subtitle" style={{ marginTop: '0.65rem' }}>Rucks</h4>
+          <h4 className="tgs-card-subtitle mt-md">Rucks</h4>
           <SetPieceBar label="Rucks (restart)" split={snapshot.rucks} />
         </section>
       )}

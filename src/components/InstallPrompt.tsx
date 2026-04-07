@@ -105,6 +105,7 @@ export function InstallPrompt() {
         className="install-toast"
         style={bottomStyle}
         role="region"
+        aria-live="polite"
         aria-label={`Install ${APP_DISPLAY_NAME}`}
       >
         <span className="install-toast-text">Install {APP_DISPLAY_NAME} for a full-screen app and offline access.</span>
@@ -126,6 +127,7 @@ export function InstallPrompt() {
         className="install-toast install-toast--ios"
         style={bottomStyle}
         role="region"
+        aria-live="polite"
         aria-label="Add to Home Screen"
       >
         <span className="install-toast-text">

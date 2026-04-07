@@ -64,7 +64,7 @@ import {
   rugbyPointsFromOwnTeamEvents,
 } from '@/domain/matchStats';
 import { derivedPlayerMinutesMs, flushPlayerMinutes } from '@/domain/playerMinutes';
-import { addMatchEvent, deleteMatchEvent, listMatchEvents } from '@/repos/matchEventsRepo';
+import { addMatchEvent, deleteMatchEvent, listMatchEvents, restoreMatchEvent } from '@/repos/matchEventsRepo';
 import { getMatch, getSession, saveSession } from '@/repos/matchesRepo';
 import { listPlayers, listSubstitutions, recordSubstitution, syncMatchPlayerNamesFromTeam } from '@/repos/rosterRepo';
 import { MatchStatsPanel } from './MatchStatsPanel';
@@ -73,6 +73,7 @@ import { OnFieldPlayerActions } from './OnFieldPlayerActions';
 import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
+import { SectionHelp, TRACKING_GLOSSARY } from '@/components/SectionHelp';
 import type { ZoneId } from '@/domain/zone';
 
 /** When no zone flower pick: default width zone for set-pieces, tackles without pick, etc. */
@@ -101,9 +102,11 @@ export function MatchLivePage() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [banner, setBanner] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<{ text: string; key: number } | null>(null);
+  const [undoToast, setUndoToast] = useState<{ id: string; text: string; key: number } | null>(null);
   /** Stable row order for on-field list (by player id); subs swap in place instead of re-sorting by jersey. */
   const [onFieldDisplayOrder, setOnFieldDisplayOrder] = useState<string[] | null>(null);
   const [clockSettingsOpen, setClockSettingsOpen] = useState(false);
+  const [trackingMode, setTrackingMode] = useState<'full' | 'one_tap'>('full');
   const liveTab = useMemo((): 'live' | 'timeline' | 'stats' | 'roster' => {
     const t = searchParams.get('tab');
     if (t === 'roster' || t === 'timeline' || t === 'stats' || t === 'live') return t;
@@ -197,6 +200,12 @@ export function MatchLivePage() {
     const id = window.setTimeout(() => setActionToast(null), 550);
     return () => window.clearTimeout(id);
   }, [actionToast]);
+
+  useEffect(() => {
+    if (!undoToast) return;
+    const t = setTimeout(() => setUndoToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [undoToast]);
 
   useEffect(() => {
     const s = session;
@@ -635,9 +644,16 @@ export function MatchLivePage() {
     setActionToast({ text: 'Penalty logged', key: Date.now() });
   }
 
+  async function onUndoDelete(id: string) {
+    await restoreMatchEvent(id);
+    setUndoToast(null);
+    await load();
+  }
+
   async function onDeleteEvent(id: string) {
     await deleteMatchEvent(id);
     await load();
+    setUndoToast({ id, text: 'Event removed.', key: Date.now() });
   }
 
   async function recordSubstitutionLive(playerOffId: string, playerOnId: string) {
@@ -686,13 +702,13 @@ export function MatchLivePage() {
   return (
     <div className="live-match-shell">
       <div className="live-match-head">
-        <p className="live-compact-title">{derivedFixtureLabel(match)}</p>
+        <h1 className="live-compact-title">{derivedFixtureLabel(match)}</h1>
         <p className="muted live-match-event-count" aria-live="polite">
           {events.length} {events.length === 1 ? 'event' : 'events'} logged
         </p>
       </div>
 
-      {banner ? <p className="error-text live-banner">{banner}</p> : null}
+      {banner ? <p className="error-text live-banner" role="alert">{banner}</p> : null}
 
       <div className="live-tab-strip live-tab-strip-4" role="tablist" aria-label="Match sections">
         <button
@@ -799,8 +815,36 @@ export function MatchLivePage() {
             onReset={() => onResetMatchClock()}
           />
 
-          <section className="live-player-pane" aria-label="On-field players">
-            <h2 className="live-player-pane-title">On field</h2>
+          <section className="live-player-pane" aria-label="Player tracking">
+            <div className="tracking-mode-header">
+              <div className="live-player-pane-header">
+                <h2 className="live-player-pane-title">Tracking</h2>
+                <SectionHelp title="Tracking" entries={TRACKING_GLOSSARY} />
+              </div>
+              <div className="tracking-mode-switch" role="radiogroup" aria-label="Tracking mode">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={trackingMode === 'full'}
+                  className={`tracking-mode-opt${trackingMode === 'full' ? ' tracking-mode-opt--active' : ''}`}
+                  onClick={() => setTrackingMode('full')}
+                >
+                  Full
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={trackingMode === 'one_tap'}
+                  className={`tracking-mode-opt${trackingMode === 'one_tap' ? ' tracking-mode-opt--active' : ''}`}
+                  onClick={() => setTrackingMode('one_tap')}
+                >
+                  One Tap
+                </button>
+              </div>
+            </div>
+            {trackingMode === 'one_tap' && (
+              <p className="tracking-mode-hint">Quick counters — one tap per action.</p>
+            )}
             <OnFieldPlayerActions
               players={onFieldPlayers}
               substituteOptions={benchOrOff}
@@ -858,6 +902,18 @@ export function MatchLivePage() {
         </div>
       )}
 
+      {undoToast ? (
+        <div key={undoToast.key} className="undo-toast" role="status" aria-live="polite">
+          <span>{undoToast.text}</span>
+          <button
+            type="button"
+            className="undo-toast-btn"
+            onClick={() => void onUndoDelete(undoToast.id)}
+          >
+            Undo
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
