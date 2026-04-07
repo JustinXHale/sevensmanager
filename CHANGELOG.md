@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Quick-start scaffold (`clubScaffold.ts`) — **Generic** competition, **Team A** (default sevens roster), and a default match vs **Opponents**; runs after **Quick create** on the competitions page (▾ menu) and after saving a **new club**, then navigates into the new competition
 - About section in the navigation drawer — bottom sheet with app description, version (pulled from package.json at build time), creator bio, and copyright
 - `useBeforeUnload` hook — warns on tab close when competition create/edit modals or the club form have unsaved text
 - Spacing utility classes (`.mt-*`, `.mb-*`), skeleton loader styles, and first-visit stats tip (`.stats-hint`) in App.css

@@ -150,8 +150,9 @@ export function ClubLandingPage() {
         open={modalOpen}
         variant="create"
         onClose={() => setModalOpen(false)}
-        onSaved={async () => {
+        onSaved={async (club) => {
           await load();
+          navigate(`/club/${club.id}/competitions`);
         }}
       />
     </div>

@@ -5,6 +5,7 @@ import { formatCompetitionDateLabel, type CompetitionRecord } from '@/domain/com
 import { useAppChrome } from '@/context/AppChromeContext';
 import { ClubTeamFormModal } from '@/features/clubs/ClubTeamFormModal';
 import { getClub } from '@/repos/clubsRepo';
+import { scaffoldQuickStartForClub } from '@/repos/clubScaffold';
 import { createCompetition, deleteCompetition, listCompetitionsForClub, updateCompetition } from '@/repos/competitionsRepo';
 import { seedDemoCoastalPack } from '@/repos/demoSeed';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
@@ -196,11 +197,18 @@ export function CompetitionHomePage() {
     }
   }
 
-  function openQuickCreate() {
+  async function openQuickCreate() {
+    setMenuOpen(false);
+    if (!clubId || quickBusy) return;
     setQuickBusy(true);
+    setError(null);
     try {
-      setMenuOpen(false);
-      setCreateModalOpen(true);
+      const { competitionId } = await scaffoldQuickStartForClub(clubId);
+      await load();
+      setSuccessMsg('Quick create: Generic competition, Team A, and a match vs Opponents.');
+      navigate(`/competition/${competitionId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not quick-create');
     } finally {
       setQuickBusy(false);
     }
@@ -319,10 +327,12 @@ export function CompetitionHomePage() {
                   type="button"
                   className="competitions-sticky-dropdown-item competitions-sticky-dropdown-item--detail"
                   disabled={quickBusy}
-                  onClick={() => openQuickCreate()}
+                  onClick={() => void openQuickCreate()}
                 >
                   <span className="competitions-sticky-dropdown-label">Quick create</span>
-                  <span className="competitions-sticky-dropdown-desc">Name a competition and open it to add teams.</span>
+                  <span className="competitions-sticky-dropdown-desc">
+                    Instantly creates a Generic competition, Team A, and a match vs Opponents — no form.
+                  </span>
                 </button>
               </li>
               <li>

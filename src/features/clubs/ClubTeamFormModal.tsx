@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { ClubRecord } from '@/domain/club';
 import { createClub, updateClub } from '@/repos/clubsRepo';
+import { scaffoldQuickStartForClub } from '@/repos/clubScaffold';
 import { LOGO_FIELD_REQUIREMENTS, preflightImageFileForLogo, readLogoFileAsDataUrl } from '@/utils/imageCompress';
 
 type LogoUiState =
@@ -15,7 +16,7 @@ type Props =
       open: boolean;
       variant: 'create';
       onClose: () => void;
-      onSaved: () => void | Promise<void>;
+      onSaved: (club: ClubRecord) => void | Promise<void>;
     }
   | {
       open: boolean;
@@ -126,15 +127,17 @@ export function ClubTeamFormModal(props: Props) {
           return;
         }
         await updateClub(props.club.id, { name: n, nickname: nick, abbreviation: abbr, logo });
+        await onSaved();
       } else {
-        await createClub({
+        const row = await createClub({
           name: n,
           nickname: nick,
           abbreviation: abbr,
           logoDataUrl,
         });
+        await scaffoldQuickStartForClub(row.id);
+        await onSaved(row);
       }
-      await onSaved();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save');
