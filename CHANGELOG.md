@@ -41,6 +41,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT License
 
 ### Changed
+- Stats tab: **Full / Simple** toggle (rounded, matching the Tracking tab style) with section dropdown moved below the title row; help icon on the title explains the two modes
 - Match **One Tap** tracking: Stats tab is **summary-only** (title “Match summary”) — points, tries, conv %, tackle %, subs & cards; no section dropdown. **Full** mode keeps full analytics (phase, set pieces, penalties, timeline, event counts, zones, etc.); tracking mode persists per match in `sessionStorage`
 - About sheet copy — first-person story: coaching return, live analytics when video isn’t available, open source, refereeing background in brief, family, and design work at Red Hat
 - Card padding/radius consolidated via `--_card-pad` / `--_card-radius` on `.card`, with `.tgs-card` overriding padding only; inline rem margins on stats panels replaced with spacing utilities (M9/M10 UX audit)
@@ -73,6 +74,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Sample data load stays on competitions page instead of auto-navigating into a single competition
 
 ### Fixed
+- PWA update toast now appears reliably: switched from `autoUpdate` to `prompt` so the new service worker waits for user confirmation; added hourly update checks
 - One Tap stats now correctly show **only the overview** section; zone heatmap, phase split, ruck speed, and other detail sections that depend on zone data are hidden
 - Club edit modal no longer shows "Discard unsaved changes?" prompt when opened without making any changes (isDirty compared against initial values in edit mode)
 - Native `<dialog>` CSS uses `[open]` / `:not([open])` selectors so closed dialogs are properly hidden instead of rendering inline

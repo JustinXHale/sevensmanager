@@ -887,6 +887,7 @@ export function MatchLivePage() {
             substitutions={substitutions}
             playersById={playersById}
             statsDetail={trackingMode === 'one_tap' ? 'one_tap' : 'full'}
+            onStatsDetailChange={(mode) => setTrackingMode(mode === 'one_tap' ? 'one_tap' : 'full')}
           />
         </div>
       ) : liveTab === 'roster' ? (

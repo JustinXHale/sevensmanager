@@ -400,33 +400,8 @@ export function OnFieldPlayerActions({
       <div className="live-setpiece-block" aria-label="Set pieces">
         <div className="live-setpiece-bar">
           <SetPieceFlowerButton
-            kind="scrum"
-            label="Scrum"
-            onComplete={(p) =>
-              onSetPiece({
-                kind: p.kind,
-                outcome: p.outcome,
-                pick: p.pick,
-                phase: mode,
-              })
-            }
-          />
-          <SetPieceFlowerButton
             kind="lineout"
             label="Lineout"
-            onComplete={(p) =>
-              onSetPiece({
-                kind: p.kind,
-                outcome: p.outcome,
-                pick: p.pick,
-                phase: mode,
-              })
-            }
-          />
-          <SetPieceFlowerButton
-            kind="ruck"
-            label="Ruck"
-            chipClassName="live-chip-tertiary"
             onComplete={(p) =>
               onSetPiece({
                 kind: p.kind,
@@ -439,6 +414,30 @@ export function OnFieldPlayerActions({
           <RestartFlowerButton
             onComplete={(p) =>
               onRestart({
+                outcome: p.outcome,
+                pick: p.pick,
+                phase: mode,
+              })
+            }
+          />
+          <SetPieceFlowerButton
+            kind="ruck"
+            label="Ruck"
+            onComplete={(p) =>
+              onSetPiece({
+                kind: p.kind,
+                outcome: p.outcome,
+                pick: p.pick,
+                phase: mode,
+              })
+            }
+          />
+          <SetPieceFlowerButton
+            kind="scrum"
+            label="Scrum"
+            onComplete={(p) =>
+              onSetPiece({
+                kind: p.kind,
                 outcome: p.outcome,
                 pick: p.pick,
                 phase: mode,

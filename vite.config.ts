@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
     react(),
     ghPages404(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['7smanager.svg'],
       manifest: {
         name: appName,

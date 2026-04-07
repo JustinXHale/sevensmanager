@@ -34,17 +34,19 @@ import {
 import type { PlayerRecord, SubstitutionRecord } from '@/domain/player';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
-import { SectionHelp, MATCH_GLOSSARY } from '@/components/SectionHelp';
+import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
+
+const STATS_MODE_HELP: GlossaryEntry[] = [
+  { abbr: 'Full', full: 'Full analytics', desc: 'All sections: phase split, zones, set pieces, ruck speed, penalties, negatives, scoring timeline, event counts, and player detail. Best when tracking in Full mode.' },
+  { abbr: 'Simple', full: 'Simple summary', desc: 'Scoreboard totals only: points, tries, conversion %, tackle %, subs, and cards. Designed for One Tap tracking where zone-level data isn\u2019t captured.' },
+];
 
 type Props = {
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
-  /**
-   * Full: full analytics (all sections). One Tap: **summary only** — same top-line KPIs as Overview
-   * (points, tries, conv %, tackle %, subs & cards); no phase split, set pieces, penalties drill-down, etc.
-   */
   statsDetail?: 'full' | 'one_tap';
+  onStatsDetailChange?: (mode: 'full' | 'one_tap') => void;
 };
 
 const SECTIONS = [
@@ -265,26 +267,12 @@ function SetPieceBar({ label, split }: { label: string; split: SetPieceSplit }) 
   );
 }
 
-export function MatchStatsPanel({ events, substitutions, playersById, statsDetail = 'full' }: Props) {
+export function MatchStatsPanel({ events, substitutions, playersById, statsDetail = 'full', onStatsDetailChange }: Props) {
   const [activeSection, setActiveSection] = useState<SectionId>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const [hintVisible, setHintVisible] = useState(false);
+
   const idPrefix = useId().replace(/:/g, '');
 
-  useEffect(() => {
-    const key = 'stats-hint-dismissed';
-    if (statsDetail === 'one_tap') {
-      setHintVisible(false);
-      return;
-    }
-    if (!localStorage.getItem(key)) setHintVisible(true);
-    else setHintVisible(false);
-  }, [statsDetail]);
-
-  function dismissHint() {
-    localStorage.setItem('stats-hint-dismissed', '1');
-    setHintVisible(false);
-  }
 
   const byKind = countEventsByKind(events);
   const { made: tacklesMade, missed: tacklesMissed } = tackleMadeMissed(events);
@@ -377,37 +365,33 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
 
   return (
     <div className="tgs-root">
-      {hintVisible && statsDetail === 'full' ? (
-        <div className="stats-hint" role="status">
-          <span>Tip: Use the dropdown to focus on a single section, or scroll to see all stats.</span>
-          <button type="button" className="stats-hint-close" aria-label="Dismiss tip" onClick={dismissHint}>×</button>
-        </div>
-      ) : null}
       <div className="tgs-header">
         <h2 className="team-global-stats-title">
           {statsDetail === 'one_tap' ? 'Match summary' : 'Match analytics'}
         </h2>
-        {visibleSections.length > 1 ? (
-          <select
-            className="filter-select tgs-section-select"
-            value={current}
-            onChange={(e) => setActiveSection(e.target.value as SectionId)}
-            aria-label="Section"
-          >
-            <option value="all">All sections</option>
-            {visibleSections.map((s) => (
-              <option key={s.id} value={s.id}>{s.label}</option>
-            ))}
-          </select>
+        <SectionHelp
+          title="Stats modes"
+          entries={STATS_MODE_HELP}
+        />
+        {onStatsDetailChange ? (
+          <div className="tracking-mode-switch tracking-mode-switch--stats" role="radiogroup" aria-label="Stats detail level">
+            <button type="button" role="radio" aria-checked={statsDetail === 'full'} className={`tracking-mode-opt${statsDetail === 'full' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('full')}>Full</button>
+            <button type="button" role="radio" aria-checked={statsDetail === 'one_tap'} className={`tracking-mode-opt${statsDetail === 'one_tap' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('one_tap')}>Simple</button>
+          </div>
         ) : null}
       </div>
-
-      {statsDetail === 'one_tap' ? (
-        <div className="live-stats-one-tap-banner" role="status">
-          <strong>One Tap (simple) mode.</strong> Only scoreboard-style totals below. Switch to <strong>Full</strong> on
-          the Tracking tab for phase time, set pieces, penalties, negatives, scoring timeline, event counts, zones, and
-          player detail.
-        </div>
+      {visibleSections.length > 1 ? (
+        <select
+          className="filter-select tgs-section-select tgs-section-select--full-width"
+          value={current}
+          onChange={(e) => setActiveSection(e.target.value as SectionId)}
+          aria-label="Section"
+        >
+          <option value="all">All sections</option>
+          {visibleSections.map((s) => (
+            <option key={s.id} value={s.id}>{s.label}</option>
+          ))}
+        </select>
       ) : null}
 
       {/* Overview */}

@@ -4671,6 +4671,7 @@ button.live-stats-cell--btn.live-stats-cell--open {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .tgs-header .team-global-stats-title {
@@ -4678,12 +4679,19 @@ button.live-stats-cell--btn.live-stats-cell--open {
   white-space: nowrap;
 }
 
+.tracking-mode-switch--stats {
+  margin-left: auto;
+}
+
 .tgs-section-select {
   min-height: 36px !important;
   padding: 0.35rem 0.6rem !important;
   font-size: 0.8125rem !important;
-  flex: 1;
-  max-width: 14rem;
+}
+
+.tgs-section-select--full-width {
+  width: 100%;
+  max-width: none;
 }
 
 .tgs-card {

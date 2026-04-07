@@ -1,10 +1,20 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // check every hour
+
 export function UpdatePrompt() {
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW({ immediate: true });
+  } = useRegisterSW({
+    immediate: true,
+    onRegisteredSW(_swUrl, registration) {
+      if (!registration) return;
+      setInterval(() => {
+        void registration.update();
+      }, UPDATE_CHECK_INTERVAL_MS);
+    },
+  });
 
   if (!needRefresh) return null;
 

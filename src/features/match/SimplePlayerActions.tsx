@@ -156,10 +156,10 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
 const OPPONENT_UI_PLAYER_ID = '_opponent_';
 
 const SET_PIECE_KINDS: { kind: MatchEventKind; label: string }[] = [
-  { kind: 'scrum', label: 'Scrum' },
   { kind: 'lineout', label: 'Lineout' },
-  { kind: 'ruck', label: 'Ruck' },
   { kind: 'restart', label: 'Restart' },
+  { kind: 'ruck', label: 'Ruck' },
+  { kind: 'scrum', label: 'Scrum' },
 ];
 
 export function SimplePlayerActions({
