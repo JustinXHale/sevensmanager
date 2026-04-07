@@ -1,8 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // check every hour
 
 export function UpdatePrompt() {
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -10,11 +13,18 @@ export function UpdatePrompt() {
     immediate: true,
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
-      setInterval(() => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
         void registration.update();
       }, UPDATE_CHECK_INTERVAL_MS);
     },
   });
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   if (!needRefresh) return null;
 

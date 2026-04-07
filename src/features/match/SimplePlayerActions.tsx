@@ -20,14 +20,6 @@ import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerA
 
 export type SimpleActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
 
-const SIMPLE_ACTION_ACK: Record<SimpleActionKind, string> = {
-  pass: 'Pass logged',
-  offload: 'Offload logged',
-  try: 'Try logged',
-  line_break: 'Line break logged',
-  negative_action: 'Negative play logged',
-};
-
 export type PlayerActionMode = 'attack' | 'defense' | 'opponent';
 
 function PlayerDisciplineSuffix({ badges }: { badges: PlayerDisciplineBadges }) {

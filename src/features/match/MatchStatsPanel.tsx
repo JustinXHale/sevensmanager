@@ -336,7 +336,7 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
   }, [statsDetail]);
 
   const current = activeSection === 'all' ? 'all' : (visibleSections.find((s) => s.id === activeSection) ? activeSection : 'all');
-  const visibleIds = new Set(visibleSections.map((s) => s.id));
+  const visibleIds: Set<string> = new Set(visibleSections.map((s) => s.id));
   const show = (id: string) => visibleIds.has(id) && (current === 'all' || current === id);
   const sectionTitle = (id: string) => {
     const s = SECTIONS.find((x) => x.id === id);
