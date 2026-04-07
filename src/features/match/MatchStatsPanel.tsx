@@ -36,17 +36,20 @@ import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
 
+type StatsDetail = 'full' | 'one_tap' | 'tally';
+
 const STATS_MODE_HELP: GlossaryEntry[] = [
   { abbr: 'Full', full: 'Full analytics', desc: 'All sections: phase split, zones, set pieces, ruck speed, penalties, negatives, scoring timeline, event counts, and player detail. Best when tracking in Full mode.' },
-  { abbr: 'Simple', full: 'Simple summary', desc: 'Scoreboard totals only: points, tries, conversion %, tackle %, subs, and cards. Designed for One Tap tracking where zone-level data isn\u2019t captured.' },
+  { abbr: 'One Tap', full: 'One Tap summary', desc: 'Overview plus grouped event counts: attack, defense, and set pieces. Designed for One Tap tracking where zone-level data isn\u2019t captured.' },
+  { abbr: 'Tally', full: 'Raw event counts', desc: 'Event counts only: how many of each action were logged. Best when tracking in Tally mode (team-level tallies, no player attribution).' },
 ];
 
 type Props = {
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
-  statsDetail?: 'full' | 'one_tap';
-  onStatsDetailChange?: (mode: 'full' | 'one_tap') => void;
+  statsDetail?: StatsDetail;
+  onStatsDetailChange?: (mode: StatsDetail) => void;
 };
 
 const SECTIONS = [
@@ -83,6 +86,12 @@ const KIND_ORDER: MatchEventKind[] = [
   'opponent_substitution', 'opponent_card', 'pass', 'line_break',
   'negative_action', 'scrum', 'lineout', 'restart', 'team_penalty', 'ruck',
 ];
+
+const TALLY_ATTACK_KINDS: MatchEventKind[] = [
+  'pass', 'line_break', 'try', 'conversion', 'negative_action',
+];
+const TALLY_DEFENSE_KINDS: MatchEventKind[] = ['team_penalty'];
+const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['scrum', 'lineout', 'restart', 'ruck'];
 
 function fmtMs(ms: number): string {
   const totalSec = Math.round(ms / 1000);
@@ -318,8 +327,11 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
   const oppKickPct = kickDecidedSuccessPct(snapshot.oppKick.made, snapshot.oppKick.missed);
 
   const visibleSections = SECTIONS.filter((s) => {
+    if (statsDetail === 'tally') {
+      return s.id === 'numbers';
+    }
     if (statsDetail === 'one_tap') {
-      return s.id === 'overview';
+      return s.id === 'overview' || s.id === 'numbers' || (s.id === 'involvement' && profiles.size > 0);
     }
     if (s.id === 'zones') return heatRows.length > 0;
     if (s.id === 'involvement') return profiles.size > 0;
@@ -366,17 +378,20 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
   return (
     <div className="tgs-root">
       <div className="tgs-header">
-        <h2 className="team-global-stats-title">
-          {statsDetail === 'one_tap' ? 'Match summary' : 'Match analytics'}
-        </h2>
-        <SectionHelp
-          title="Stats modes"
-          entries={STATS_MODE_HELP}
-        />
+        <div className="tgs-header-title-row">
+          <h2 className="team-global-stats-title">
+            Match stats
+          </h2>
+          <SectionHelp
+            title="Stats modes"
+            entries={STATS_MODE_HELP}
+          />
+        </div>
         {onStatsDetailChange ? (
           <div className="tracking-mode-switch tracking-mode-switch--stats" role="radiogroup" aria-label="Stats detail level">
             <button type="button" role="radio" aria-checked={statsDetail === 'full'} className={`tracking-mode-opt${statsDetail === 'full' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('full')}>Full</button>
-            <button type="button" role="radio" aria-checked={statsDetail === 'one_tap'} className={`tracking-mode-opt${statsDetail === 'one_tap' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('one_tap')}>Simple</button>
+            <button type="button" role="radio" aria-checked={statsDetail === 'one_tap'} className={`tracking-mode-opt${statsDetail === 'one_tap' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('one_tap')}>One Tap</button>
+            <button type="button" role="radio" aria-checked={statsDetail === 'tally'} className={`tracking-mode-opt${statsDetail === 'tally' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('tally')}>Tally</button>
           </div>
         ) : null}
       </div>
@@ -508,7 +523,7 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
         <section className="card tgs-card">
           {sectionTitle('involvement')}
           <p className="muted tgs-card-sub">Ranked by involvement: passes + tackles + breaks + tries + negatives + penalties.</p>
-          <PlayerProfileList profiles={profiles} playersById={playersById} />
+          <PlayerProfileList profiles={profiles} playersById={playersById} showQualityDetail={statsDetail !== 'one_tap'} />
         </section>
       )}
 
@@ -657,40 +672,66 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
         );
       })()}
 
-      {/* Event counts (drill-down) */}
-      {show('numbers') && (
+      {/* Tally / Simple mode: separate cards per group */}
+      {show('numbers') && (statsDetail === 'tally' || statsDetail === 'one_tap') && (
+        <>
+          <section className="card tgs-card">
+            <h3 className="tgs-card-title">Attack</h3>
+            <div className="live-stats-grid">
+              {TALLY_ATTACK_KINDS.map((kind) => (
+                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              ))}
+            </div>
+          </section>
+          <section className="card tgs-card">
+            <h3 className="tgs-card-title">Defense</h3>
+            <div className="live-stats-grid">
+              <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              {TALLY_DEFENSE_KINDS.map((kind) => (
+                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              ))}
+            </div>
+          </section>
+          <section className="card tgs-card">
+            <h3 className="tgs-card-title">Set pieces</h3>
+            <div className="live-stats-grid">
+              {TALLY_SET_PIECE_KINDS.map((kind) => (
+                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              ))}
+            </div>
+          </section>
+          {statsDetail === 'one_tap' && scoringRows.length > 0 && (
+            <section className="card tgs-card">
+              <h3 className="tgs-card-title">Scoring by player</h3>
+              <ul className="live-stats-scoring-list">
+                {scoringRows.map((r) => (
+                  <li key={r.id} className="live-stats-scoring-row">
+                    <span className="live-stats-scoring-name">{r.label}</span>
+                    <span className="live-stats-scoring-meta">
+                      {r.tries > 0 ? `${r.tries} try${r.tries === 1 ? '' : 'ies'}` : ''}
+                      {r.tries > 0 && r.conversions > 0 ? ' \u00b7 ' : ''}
+                      {r.conversions > 0 ? `${r.conversions} conv` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+
+      {/* Event counts (drill-down) — full mode */}
+      {show('numbers') && statsDetail === 'full' && (
         <section className="card tgs-card">
           {sectionTitle('numbers')}
           <div className="live-stats-grid">
             {KIND_ORDER.map((kind) => (
-              <StatCard
-                key={kind}
-                statKey={`kind:${kind}`}
-                value={byKind[kind] ?? 0}
-                label={kindLabel(kind)}
-                expandedKey={expandedKey}
-                onToggle={toggleExpand}
-                idPrefix={idPrefix}
-                events={events}
-                substitutions={substitutions}
-                playersById={playersById}
-              />
+              <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
             ))}
-            <StatCard
-              statKey="tackle:made" value={tacklesMade} label="Tackles made"
-              expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix}
-              events={events} substitutions={substitutions} playersById={playersById}
-            />
-            <StatCard
-              statKey="tackle:missed" value={tacklesMissed} label="Tackles missed"
-              expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix}
-              events={events} substitutions={substitutions} playersById={playersById}
-            />
-            <StatCard
-              statKey="subs" value={substitutions.length} label="Substitutions" wide
-              expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix}
-              events={events} substitutions={substitutions} playersById={playersById}
-            />
+            <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+            <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+            <StatCard statKey="subs" value={substitutions.length} label="Substitutions" wide expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
           </div>
 
           {scoringRows.length > 0 && (
@@ -714,18 +755,7 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
           <h4 className="tgs-card-title" style={{ marginTop: '0.6rem' }}>Tries by zone</h4>
           <div className="live-stats-zone-grid">
             {ZONE_IDS.map((z) => (
-              <StatCard
-                key={z}
-                statKey={`zone:${z}`}
-                value={triesZ[z]}
-                label={z}
-                expandedKey={expandedKey}
-                onToggle={toggleExpand}
-                idPrefix={idPrefix}
-                events={events}
-                substitutions={substitutions}
-                playersById={playersById}
-              />
+              <StatCard key={z} statKey={`zone:${z}`} value={triesZ[z]} label={z} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
             ))}
           </div>
         </section>
@@ -762,7 +792,7 @@ function CompareRow({ label, left, right, tone = 'default' }: { label: string; l
   );
 }
 
-function PlayerProfileList({ profiles, playersById }: { profiles: Map<string, PlayerProfile>; playersById: Map<string, PlayerRecord> }) {
+function PlayerProfileList({ profiles, playersById, showQualityDetail = true }: { profiles: Map<string, PlayerProfile>; playersById: Map<string, PlayerRecord>; showQualityDetail?: boolean }) {
   const sorted = [...profiles.values()].sort((a, b) => playerInvolvement(b) - playerInvolvement(a));
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -800,7 +830,7 @@ function PlayerProfileList({ profiles, playersById }: { profiles: Map<string, Pl
                 <dl className="deep-player-dl">
                   <div className="deep-dl-pair"><dt>Passes</dt><dd>{p.passes}{p.offloads > 0 ? ` (${p.offloads} offloads)` : ''}</dd></div>
                   <div className="deep-dl-pair"><dt>Tackles</dt><dd>{tMade}M / {tMissed}X{tacklePctP != null ? ` (${tacklePctP}%)` : ''}</dd></div>
-                  {tMade > 0 && <div className="deep-dl-pair"><dt>Tackle quality</dt><dd>{p.tackles.dominant}D / {p.tackles.neutral}N / {p.tackles.passive}P</dd></div>}
+                  {showQualityDetail && tMade > 0 && <div className="deep-dl-pair"><dt>Tackle quality</dt><dd>{p.tackles.dominant}D / {p.tackles.neutral}N / {p.tackles.passive}P</dd></div>}
                   <div className="deep-dl-pair"><dt>Line breaks</dt><dd>{p.lineBreaks}</dd></div>
                   <div className="deep-dl-pair"><dt>Tries / Conv.</dt><dd>{p.tries}T / {p.conversions.made}M {p.conversions.missed}X</dd></div>
                   {p.negatives > 0 && (

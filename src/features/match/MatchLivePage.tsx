@@ -42,6 +42,7 @@ import {
   restartKickDepthLabel,
   type RestartKickDepth,
   type SetPieceOutcome,
+  type ConversionOutcome,
   type TackleOutcome,
   type TeamPenaltyPayload,
   type ZoneFlowerPick,
@@ -74,6 +75,7 @@ import { MatchStatsPanel } from './MatchStatsPanel';
 import { MatchEventTimeline } from './MatchEventTimeline';
 import { OnFieldPlayerActions } from './OnFieldPlayerActions';
 import { SimplePlayerActions, type SimpleActionKind } from './SimplePlayerActions';
+import { TallyPlayerActions, type TallyActionKind } from './TallyPlayerActions';
 import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
@@ -94,11 +96,13 @@ type LoadSwapHint = { playerOffId: string; playerOnId: string };
 
 const TRACKING_MODE_STORAGE_PREFIX = 'sevensManager.trackingMode.';
 
-function readStoredTrackingMode(matchId: string | undefined): 'full' | 'one_tap' {
+type TrackingMode = 'full' | 'one_tap' | 'tally';
+
+function readStoredTrackingMode(matchId: string | undefined): TrackingMode {
   if (!matchId || typeof sessionStorage === 'undefined') return 'full';
   try {
     const v = sessionStorage.getItem(`${TRACKING_MODE_STORAGE_PREFIX}${matchId}`);
-    if (v === 'one_tap' || v === 'full') return v;
+    if (v === 'one_tap' || v === 'full' || v === 'tally') return v;
   } catch {
     /* ignore */
   }
@@ -123,7 +127,7 @@ export function MatchLivePage() {
   /** Stable row order for on-field list (by player id); subs swap in place instead of re-sorting by jersey. */
   const [onFieldDisplayOrder, setOnFieldDisplayOrder] = useState<string[] | null>(null);
   const [clockSettingsOpen, setClockSettingsOpen] = useState(false);
-  const [trackingMode, setTrackingMode] = useState<'full' | 'one_tap'>(() => readStoredTrackingMode(matchId));
+  const [trackingMode, setTrackingMode] = useState<TrackingMode>(() => readStoredTrackingMode(matchId));
   const liveTab = useMemo((): 'live' | 'timeline' | 'stats' | 'roster' => {
     const t = searchParams.get('tab');
     if (t === 'roster' || t === 'timeline' || t === 'stats' || t === 'live') return t;
@@ -462,6 +466,19 @@ export function MatchLivePage() {
     [events],
   );
 
+  const tallyCounts = useMemo(() => {
+    const c = { pass: 0, offload: 0, line_break: 0, try: 0, negative_action: 0, tackle_made: 0, tackle_missed: 0, penalty: 0 };
+    for (const e of events) {
+      if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
+      else if (e.kind === 'line_break') c.line_break++;
+      else if (e.kind === 'try') c.try++;
+      else if (e.kind === 'negative_action') c.negative_action++;
+      else if (e.kind === 'tackle') { if (e.tackleOutcome === 'missed') c.tackle_missed++; else c.tackle_made++; }
+      else if (e.kind === 'team_penalty') c.penalty++;
+    }
+    return c;
+  }, [events]);
+
   const ourRugbyScore = useMemo(() => rugbyPointsFromOwnTeamEvents(events), [events]);
 
   const opponentRugbyScore = useMemo(() => rugbyPointsFromOpponentEvents(events), [events]);
@@ -744,6 +761,67 @@ export function MatchLivePage() {
     setActionToast({ text: `${label} · ${outcome} · ${phase}`, key: Date.now() });
   }
 
+  async function logTallyAction(kind: TallyActionKind) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    const isOffload = kind === 'offload';
+    const eventKind = isOffload ? 'pass' : kind;
+    await addMatchEvent({
+      matchId,
+      kind: eventKind,
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      ...(isOffload ? { passVariant: 'offload' as const } : kind === 'pass' ? { passVariant: 'standard' as const } : {}),
+    });
+    await load();
+    const ack = isOffload ? 'Offload logged' : ACTION_ACK[kind as keyof typeof ACTION_ACK];
+    setActionToast({ text: ack, key: Date.now() });
+  }
+
+  async function logTallyTackle(outcome: TackleOutcome) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'tackle',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      tackleOutcome: outcome,
+    });
+    await load();
+    setActionToast({ text: outcome === 'missed' ? 'Tackle missed' : 'Tackle made', key: Date.now() });
+  }
+
+  async function logTallyConversion(outcome: ConversionOutcome) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'conversion',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      conversionOutcome: outcome,
+    });
+    await load();
+    setActionToast({ text: outcome === 'made' ? 'Conversion made' : 'Conversion missed', key: Date.now() });
+  }
+
+  async function logTallyPenalty(payload: TeamPenaltyPayload) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'team_penalty',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      penaltyType: payload.penaltyType,
+      penaltyCard: payload.card,
+      penaltyDetail: payload.penaltyDetail,
+    });
+    await load();
+    setActionToast({ text: 'Penalty logged', key: Date.now() });
+  }
+
   async function logTeamPenalty(playerId: string, payload: TeamPenaltyPayload) {
     if (!matchId || !session) return;
     setBanner(null);
@@ -886,8 +964,8 @@ export function MatchLivePage() {
             events={events}
             substitutions={substitutions}
             playersById={playersById}
-            statsDetail={trackingMode === 'one_tap' ? 'one_tap' : 'full'}
-            onStatsDetailChange={(mode) => setTrackingMode(mode === 'one_tap' ? 'one_tap' : 'full')}
+            statsDetail={trackingMode === 'tally' ? 'tally' : trackingMode === 'one_tap' ? 'one_tap' : 'full'}
+            onStatsDetailChange={(mode) => setTrackingMode(mode)}
           />
         </div>
       ) : liveTab === 'roster' ? (
@@ -964,12 +1042,39 @@ export function MatchLivePage() {
                 >
                   One Tap
                 </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={trackingMode === 'tally'}
+                  className={`tracking-mode-opt${trackingMode === 'tally' ? ' tracking-mode-opt--active' : ''}`}
+                  onClick={() => setTrackingMode('tally')}
+                >
+                  Tally
+                </button>
               </div>
             </div>
             {trackingMode === 'one_tap' && (
               <p className="tracking-mode-hint">Quick counters — one tap per action, no zone detail.</p>
             )}
-            {trackingMode === 'one_tap' ? (
+            {trackingMode === 'tally' && (
+              <p className="tracking-mode-hint">Team-level tallies — no player attribution.</p>
+            )}
+            {trackingMode === 'tally' ? (
+              <TallyPlayerActions
+                counts={tallyCounts}
+                owesConversion={owesConversion}
+                owesOpponentConversion={owesOpponentConversion}
+                pendingOpponentConversionKick={pendingOpponentConversionKick}
+                onTallyAction={(kind) => void logTallyAction(kind)}
+                onTallyTackle={(outcome) => void logTallyTackle(outcome)}
+                onTallyConversion={(outcome) => void logTallyConversion(outcome)}
+                onTallySetPiece={(kind, outcome, phase) => void logSimpleSetPiece(kind, outcome, phase)}
+                onTallyPenalty={(payload) => void logTallyPenalty(payload)}
+                onOpponentScoring={(kind, pick) => void logOpponentScoring(kind, pick)}
+                opponentStatBoard={opponentStatBoard}
+                onOpponentStatAdjust={(row, delta) => void onOpponentStatAdjust(row, delta)}
+              />
+            ) : trackingMode === 'one_tap' ? (
               <SimplePlayerActions
                 players={onFieldPlayers}
                 substituteOptions={benchOrOff}

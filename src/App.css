@@ -2388,6 +2388,120 @@ a.live-tab:focus-visible {
   background: #2a1a1e;
 }
 
+/* ── Tally mode: circular counter grid ────────────────── */
+.tally-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.tally-counter-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 7rem;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--accent, #5e9ed6);
+  background: transparent;
+  color: var(--text, #e4e4e4);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tally-counter-btn:active {
+  background: rgba(94, 158, 214, 0.18);
+}
+
+.tally-counter-btn--miss {
+  border-color: #e67a87;
+}
+
+.tally-counter-btn--miss:active {
+  background: rgba(230, 122, 135, 0.15);
+}
+
+.tally-counter-btn--penalty {
+  border-color: #c9a54e;
+}
+
+.tally-counter-btn--penalty:active {
+  background: rgba(201, 165, 78, 0.15);
+}
+
+.tally-counter-btn--active {
+  background: rgba(201, 165, 78, 0.12);
+  border-color: #c9a54e;
+}
+
+.tally-counter-btn--made {
+  border-color: #5dba80;
+  color: #5dba80;
+  border-radius: 0.5rem;
+  aspect-ratio: auto;
+  width: auto;
+  padding: 0.5rem 1rem;
+  max-width: none;
+  font-size: 0.9rem;
+}
+
+.tally-counter-btn--made:active {
+  background: rgba(93, 186, 128, 0.15);
+}
+
+.tally-counter-btn--missed {
+  border-color: #e67a87;
+  color: #e67a87;
+  border-radius: 0.5rem;
+  aspect-ratio: auto;
+  width: auto;
+  padding: 0.5rem 1rem;
+  max-width: none;
+  font-size: 0.9rem;
+}
+
+.tally-counter-btn--missed:active {
+  background: rgba(230, 122, 135, 0.15);
+}
+
+.tally-counter-label {
+  line-height: 1.1;
+}
+
+.tally-counter-badge {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.tally-conversion-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 0.5rem;
+  background: rgba(93, 186, 128, 0.08);
+  border: 1px dashed rgba(93, 186, 128, 0.35);
+}
+
+.tally-conversion-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text, #e4e4e4);
+}
+
 /** Set-piece chip opens the zone flower; keep tap responsive on touch devices. */
 .live-setpiece-chip-trigger {
   touch-action: manipulation;
@@ -4672,6 +4786,12 @@ button.live-stats-cell--btn.live-stats-cell--open {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.tgs-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .tgs-header .team-global-stats-title {
