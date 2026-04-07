@@ -4,6 +4,7 @@ import type { ZoneId } from '@/domain/zone';
 export type MatchEventKind =
   | 'scrum'
   | 'lineout'
+  | 'restart'
   | 'team_penalty'
   | 'pass'
   | 'tackle'
@@ -21,6 +22,7 @@ export type MatchEventKind =
 export const MATCH_EVENT_KINDS: readonly MatchEventKind[] = [
   'scrum',
   'lineout',
+  'restart',
   'team_penalty',
   'pass',
   'tackle',
@@ -88,8 +90,17 @@ export type PassVariant = 'standard' | 'offload';
 /** @deprecated IndexedDB only */
 export type OffloadOutcome = 'won' | 'lost';
 
-/** For scrum / lineout / ruck: result of the restart (incl. penalty against). */
-export type SetPieceOutcome = 'won' | 'lost' | 'penalized';
+/** For scrum / lineout / ruck / restart: result (incl. penalty against or free kick). */
+export type SetPieceOutcome = 'won' | 'lost' | 'penalized' | 'free_kick';
+
+/** Kick depth after a restart (22m / 10m / dead-ball line). */
+export const RESTART_KICK_DEPTH_IDS = ['10m', '22m', 'dead'] as const;
+export type RestartKickDepth = (typeof RESTART_KICK_DEPTH_IDS)[number];
+
+export function restartKickDepthLabel(d: RestartKickDepth): string {
+  if (d === 'dead') return 'Dead';
+  return d;
+}
 
 /** Live Attack/Defense switcher context when a set piece is logged. */
 export type PlayPhaseContext = 'attack' | 'defense';
@@ -202,8 +213,10 @@ export interface MatchEventRecord {
   offloadOutcome?: OffloadOutcome;
   /** For `kind === 'ruck'`: optional link to a prior pass event. */
   precedingPassEventId?: string;
-  /** For `kind === 'scrum' | 'lineout' | 'ruck`: won/lost on the restart. */
+  /** For `kind === 'scrum' | 'lineout' | 'ruck' | 'restart': won/lost/pen/free kick on the restart. */
   setPieceOutcome?: SetPieceOutcome;
+  /** For `kind === 'restart'`: where the ball was put in play from. */
+  restartKickDepth?: RestartKickDepth;
   /** For set-piece kinds: Attack vs Defense mode when logged. */
   playPhaseContext?: PlayPhaseContext;
   /** Team-relative field zone (own goal → opp goal). See PRODUCT_SPEC §5.2. */

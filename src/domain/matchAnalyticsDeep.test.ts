@@ -183,6 +183,8 @@ describe('setPieceByPhase', () => {
     expect(r.attack.won).toBe(1);
     expect(r.defense.lost).toBe(1);
     expect(r.defense.won).toBe(1);
+    expect(r.attack.freeKick).toBe(0);
+    expect(r.defense.freeKick).toBe(0);
   });
 });
 

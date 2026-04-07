@@ -9,6 +9,7 @@ import type {
   PenaltyCard,
   PenaltyTypeId,
   PlayPhaseContext,
+  RestartKickDepth,
   SetPieceOutcome,
   TackleOutcome,
   TackleQuality,
@@ -33,6 +34,7 @@ export async function addMatchEvent(input: {
   zoneId?: ZoneId;
   fieldLengthBand?: FieldLengthBandId;
   setPieceOutcome?: SetPieceOutcome;
+  restartKickDepth?: RestartKickDepth;
   playPhaseContext?: PlayPhaseContext;
   negativeActionId?: NegativeActionId;
   conversionOutcome?: ConversionOutcome;
@@ -55,6 +57,7 @@ export async function addMatchEvent(input: {
     precedingPassEventId: input.precedingPassEventId,
     zoneId: input.zoneId,
     setPieceOutcome: input.setPieceOutcome,
+    restartKickDepth: input.restartKickDepth,
     playPhaseContext: input.playPhaseContext,
     negativeActionId: input.negativeActionId,
   };

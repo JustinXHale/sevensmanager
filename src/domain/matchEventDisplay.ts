@@ -1,7 +1,12 @@
 import type { PlayerRecord } from '@/domain/player';
 import { resolveOffloadTone } from '@/domain/matchEvent';
 import type { MatchEventRecord } from '@/domain/matchEvent';
-import { fieldLengthBandShortLabel, negativeActionLabel, penaltyTypeLabel } from '@/domain/matchEvent';
+import {
+  fieldLengthBandShortLabel,
+  negativeActionLabel,
+  penaltyTypeLabel,
+  restartKickDepthLabel,
+} from '@/domain/matchEvent';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
 
 function zoneSuffix(zoneId: MatchEventRecord['zoneId']): string {
@@ -34,6 +39,7 @@ function setPieceLineParts(e: MatchEventRecord, kindLabel: string): string {
   if (e.setPieceOutcome === 'won') parts.push('Won');
   else if (e.setPieceOutcome === 'lost') parts.push('Lost');
   else if (e.setPieceOutcome === 'penalized') parts.push('Penalized');
+  else if (e.setPieceOutcome === 'free_kick') parts.push('Free kick');
   if (e.playPhaseContext === 'attack') parts.push('Attack');
   else if (e.playPhaseContext === 'defense') parts.push('Defense');
   if (e.fieldLengthBand) parts.push(fieldLengthBandShortLabel(e.fieldLengthBand));
@@ -62,6 +68,18 @@ export function formatMatchEventSummary(
   if (e.kind === 'ruck') {
     const link = e.precedingPassEventId ? ' (after pass)' : '';
     return setPieceLineParts(e, 'Ruck') + link;
+  }
+  if (e.kind === 'restart') {
+    const parts: string[] = ['Restart'];
+    if (e.zoneId) parts.push(e.zoneId);
+    if (e.restartKickDepth) parts.push(restartKickDepthLabel(e.restartKickDepth));
+    if (e.setPieceOutcome === 'won') parts.push('Won');
+    else if (e.setPieceOutcome === 'lost') parts.push('Lost');
+    else if (e.setPieceOutcome === 'free_kick') parts.push('Free kick');
+    else if (e.setPieceOutcome === 'penalized') parts.push('Penalized');
+    if (e.playPhaseContext === 'attack') parts.push('Kick');
+    else if (e.playPhaseContext === 'defense') parts.push('Receive');
+    return parts.join(' · ');
   }
   const p = e.playerId ? playersById.get(e.playerId) : undefined;
   const who = p ? formatPlayerLabel(p) : 'Player';

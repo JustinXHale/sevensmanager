@@ -40,6 +40,11 @@ type Props = {
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
+  /**
+   * Full: full analytics (all sections). One Tap: **summary only** — same top-line KPIs as Overview
+   * (points, tries, conv %, tackle %, subs & cards); no phase split, set pieces, penalties drill-down, etc.
+   */
+  statsDetail?: 'full' | 'one_tap';
 };
 
 const SECTIONS = [
@@ -74,7 +79,7 @@ const HEAT_ROW_TONE: Record<string, 'bad' | undefined> = {
 const KIND_ORDER: MatchEventKind[] = [
   'try', 'conversion', 'opponent_try', 'opponent_conversion',
   'opponent_substitution', 'opponent_card', 'pass', 'line_break',
-  'negative_action', 'scrum', 'lineout', 'team_penalty', 'ruck',
+  'negative_action', 'scrum', 'lineout', 'restart', 'team_penalty', 'ruck',
 ];
 
 function fmtMs(ms: number): string {
@@ -213,8 +218,27 @@ function StatCard({
   );
 }
 
+function setPieceSliceTotal(split: SetPieceSplit): number {
+  return split.won + split.lost + split.penalized + split.freeKick;
+}
+
 function SetPieceBar({ label, split }: { label: string; split: SetPieceSplit }) {
-  const n = split.won + split.lost + split.penalized;
+  const n = setPieceSliceTotal(split);
+  const nums = (
+    <span className="live-analytics-setpiece-nums tabular-nums">
+      W {split.won}
+      {' \u00b7 '}
+      L {split.lost}
+      {split.freeKick > 0 ? (
+        <>
+          {' \u00b7 '}
+          FK {split.freeKick}
+        </>
+      ) : null}
+      {' \u00b7 '}
+      Pen {split.penalized}
+    </span>
+  );
   return (
     <div className="live-analytics-setpiece-row">
       <div className="live-analytics-setpiece-top">
@@ -222,15 +246,18 @@ function SetPieceBar({ label, split }: { label: string; split: SetPieceSplit }) 
         {n === 0 ? (
           <span className="live-analytics-setpiece-empty muted">{'\u2014'}</span>
         ) : (
-          <span className="live-analytics-setpiece-nums tabular-nums">
-            W {split.won} {'\u00b7'} L {split.lost} {'\u00b7'} Pen {split.penalized}
-          </span>
+          nums
         )}
       </div>
       {n > 0 ? (
-        <div className="live-analytics-setpiece-bar" role="img" aria-label={`${label}: ${split.won} won, ${split.lost} lost, ${split.penalized} penalized`}>
+        <div
+          className="live-analytics-setpiece-bar"
+          role="img"
+          aria-label={`${label}: ${split.won} won, ${split.lost} lost, ${split.penalized} penalized, ${split.freeKick} free kick`}
+        >
           <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--won" style={{ flex: Math.max(0, split.won) }} />
           <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--lost" style={{ flex: Math.max(0, split.lost) }} />
+          <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--fk" style={{ flex: Math.max(0, split.freeKick) }} />
           <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--pen" style={{ flex: Math.max(0, split.penalized) }} />
         </div>
       ) : null}
@@ -238,7 +265,7 @@ function SetPieceBar({ label, split }: { label: string; split: SetPieceSplit }) 
   );
 }
 
-export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
+export function MatchStatsPanel({ events, substitutions, playersById, statsDetail = 'full' }: Props) {
   const [activeSection, setActiveSection] = useState<SectionId>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -246,8 +273,13 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
 
   useEffect(() => {
     const key = 'stats-hint-dismissed';
+    if (statsDetail === 'one_tap') {
+      setHintVisible(false);
+      return;
+    }
     if (!localStorage.getItem(key)) setHintVisible(true);
-  }, []);
+    else setHintVisible(false);
+  }, [statsDetail]);
 
   function dismissHint() {
     localStorage.setItem('stats-hint-dismissed', '1');
@@ -277,7 +309,8 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
   const scrumDef = scrumPhase.defense;
   const scrumOurWon = scrumAtk.won;
   const scrumDefWon = scrumDef.won;
-  const scrumTotal = scrumAtk.won + scrumAtk.lost + scrumAtk.penalized + scrumDef.won + scrumDef.lost + scrumDef.penalized;
+  const scrumTotal =
+    setPieceSliceTotal(scrumAtk) + setPieceSliceTotal(scrumDef);
 
   const scoring = triesAndConversionsByPlayer(events);
   const scoringRows = [...scoring.entries()]
@@ -297,6 +330,9 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
   const oppKickPct = kickDecidedSuccessPct(snapshot.oppKick.made, snapshot.oppKick.missed);
 
   const visibleSections = SECTIONS.filter((s) => {
+    if (statsDetail === 'one_tap') {
+      return s.id === 'overview';
+    }
     if (s.id === 'zones') return heatRows.length > 0;
     if (s.id === 'involvement') return profiles.size > 0;
     if (s.id === 'ruck') return ruckDurations.length > 0;
@@ -307,8 +343,13 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
     return true;
   });
 
+  useEffect(() => {
+    setActiveSection('all');
+  }, [statsDetail]);
+
   const current = activeSection === 'all' ? 'all' : (visibleSections.find((s) => s.id === activeSection) ? activeSection : 'all');
-  const show = (id: string) => current === 'all' || current === id;
+  const visibleIds = new Set(visibleSections.map((s) => s.id));
+  const show = (id: string) => visibleIds.has(id) && (current === 'all' || current === id);
   const sectionTitle = (id: string) => {
     const s = SECTIONS.find((x) => x.id === id);
     if (!s) return null;
@@ -336,26 +377,38 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
 
   return (
     <div className="tgs-root">
-      {hintVisible ? (
+      {hintVisible && statsDetail === 'full' ? (
         <div className="stats-hint" role="status">
           <span>Tip: Use the dropdown to focus on a single section, or scroll to see all stats.</span>
           <button type="button" className="stats-hint-close" aria-label="Dismiss tip" onClick={dismissHint}>×</button>
         </div>
       ) : null}
       <div className="tgs-header">
-        <h2 className="team-global-stats-title">Match analytics</h2>
-        <select
-          className="filter-select tgs-section-select"
-          value={current}
-          onChange={(e) => setActiveSection(e.target.value as SectionId)}
-          aria-label="Section"
-        >
-          <option value="all">All sections</option>
-          {visibleSections.map((s) => (
-            <option key={s.id} value={s.id}>{s.label}</option>
-          ))}
-        </select>
+        <h2 className="team-global-stats-title">
+          {statsDetail === 'one_tap' ? 'Match summary' : 'Match analytics'}
+        </h2>
+        {visibleSections.length > 1 ? (
+          <select
+            className="filter-select tgs-section-select"
+            value={current}
+            onChange={(e) => setActiveSection(e.target.value as SectionId)}
+            aria-label="Section"
+          >
+            <option value="all">All sections</option>
+            {visibleSections.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        ) : null}
       </div>
+
+      {statsDetail === 'one_tap' ? (
+        <div className="live-stats-one-tap-banner" role="status">
+          <strong>One Tap (simple) mode.</strong> Only scoreboard-style totals below. Switch to <strong>Full</strong> on
+          the Tracking tab for phase time, set pieces, penalties, negatives, scoring timeline, event counts, zones, and
+          player detail.
+        </div>
+      ) : null}
 
       {/* Overview */}
       {show('overview') && (
@@ -541,7 +594,10 @@ export function MatchStatsPanel({ events, substitutions, playersById }: Props) {
           <SetPieceBar label="Lineouts" split={snapshot.lineouts} />
 
           <h4 className="tgs-card-subtitle mt-md">Rucks</h4>
-          <SetPieceBar label="Rucks (restart)" split={snapshot.rucks} />
+          <SetPieceBar label="Rucks (from chip)" split={snapshot.rucks} />
+
+          <h4 className="tgs-card-subtitle mt-md">Restarts</h4>
+          <SetPieceBar label="Restarts (kick / receive)" split={snapshot.restarts} />
         </section>
       )}
 

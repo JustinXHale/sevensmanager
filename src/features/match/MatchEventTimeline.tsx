@@ -28,6 +28,7 @@ const TIMELINE_KIND_ORDER: MatchEventKind[] = [
   'tackle',
   'scrum',
   'lineout',
+  'restart',
   'team_penalty',
 ];
 

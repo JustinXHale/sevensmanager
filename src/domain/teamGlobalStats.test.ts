@@ -20,9 +20,10 @@ function snap(partial: Partial<MatchAnalyticsSnapshot> & Pick<MatchAnalyticsSnap
     cardsOpp: partial.cardsOpp ?? { yc: 0, rc: 0 },
     territory: partial.territory ?? { defensive: 0, middle: 0, attack: 0, unzoned: 0 },
     triesZonedByZone: partial.triesZonedByZone ?? emptyTriesZ,
-    scrums: partial.scrums ?? { won: 0, lost: 0, penalized: 0 },
-    lineouts: partial.lineouts ?? { won: 0, lost: 0, penalized: 0 },
-    rucks: partial.rucks ?? { won: 0, lost: 0, penalized: 0 },
+    scrums: partial.scrums ?? { won: 0, lost: 0, penalized: 0, freeKick: 0 },
+    lineouts: partial.lineouts ?? { won: 0, lost: 0, penalized: 0, freeKick: 0 },
+    rucks: partial.rucks ?? { won: 0, lost: 0, penalized: 0, freeKick: 0 },
+    restarts: partial.restarts ?? { won: 0, lost: 0, penalized: 0, freeKick: 0 },
   };
   return base;
 }

@@ -61,6 +61,7 @@ export function rugbyPointsFromOpponentEvents(events: MatchEventRecord[]): numbe
 const KIND_LABEL: Record<MatchEventKind, string> = {
   scrum: 'Scrums',
   lineout: 'Lineouts',
+  restart: 'Restarts',
   team_penalty: 'Team penalties',
   pass: 'Passes',
   tackle: 'Tackles',

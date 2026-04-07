@@ -69,8 +69,19 @@ describe('computeMatchAnalyticsSnapshot', () => {
       ev({ id: '3', kind: 'ruck', setPieceOutcome: 'penalized' }),
     ];
     const s = computeMatchAnalyticsSnapshot(events, 0);
-    expect(s.scrums).toEqual({ won: 1, lost: 0, penalized: 0 });
-    expect(s.lineouts).toEqual({ won: 0, lost: 1, penalized: 0 });
-    expect(s.rucks).toEqual({ won: 0, lost: 0, penalized: 1 });
+    expect(s.scrums).toEqual({ won: 1, lost: 0, penalized: 0, freeKick: 0 });
+    expect(s.lineouts).toEqual({ won: 0, lost: 1, penalized: 0, freeKick: 0 });
+    expect(s.rucks).toEqual({ won: 0, lost: 0, penalized: 1, freeKick: 0 });
+    expect(s.restarts).toEqual({ won: 0, lost: 0, penalized: 0, freeKick: 0 });
+  });
+
+  it('counts restart and free-kick outcomes', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: '1', kind: 'restart', setPieceOutcome: 'won', zoneId: 'Z4', restartKickDepth: '22m' }),
+      ev({ id: '2', kind: 'scrum', setPieceOutcome: 'free_kick', fieldLengthBand: 'own_half' }),
+    ];
+    const s = computeMatchAnalyticsSnapshot(events, 0);
+    expect(s.restarts).toEqual({ won: 1, lost: 0, penalized: 0, freeKick: 0 });
+    expect(s.scrums).toEqual({ won: 0, lost: 0, penalized: 0, freeKick: 1 });
   });
 });

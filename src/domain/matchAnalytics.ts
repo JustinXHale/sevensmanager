@@ -70,13 +70,17 @@ function countOpponentTries(events: MatchEventRecord[]): number {
   return n;
 }
 
-export type SetPieceSplit = { won: number; lost: number; penalized: number };
+export type SetPieceSplit = { won: number; lost: number; penalized: number; freeKick: number };
 
-function setPieceSplit(events: MatchEventRecord[], kind: 'scrum' | 'lineout' | 'ruck'): SetPieceSplit {
-  const out: SetPieceSplit = { won: 0, lost: 0, penalized: 0 };
+function setPieceSplit(events: MatchEventRecord[], kind: 'scrum' | 'lineout' | 'ruck' | 'restart'): SetPieceSplit {
+  const out: SetPieceSplit = { won: 0, lost: 0, penalized: 0, freeKick: 0 };
   for (const e of events) {
     if (e.deletedAt != null || e.kind !== kind || !e.setPieceOutcome) continue;
-    out[e.setPieceOutcome] += 1;
+    const o = e.setPieceOutcome;
+    if (o === 'free_kick') out.freeKick += 1;
+    else if (o === 'won') out.won += 1;
+    else if (o === 'lost') out.lost += 1;
+    else if (o === 'penalized') out.penalized += 1;
   }
   return out;
 }
@@ -99,6 +103,7 @@ export type MatchAnalyticsSnapshot = {
   scrums: SetPieceSplit;
   lineouts: SetPieceSplit;
   rucks: SetPieceSplit;
+  restarts: SetPieceSplit;
 };
 
 export function computeMatchAnalyticsSnapshot(
@@ -130,6 +135,7 @@ export function computeMatchAnalyticsSnapshot(
     scrums: setPieceSplit(events, 'scrum'),
     lineouts: setPieceSplit(events, 'lineout'),
     rucks: setPieceSplit(events, 'ruck'),
+    restarts: setPieceSplit(events, 'restart'),
   };
 }
 

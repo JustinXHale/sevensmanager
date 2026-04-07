@@ -23,8 +23,12 @@ function Kpi({
   );
 }
 
+function setPieceTotal(split: SetPieceSplit): number {
+  return split.won + split.lost + split.penalized + split.freeKick;
+}
+
 function SetPieceRow({ title, split }: { title: string; split: SetPieceSplit }) {
-  const n = split.won + split.lost + split.penalized;
+  const n = setPieceTotal(split);
   return (
     <div className="live-analytics-setpiece-row">
       <div className="live-analytics-setpiece-top">
@@ -33,7 +37,8 @@ function SetPieceRow({ title, split }: { title: string; split: SetPieceSplit }) 
           <span className="live-analytics-setpiece-empty muted">—</span>
         ) : (
           <span className="live-analytics-setpiece-nums tabular-nums">
-            W {split.won} · L {split.lost} · Pen {split.penalized}
+            W {split.won} · L {split.lost}
+            {split.freeKick > 0 ? <> · FK {split.freeKick}</> : null} · Pen {split.penalized}
           </span>
         )}
       </div>
@@ -41,10 +46,11 @@ function SetPieceRow({ title, split }: { title: string; split: SetPieceSplit }) 
         <div
           className="live-analytics-setpiece-bar"
           role="img"
-          aria-label={`${title}: ${split.won} won, ${split.lost} lost, ${split.penalized} penalized`}
+          aria-label={`${title}: ${split.won} won, ${split.lost} lost, ${split.penalized} penalized, ${split.freeKick} free kick`}
         >
           <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--won" style={{ flex: Math.max(0, split.won) }} />
           <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--lost" style={{ flex: Math.max(0, split.lost) }} />
+          <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--fk" style={{ flex: Math.max(0, split.freeKick) }} />
           <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--pen" style={{ flex: Math.max(0, split.penalized) }} />
         </div>
       ) : null}
@@ -104,10 +110,11 @@ export function MatchAnalyticsOverview({ snapshot: s }: Props) {
 
       <div className="live-analytics-setpiece" aria-label="Set piece outcomes">
         <h3 className="live-analytics-setpiece-heading">Set pieces</h3>
-        <p className="muted live-analytics-setpiece-lead">Won / lost / penalized (from restart chips).</p>
+        <p className="muted live-analytics-setpiece-lead">Won / lost / free kick / penalized (from set-piece chips).</p>
         <SetPieceRow title="Scrums" split={s.scrums} />
         <SetPieceRow title="Lineouts" split={s.lineouts} />
         <SetPieceRow title="Rucks" split={s.rucks} />
+        <SetPieceRow title="Restarts" split={s.restarts} />
       </div>
     </div>
   );

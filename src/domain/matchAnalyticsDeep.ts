@@ -267,23 +267,31 @@ export function ruckSpeedByPeriod(events: MatchEventRecord[]): RuckSpeedByPeriod
 // Set piece phase context (own ball vs opposition ball)
 // ---------------------------------------------------------------------------
 
+export type SetPiecePhaseSlice = { won: number; lost: number; penalized: number; freeKick: number };
+
 export type SetPiecePhaseBreakdown = {
-  attack: { won: number; lost: number; penalized: number };
-  defense: { won: number; lost: number; penalized: number };
+  attack: SetPiecePhaseSlice;
+  defense: SetPiecePhaseSlice;
 };
 
 export function setPieceByPhase(
   events: MatchEventRecord[],
   kind: 'scrum' | 'lineout' | 'ruck',
 ): SetPiecePhaseBreakdown {
+  const empty = (): SetPiecePhaseSlice => ({ won: 0, lost: 0, penalized: 0, freeKick: 0 });
   const out: SetPiecePhaseBreakdown = {
-    attack: { won: 0, lost: 0, penalized: 0 },
-    defense: { won: 0, lost: 0, penalized: 0 },
+    attack: empty(),
+    defense: empty(),
   };
   for (const e of events) {
     if (e.deletedAt != null || e.kind !== kind || !e.setPieceOutcome) continue;
     const phase = e.playPhaseContext === 'defense' ? 'defense' : 'attack';
-    out[phase][e.setPieceOutcome] += 1;
+    const slice = out[phase];
+    const o = e.setPieceOutcome;
+    if (o === 'free_kick') slice.freeKick += 1;
+    else if (o === 'won') slice.won += 1;
+    else if (o === 'lost') slice.lost += 1;
+    else if (o === 'penalized') slice.penalized += 1;
   }
   return out;
 }
@@ -419,7 +427,7 @@ const DEFENSIVE_KINDS: ReadonlySet<MatchEventKind> = new Set([
 function classifyPhase(e: MatchEventRecord): 'offense' | 'defense' | null {
   if (OFFENSIVE_KINDS.has(e.kind)) return 'offense';
   if (DEFENSIVE_KINDS.has(e.kind)) return 'defense';
-  if (e.kind === 'scrum' || e.kind === 'lineout' || e.kind === 'ruck') {
+  if (e.kind === 'scrum' || e.kind === 'lineout' || e.kind === 'ruck' || e.kind === 'restart') {
     if (e.playPhaseContext === 'attack') return 'offense';
     if (e.playPhaseContext === 'defense') return 'defense';
   }

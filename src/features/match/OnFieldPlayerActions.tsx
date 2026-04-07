@@ -5,6 +5,7 @@ import {
   type PenaltyCard,
   type PenaltyTypeId,
   type PlayPhaseContext,
+  type RestartKickDepth,
   type SetPieceOutcome,
   type TackleOutcome,
   type TeamPenaltyPayload,
@@ -15,6 +16,7 @@ import type { ZoneId } from '@/domain/zone';
 import type { PlayerRecord } from '@/domain/player';
 import { formatPlayerMinutesLabel } from '@/domain/playerMinutes';
 import { formatPlayerLabel, formatPlayerNameOnly, sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
+import { RestartFlowerButton } from './RestartFlowerButton';
 import { SetPieceFlowerButton } from './SetPieceFlowerButton';
 import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
 
@@ -79,6 +81,12 @@ type Props = {
     outcome: SetPieceOutcome;
     phase: PlayPhaseContext;
     pick: { fieldLengthBand: FieldLengthBandId };
+  }) => void;
+  /** Kick/receive restarts: zone → depth → outcome (Won / Lost / Free kick). */
+  onRestart: (payload: {
+    outcome: Extract<SetPieceOutcome, 'won' | 'lost' | 'free_kick'>;
+    phase: PlayPhaseContext;
+    pick: { zoneId: ZoneId; restartKickDepth: RestartKickDepth };
   }) => void;
 };
 
@@ -266,6 +274,7 @@ export function OnFieldPlayerActions({
   onSubstitute,
   onTeamPenalty,
   onSetPiece,
+  onRestart,
 }: Props) {
   const [mode, setMode] = useState<PlayerActionMode>('attack');
   /** Which row’s penalty panel is open (at most one). */
@@ -421,6 +430,15 @@ export function OnFieldPlayerActions({
             onComplete={(p) =>
               onSetPiece({
                 kind: p.kind,
+                outcome: p.outcome,
+                pick: p.pick,
+                phase: mode,
+              })
+            }
+          />
+          <RestartFlowerButton
+            onComplete={(p) =>
+              onRestart({
                 outcome: p.outcome,
                 pick: p.pick,
                 phase: mode,

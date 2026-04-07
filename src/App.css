@@ -2308,6 +2308,86 @@ a.live-tab:focus-visible {
   flex-shrink: 0;
 }
 
+/* Simple (One Tap) set-piece strip: W / L per kind */
+.simple-setpiece-strip {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.simple-setpiece-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.simple-setpiece-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.simple-setpiece-btns {
+  display: flex;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.simple-setpiece-btn {
+  flex: 1 1 0;
+  min-height: 30px;
+  min-width: 0;
+  padding: 0.2rem 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #121820;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.simple-setpiece-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.simple-setpiece-btn:focus {
+  outline: none;
+}
+
+.simple-setpiece-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.simple-setpiece-btn--won {
+  color: #3dd68c;
+  border-color: #1d6f4a;
+}
+
+.simple-setpiece-btn--won:hover {
+  background: #1a2e25;
+}
+
+.simple-setpiece-btn--lost {
+  color: #e67a87;
+  border-color: #6b3038;
+}
+
+.simple-setpiece-btn--lost:hover {
+  background: #2a1a1e;
+}
+
 /** Set-piece chip opens the zone flower; keep tap responsive on touch devices. */
 .live-setpiece-chip-trigger {
   touch-action: manipulation;
@@ -2816,6 +2896,26 @@ button.live-stats-cell--btn.live-stats-cell--open {
   background: linear-gradient(90deg, #8a6a2a, #c9a227);
 }
 
+.live-analytics-setpiece-seg--fk {
+  background: linear-gradient(90deg, #2a4f7a, #5b9fd4);
+}
+
+.live-stats-one-tap-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.live-stats-one-tap-banner strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
 .live-stats-mode-strip {
   margin-bottom: 0.5rem;
 }
@@ -3066,6 +3166,10 @@ button.live-stats-cell--btn.live-stats-cell--open {
   background: linear-gradient(90deg, #8a6a2a, #c9a227);
 }
 
+.live-stats-setpiece-seg--fk {
+  background: linear-gradient(90deg, #2a4f7a, #5b9fd4);
+}
+
 .live-stats-setpiece-legend {
   display: flex;
   flex-wrap: wrap;
@@ -3093,6 +3197,10 @@ button.live-stats-cell--btn.live-stats-cell--open {
 
 .live-stats-setpiece-dot--pen {
   background: #c9a227;
+}
+
+.live-stats-setpiece-dot--fk {
+  background: #5b9fd4;
 }
 
 .live-stats-spark-wrap {

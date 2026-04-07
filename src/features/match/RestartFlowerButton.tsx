@@ -1,64 +1,57 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  FIELD_LENGTH_BAND_IDS,
-  FIELD_LENGTH_BAND_PILL_CLASSNAMES,
-  fieldLengthBandShortLabel,
-  type FieldLengthBandId,
+  RESTART_KICK_DEPTH_IDS,
+  WIDTH_LEVEL_LABELS,
+  type RestartKickDepth,
   type SetPieceOutcome,
 } from '@/domain/matchEvent';
-import { fieldLengthBandIdFromIndex, semicirclePillOffset } from './zoneFlowerGeometry';
+import type { ZoneId } from '@/domain/zone';
+import { semicirclePillOffset, zoneIdFromIndex } from './zoneFlowerGeometry';
 
-const RADIUS_AREA = 90;
+const RADIUS_ZONE = 90;
+const RADIUS_DEPTH = 88;
 const RADIUS_OUTCOME = 96;
 
 const HUD_APPROX_HEIGHT_PX = 168;
 const ANCHOR_GAP_PX = 6;
 
-export type SetPieceFlowerKind = 'scrum' | 'lineout' | 'ruck';
+const DEPTH_LABEL: Record<RestartKickDepth, string> = {
+  '10m': '10m',
+  '22m': '22m',
+  dead: 'Dead',
+};
+
+type Phase = 'l1_zone' | 'l2_depth' | 'l3_outcome';
+
+const RESTART_OUTCOMES: { outcome: Extract<SetPieceOutcome, 'won' | 'lost' | 'free_kick'>; label: string; aria: string }[] = [
+  { outcome: 'won', label: 'Won', aria: 'Won' },
+  { outcome: 'lost', label: 'Lost', aria: 'Lost' },
+  { outcome: 'free_kick', label: 'FK', aria: 'Free kick' },
+];
 
 type FlowerSession = {
-  kind: SetPieceFlowerKind;
   anchorX: number;
   anchorTop: number;
 };
 
-type Phase = 'l1_area' | 'l2_outcome';
-
-const OUTCOME_STEPS: { outcome: SetPieceOutcome; label: string; aria: string }[] = [
-  { outcome: 'won', label: 'Won', aria: 'Won' },
-  { outcome: 'lost', label: 'Lost', aria: 'Lost' },
-  { outcome: 'free_kick', label: 'FK', aria: 'Free kick' },
-  { outcome: 'penalized', label: 'Pen.', aria: 'Penalized' },
-];
-
 type Props = {
-  kind: SetPieceFlowerKind;
-  /** Visible chip label, e.g. "Scrum", "Lineout", "Ruck". */
-  label: string;
   disabled?: boolean;
-  /** Extra classes on the chip (e.g. `live-chip-tertiary` for Ruck). */
   chipClassName?: string;
   onComplete: (payload: {
-    kind: SetPieceFlowerKind;
-    outcome: SetPieceOutcome;
-    pick: { fieldLengthBand: FieldLengthBandId };
+    outcome: Extract<SetPieceOutcome, 'won' | 'lost' | 'free_kick'>;
+    pick: { zoneId: ZoneId; restartKickDepth: RestartKickDepth };
   }) => void;
 };
 
-export function SetPieceFlowerButton({
-  kind,
-  label,
-  disabled,
-  chipClassName,
-  onComplete,
-}: Props) {
+export function RestartFlowerButton({ disabled, chipClassName, onComplete }: Props) {
   const btnRef = useRef<HTMLButtonElement>(null);
-
   const [flower, setFlower] = useState<FlowerSession | null>(null);
-  const [phase, setPhase] = useState<Phase>('l1_area');
-  const [areaHoverIdx, setAreaHoverIdx] = useState<number | null>(null);
-  const [areaPickIdx, setAreaPickIdx] = useState<number | null>(null);
+  const [phase, setPhase] = useState<Phase>('l1_zone');
+  const [zoneHoverIdx, setZoneHoverIdx] = useState<number | null>(null);
+  const [zonePickIdx, setZonePickIdx] = useState<number | null>(null);
+  const [depthHoverIdx, setDepthHoverIdx] = useState<number | null>(null);
+  const [depthPickIdx, setDepthPickIdx] = useState<number | null>(null);
   const [outcomeHoverIdx, setOutcomeHoverIdx] = useState<number | null>(null);
 
   const hintId = useId();
@@ -66,9 +59,11 @@ export function SetPieceFlowerButton({
 
   const closeFlower = useCallback(() => {
     setFlower(null);
-    setPhase('l1_area');
-    setAreaHoverIdx(null);
-    setAreaPickIdx(null);
+    setPhase('l1_zone');
+    setZoneHoverIdx(null);
+    setZonePickIdx(null);
+    setDepthHoverIdx(null);
+    setDepthPickIdx(null);
     setOutcomeHoverIdx(null);
   }, []);
 
@@ -96,21 +91,22 @@ export function SetPieceFlowerButton({
     if (anchorTop - HUD_APPROX_HEIGHT_PX < minHudTop) {
       anchorTop = minHudTop + HUD_APPROX_HEIGHT_PX;
     }
-    const session: FlowerSession = { kind, anchorX, anchorTop };
-    setPhase('l1_area');
-    setAreaHoverIdx(null);
-    setAreaPickIdx(null);
+    setPhase('l1_zone');
+    setZoneHoverIdx(null);
+    setZonePickIdx(null);
+    setDepthHoverIdx(null);
+    setDepthPickIdx(null);
     setOutcomeHoverIdx(null);
-    setFlower(session);
+    setFlower({ anchorX, anchorTop });
   }
 
-  function completeOutcome(fs: FlowerSession, bandIdx: number, outcomeIdx: number) {
-    const o = OUTCOME_STEPS[outcomeIdx];
-    if (!o) return;
+  function completeOutcome(zIdx: number, dIdx: number, outcomeIdx: number) {
+    const o = RESTART_OUTCOMES[outcomeIdx];
+    const depth = RESTART_KICK_DEPTH_IDS[dIdx];
+    if (!o || !depth) return;
     onComplete({
-      kind: fs.kind,
       outcome: o.outcome,
-      pick: { fieldLengthBand: fieldLengthBandIdFromIndex(bandIdx) },
+      pick: { zoneId: zoneIdFromIndex(zIdx), restartKickDepth: depth },
     });
     closeFlower();
   }
@@ -125,10 +121,8 @@ export function SetPieceFlowerButton({
     requestAnimationFrame(() => e.currentTarget.blur());
   }
 
-  const bandShortLabels = FIELD_LENGTH_BAND_IDS.map((id) => fieldLengthBandShortLabel(id));
-
   const hintPrimary =
-    'Press to open the set-piece picker: choose Area (22, H, OH, O22), then Outcome (Won, Lost, Free kick, Penalized). Press Escape or tap outside to cancel.';
+    'Press to log a restart: choose width zone (Z1–Z6), then depth (10m, 22m, dead), then outcome (Won, Lost, Free kick). Press Escape or tap outside to cancel.';
 
   return (
     <>
@@ -137,14 +131,14 @@ export function SetPieceFlowerButton({
         type="button"
         className={`live-chip-btn live-setpiece-chip-trigger${chipClassName ? ` ${chipClassName}` : ''}`}
         disabled={disabled}
-        title={`${label} — choose area and outcome`}
-        aria-label={`${label} — set piece`}
+        title="Restart — zone, depth, outcome"
+        aria-label="Restart — set piece"
         aria-describedby={hintId}
         aria-haspopup="dialog"
         aria-expanded={flowerOpen}
         onClick={handleTriggerClick}
       >
-        {label}
+        Restart
       </button>
       <span id={hintId} className="visually-hidden">
         {hintPrimary}
@@ -155,56 +149,74 @@ export function SetPieceFlowerButton({
               <button
                 type="button"
                 className="live-zone-flower-backdrop"
-                aria-label="Close set-piece picker"
+                aria-label="Close restart picker"
                 onClick={closeFlower}
               />
               <div
                 className="live-zone-flower-hud live-zone-flower-hud--anchor"
                 style={{ left: `${flower.anchorX}px`, top: `${flower.anchorTop}px` }}
               >
-                {phase === 'l1_area' ? (
-                  <div
-                    className="live-zone-flower-ring live-zone-flower-ring--semi"
-                    role="group"
-                    aria-label="Area"
-                  >
+                {phase === 'l1_zone' ? (
+                  <div className="live-zone-flower-ring live-zone-flower-ring--semi" role="group" aria-label="Width">
                     <span className="live-zone-flower-hint live-zone-flower-hint--inside muted" aria-hidden>
-                      Area
+                      Width
                     </span>
-                    {bandShortLabels.map((bandLbl, i) => {
-                      const { x, y } = semicirclePillOffset(i, 4, RADIUS_AREA);
-                      const on = areaHoverIdx === i;
-                      const fieldClass = FIELD_LENGTH_BAND_PILL_CLASSNAMES[i] ?? '';
+                    {WIDTH_LEVEL_LABELS.map((label, i) => {
+                      const { x, y } = semicirclePillOffset(i, 6, RADIUS_ZONE);
+                      const on = zoneHoverIdx === i;
                       return (
                         <button
-                          key={bandLbl}
+                          key={label}
                           type="button"
-                          className={`live-zone-flower-pill live-zone-flower-pill-btn live-zone-flower-pill--band ${fieldClass}${on ? ' live-zone-flower-pill--on' : ''}`}
+                          className={`live-zone-flower-pill live-zone-flower-pill-btn${on ? ' live-zone-flower-pill--on' : ''}`}
                           style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }}
-                          onPointerEnter={() => setAreaHoverIdx(i)}
-                          onPointerLeave={() => setAreaHoverIdx((h) => (h === i ? null : h))}
+                          onPointerEnter={() => setZoneHoverIdx(i)}
+                          onPointerLeave={() => setZoneHoverIdx((h) => (h === i ? null : h))}
                           onClick={() => {
-                            setAreaPickIdx(i);
-                            setPhase('l2_outcome');
+                            setZonePickIdx(i);
+                            setPhase('l2_depth');
+                            setDepthHoverIdx(null);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : phase === 'l2_depth' ? (
+                  <div className="live-zone-flower-ring live-zone-flower-ring--semi" role="group" aria-label="Depth">
+                    <span className="live-zone-flower-hint live-zone-flower-hint--inside muted" aria-hidden>
+                      Depth
+                    </span>
+                    {RESTART_KICK_DEPTH_IDS.map((id, i) => {
+                      const { x, y } = semicirclePillOffset(i, RESTART_KICK_DEPTH_IDS.length, RADIUS_DEPTH);
+                      const on = depthHoverIdx === i;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`live-zone-flower-pill live-zone-flower-pill-btn live-zone-flower-pill--setpiece-outcome${on ? ' live-zone-flower-pill--on' : ''}`}
+                          style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }}
+                          onPointerEnter={() => setDepthHoverIdx(i)}
+                          onPointerLeave={() => setDepthHoverIdx((h) => (h === i ? null : h))}
+                          onClick={() => {
+                            setDepthPickIdx(i);
+                            setPhase('l3_outcome');
                             setOutcomeHoverIdx(null);
                           }}
                         >
-                          {bandLbl}
+                          {DEPTH_LABEL[id]}
                         </button>
                       );
                     })}
                   </div>
                 ) : (
-                  <div
-                    className="live-zone-flower-ring live-zone-flower-ring--semi"
-                    role="group"
-                    aria-label="Outcome"
-                  >
+                  <div className="live-zone-flower-ring live-zone-flower-ring--semi" role="group" aria-label="Outcome">
                     <span className="live-zone-flower-hint live-zone-flower-hint--inside muted" aria-hidden>
                       Outcome
                     </span>
-                    {OUTCOME_STEPS.map((step, i) => {
-                      const { x, y } = semicirclePillOffset(i, OUTCOME_STEPS.length, RADIUS_OUTCOME);
+                    {RESTART_OUTCOMES.map((step, i) => {
+                      const { x, y } = semicirclePillOffset(i, RESTART_OUTCOMES.length, RADIUS_OUTCOME);
                       const on = outcomeHoverIdx === i;
                       return (
                         <button
@@ -216,8 +228,8 @@ export function SetPieceFlowerButton({
                           onPointerEnter={() => setOutcomeHoverIdx(i)}
                           onPointerLeave={() => setOutcomeHoverIdx((h) => (h === i ? null : h))}
                           onClick={() => {
-                            if (areaPickIdx === null) return;
-                            completeOutcome(flower, areaPickIdx, i);
+                            if (zonePickIdx === null || depthPickIdx === null) return;
+                            completeOutcome(zonePickIdx, depthPickIdx, i);
                           }}
                         >
                           {step.label}

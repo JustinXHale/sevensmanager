@@ -52,8 +52,12 @@ function ChartBlock({
   );
 }
 
+function setPieceStackTotal(sp: SetPieceSplit): number {
+  return sp.won + sp.lost + sp.penalized + sp.freeKick;
+}
+
 function SetPieceOutcomeStack({ label, sp }: { label: string; sp: SetPieceSplit }) {
-  const t = sp.won + sp.lost + sp.penalized;
+  const t = setPieceStackTotal(sp);
   if (t === 0) {
     return (
       <div className="live-stats-setpiece-chart-block">
@@ -69,16 +73,18 @@ function SetPieceOutcomeStack({ label, sp }: { label: string; sp: SetPieceSplit 
       <div className="live-stats-hbar-label-row">
         <span className="live-stats-hbar-label">{label}</span>
         <span className="live-stats-hbar-value tabular-nums">
-          W {sp.won} · L {sp.lost} · Pen {sp.penalized}
+          W {sp.won} · L {sp.lost}
+          {sp.freeKick > 0 ? <> · FK {sp.freeKick}</> : null} · Pen {sp.penalized}
         </span>
       </div>
       <div
         className="live-stats-setpiece-stack"
         role="img"
-        aria-label={`${label}: ${sp.won} won, ${sp.lost} lost, ${sp.penalized} penalized`}
+        aria-label={`${label}: ${sp.won} won, ${sp.lost} lost, ${sp.penalized} penalized, ${sp.freeKick} free kick`}
       >
         <div className="live-stats-setpiece-seg live-stats-setpiece-seg--won" style={{ flex: sp.won }} />
         <div className="live-stats-setpiece-seg live-stats-setpiece-seg--lost" style={{ flex: sp.lost }} />
+        <div className="live-stats-setpiece-seg live-stats-setpiece-seg--fk" style={{ flex: sp.freeKick }} />
         <div className="live-stats-setpiece-seg live-stats-setpiece-seg--pen" style={{ flex: sp.penalized }} />
       </div>
     </div>
@@ -189,12 +195,13 @@ export function MatchStatsChartsView({
 
       <ChartBlock
         title="Set piece outcomes"
-        description="Scrums, lineouts, and rucks from restart chips — won, lost, or penalized."
+        description="Scrums, lineouts, rucks, and kick/receive restarts — won, lost, free kick, or penalized."
       >
         <div className="live-stats-setpiece-chart-list">
           <SetPieceOutcomeStack label="Scrums" sp={analytics.scrums} />
           <SetPieceOutcomeStack label="Lineouts" sp={analytics.lineouts} />
           <SetPieceOutcomeStack label="Rucks" sp={analytics.rucks} />
+          <SetPieceOutcomeStack label="Restarts" sp={analytics.restarts} />
         </div>
         <div className="live-stats-setpiece-legend muted">
           <span>
@@ -202,6 +209,9 @@ export function MatchStatsChartsView({
           </span>
           <span>
             <span className="live-stats-setpiece-dot live-stats-setpiece-dot--lost" /> Lost
+          </span>
+          <span>
+            <span className="live-stats-setpiece-dot live-stats-setpiece-dot--fk" /> Free kick
           </span>
           <span>
             <span className="live-stats-setpiece-dot live-stats-setpiece-dot--pen" /> Penalized

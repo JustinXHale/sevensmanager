@@ -35,9 +35,12 @@ import {
   accumulateDisciplineBadgesFromEvents,
   fieldLengthBandShortLabel,
   type FieldLengthBandId,
+  type MatchEventKind,
   type MatchEventRecord,
   type PenaltyCard,
   type PlayPhaseContext,
+  restartKickDepthLabel,
+  type RestartKickDepth,
   type SetPieceOutcome,
   type TackleOutcome,
   type TeamPenaltyPayload,
@@ -70,6 +73,7 @@ import { listPlayers, listSubstitutions, recordSubstitution, syncMatchPlayerName
 import { MatchStatsPanel } from './MatchStatsPanel';
 import { MatchEventTimeline } from './MatchEventTimeline';
 import { OnFieldPlayerActions } from './OnFieldPlayerActions';
+import { SimplePlayerActions, type SimpleActionKind } from './SimplePlayerActions';
 import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
@@ -87,6 +91,19 @@ const ACTION_ACK: Record<'pass' | 'try' | 'line_break' | 'negative_action', stri
 };
 
 type LoadSwapHint = { playerOffId: string; playerOnId: string };
+
+const TRACKING_MODE_STORAGE_PREFIX = 'sevensManager.trackingMode.';
+
+function readStoredTrackingMode(matchId: string | undefined): 'full' | 'one_tap' {
+  if (!matchId || typeof sessionStorage === 'undefined') return 'full';
+  try {
+    const v = sessionStorage.getItem(`${TRACKING_MODE_STORAGE_PREFIX}${matchId}`);
+    if (v === 'one_tap' || v === 'full') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'full';
+}
 
 export function MatchLivePage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -106,7 +123,7 @@ export function MatchLivePage() {
   /** Stable row order for on-field list (by player id); subs swap in place instead of re-sorting by jersey. */
   const [onFieldDisplayOrder, setOnFieldDisplayOrder] = useState<string[] | null>(null);
   const [clockSettingsOpen, setClockSettingsOpen] = useState(false);
-  const [trackingMode, setTrackingMode] = useState<'full' | 'one_tap'>('full');
+  const [trackingMode, setTrackingMode] = useState<'full' | 'one_tap'>(() => readStoredTrackingMode(matchId));
   const liveTab = useMemo((): 'live' | 'timeline' | 'stats' | 'roster' => {
     const t = searchParams.get('tab');
     if (t === 'roster' || t === 'timeline' || t === 'stats' || t === 'live') return t;
@@ -132,6 +149,19 @@ export function MatchLivePage() {
     },
     [setSearchParams],
   );
+
+  useEffect(() => {
+    setTrackingMode(readStoredTrackingMode(matchId));
+  }, [matchId]);
+
+  useEffect(() => {
+    if (!matchId) return;
+    try {
+      sessionStorage.setItem(`${TRACKING_MODE_STORAGE_PREFIX}${matchId}`, trackingMode);
+    } catch {
+      /* ignore */
+    }
+  }, [matchId, trackingMode]);
 
   const load = useCallback(async (swap?: LoadSwapHint): Promise<PlayerRecord[] | undefined> => {
     if (!matchId) return undefined;
@@ -620,10 +650,98 @@ export function MatchLivePage() {
     const label =
       payload.kind === 'scrum' ? 'Scrum' : payload.kind === 'lineout' ? 'Lineout' : 'Ruck';
     const band = fieldLengthBandShortLabel(payload.pick.fieldLengthBand);
+    const outcomeLabel =
+      payload.outcome === 'won'
+        ? 'won'
+        : payload.outcome === 'lost'
+          ? 'lost'
+          : payload.outcome === 'penalized'
+            ? 'penalized'
+            : 'free kick';
     setActionToast({
-      text: `${label} · ${band} · ${payload.outcome} · ${payload.phase}`,
+      text: `${label} · ${band} · ${outcomeLabel} · ${payload.phase}`,
       key: Date.now(),
     });
+  }
+
+  async function logRestart(payload: {
+    outcome: Extract<SetPieceOutcome, 'won' | 'lost' | 'free_kick'>;
+    phase: PlayPhaseContext;
+    pick: { zoneId: ZoneId; restartKickDepth: RestartKickDepth };
+  }) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'restart',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      zoneId: payload.pick.zoneId,
+      restartKickDepth: payload.pick.restartKickDepth,
+      setPieceOutcome: payload.outcome,
+      playPhaseContext: payload.phase,
+    });
+    await load();
+    const depth = restartKickDepthLabel(payload.pick.restartKickDepth);
+    const oLabel =
+      payload.outcome === 'won' ? 'Won' : payload.outcome === 'lost' ? 'Lost' : 'Free kick';
+    setActionToast({
+      text: `Restart · ${payload.pick.zoneId} · ${depth} · ${oLabel} · ${payload.phase}`,
+      key: Date.now(),
+    });
+  }
+
+  async function logSimpleAction(kind: SimpleActionKind, playerId: string) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    const isOffload = kind === 'offload';
+    const eventKind = isOffload ? 'pass' : kind;
+    await addMatchEvent({
+      matchId,
+      kind: eventKind,
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      playerId,
+      ...(isOffload ? { passVariant: 'offload' as const } : kind === 'pass' ? { passVariant: 'standard' as const } : {}),
+    });
+    await load();
+    const ack = isOffload ? 'Offload logged' : ACTION_ACK[kind as keyof typeof ACTION_ACK];
+    setActionToast({ text: ack, key: Date.now() });
+  }
+
+  async function logSimpleTackle(playerId: string, outcome: TackleOutcome) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'tackle',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      playerId,
+      tackleOutcome: outcome,
+    });
+    await load();
+    setActionToast({
+      text: outcome === 'missed' ? 'Tackle missed logged' : 'Tackle made logged',
+      key: Date.now(),
+    });
+  }
+
+  async function logSimpleSetPiece(kind: MatchEventKind, outcome: SetPieceOutcome, phase: PlayPhaseContext) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind,
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      setPieceOutcome: outcome,
+      playPhaseContext: phase,
+    });
+    await load();
+    const label =
+      kind === 'scrum' ? 'Scrum' : kind === 'lineout' ? 'Lineout' : kind === 'ruck' ? 'Ruck' : 'Restart';
+    setActionToast({ text: `${label} · ${outcome} · ${phase}`, key: Date.now() });
   }
 
   async function logTeamPenalty(playerId: string, payload: TeamPenaltyPayload) {
@@ -764,7 +882,12 @@ export function MatchLivePage() {
           aria-labelledby="tab-stats"
           className="live-tab-panel live-tab-panel-stats"
         >
-          <MatchStatsPanel events={events} substitutions={substitutions} playersById={playersById} />
+          <MatchStatsPanel
+            events={events}
+            substitutions={substitutions}
+            playersById={playersById}
+            statsDetail={trackingMode === 'one_tap' ? 'one_tap' : 'full'}
+          />
         </div>
       ) : liveTab === 'roster' ? (
         <div
@@ -843,37 +966,71 @@ export function MatchLivePage() {
               </div>
             </div>
             {trackingMode === 'one_tap' && (
-              <p className="tracking-mode-hint">Quick counters — one tap per action.</p>
+              <p className="tracking-mode-hint">Quick counters — one tap per action, no zone detail.</p>
             )}
-            <OnFieldPlayerActions
-              players={onFieldPlayers}
-              substituteOptions={benchOrOff}
-              disciplineBadgesByPlayerId={disciplineBadgesByPlayerId}
-              getPlayerMinutesMs={getPlayerMinutesMs}
-              owesConversion={owesConversion}
-              pendingConversionKick={pendingConversionKick}
-              owesOpponentConversion={owesOpponentConversion}
-              pendingOpponentConversionKick={pendingOpponentConversionKick}
-              onAction={(kind, pid, pick) => {
-                if (kind === 'line_break') {
-                  void logPlayerAction('line_break', pid, pick);
-                } else if (
-                  kind === 'pass' ||
-                  kind === 'try' ||
-                  kind === 'conversion' ||
-                  kind === 'negative_action'
-                ) {
-                  void logPlayerAction(kind, pid, pick);
-                }
-              }}
-              onOpponentScoring={(kind, pick) => void logOpponentScoring(kind, pick)}
-              opponentStatBoard={opponentStatBoard}
-              onOpponentStatAdjust={(row, delta) => void onOpponentStatAdjust(row, delta)}
-              onTackle={(pid, o, pick) => void logTackle(pid, o, pick)}
-              onSubstitute={(offId, onId) => void recordSubstitutionLive(offId, onId)}
-              onTeamPenalty={(pid, payload) => void logTeamPenalty(pid, payload)}
-              onSetPiece={(p) => void logSetPiece(p)}
-            />
+            {trackingMode === 'one_tap' ? (
+              <SimplePlayerActions
+                players={onFieldPlayers}
+                substituteOptions={benchOrOff}
+                disciplineBadgesByPlayerId={disciplineBadgesByPlayerId}
+                getPlayerMinutesMs={getPlayerMinutesMs}
+                owesConversion={owesConversion}
+                pendingConversionKick={pendingConversionKick}
+                owesOpponentConversion={owesOpponentConversion}
+                pendingOpponentConversionKick={pendingOpponentConversionKick}
+                onAction={(kind, pid, pick) => {
+                  if (kind === 'line_break') {
+                    void logPlayerAction('line_break', pid, pick);
+                  } else if (
+                    kind === 'pass' ||
+                    kind === 'try' ||
+                    kind === 'conversion' ||
+                    kind === 'negative_action'
+                  ) {
+                    void logPlayerAction(kind, pid, pick);
+                  }
+                }}
+                onOpponentScoring={(kind, pick) => void logOpponentScoring(kind, pick)}
+                opponentStatBoard={opponentStatBoard}
+                onOpponentStatAdjust={(row, delta) => void onOpponentStatAdjust(row, delta)}
+                onSubstitute={(offId, onId) => void recordSubstitutionLive(offId, onId)}
+                onTeamPenalty={(pid, payload) => void logTeamPenalty(pid, payload)}
+                onSimpleAction={(kind, pid) => void logSimpleAction(kind, pid)}
+                onSimpleTackle={(pid, outcome) => void logSimpleTackle(pid, outcome)}
+                onSimpleSetPiece={(kind, outcome, phase) => void logSimpleSetPiece(kind, outcome, phase)}
+              />
+            ) : (
+              <OnFieldPlayerActions
+                players={onFieldPlayers}
+                substituteOptions={benchOrOff}
+                disciplineBadgesByPlayerId={disciplineBadgesByPlayerId}
+                getPlayerMinutesMs={getPlayerMinutesMs}
+                owesConversion={owesConversion}
+                pendingConversionKick={pendingConversionKick}
+                owesOpponentConversion={owesOpponentConversion}
+                pendingOpponentConversionKick={pendingOpponentConversionKick}
+                onAction={(kind, pid, pick) => {
+                  if (kind === 'line_break') {
+                    void logPlayerAction('line_break', pid, pick);
+                  } else if (
+                    kind === 'pass' ||
+                    kind === 'try' ||
+                    kind === 'conversion' ||
+                    kind === 'negative_action'
+                  ) {
+                    void logPlayerAction(kind, pid, pick);
+                  }
+                }}
+                onOpponentScoring={(kind, pick) => void logOpponentScoring(kind, pick)}
+                opponentStatBoard={opponentStatBoard}
+                onOpponentStatAdjust={(row, delta) => void onOpponentStatAdjust(row, delta)}
+                onTackle={(pid, o, pick) => void logTackle(pid, o, pick)}
+                onSubstitute={(offId, onId) => void recordSubstitutionLive(offId, onId)}
+                onTeamPenalty={(pid, payload) => void logTeamPenalty(pid, payload)}
+                onSetPiece={(p) => void logSetPiece(p)}
+                onRestart={(p) => void logRestart(p)}
+              />
+            )}
             {actionToast ? (
               <p
                 key={actionToast.key}
