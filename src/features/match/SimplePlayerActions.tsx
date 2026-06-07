@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  PENALTY_TYPES,
   type FieldLengthBandId,
   type MatchEventKind,
   type PenaltyCard,
+  type PenaltyDirection,
   type PenaltyTypeId,
   type PlayPhaseContext,
+  penaltyDirectionLabel,
+  penaltyTypesForPicker,
   type TackleOutcome,
   type TeamPenaltyPayload,
   type ZoneFlowerPick,
@@ -79,9 +81,9 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   });
 }
 
-const STANDARD_PENALTY_TYPES = PENALTY_TYPES.filter((pt) => pt.id !== 'other');
-
 const YELLOW_CARD_COOLDOWN_SEC = 120;
+
+type PenaltyMenuState = { playerId: string; direction: PenaltyDirection };
 
 function formatMmSs(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -90,12 +92,21 @@ function formatMmSs(totalSeconds: number): string {
 }
 
 type PenaltySubpanelProps = {
+  phase: PlayPhaseContext;
+  direction: PenaltyDirection;
   yellowSecondsLeft: number;
   onYellowCardActivate: (active: boolean) => void;
   onSubmit: (p: TeamPenaltyPayload) => void;
 };
 
-function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit }: PenaltySubpanelProps) {
+function LivePenaltySubpanel({
+  phase,
+  direction,
+  yellowSecondsLeft,
+  onYellowCardActivate,
+  onSubmit,
+}: PenaltySubpanelProps) {
+  const infractionTypes = penaltyTypesForPicker(phase, direction);
   const [card, setCard] = useState<PenaltyCard | null>(null);
   const [otherText, setOtherText] = useState('');
   const [otherError, setOtherError] = useState<string | null>(null);
@@ -103,7 +114,12 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
   const yellowRowLocked = card === 'yellow' && yellowSecondsLeft > 0;
 
   function logStandard(penaltyType: PenaltyTypeId) {
-    onSubmit({ penaltyType, card: card ?? undefined });
+    onSubmit({
+      penaltyType,
+      card: card ?? undefined,
+      penaltyDirection: direction,
+      playPhaseContext: phase,
+    });
   }
 
   function logOther() {
@@ -113,7 +129,13 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
       return;
     }
     setOtherError(null);
-    onSubmit({ penaltyType: 'other', card: card ?? undefined, penaltyDetail: detail });
+    onSubmit({
+      penaltyType: 'other',
+      card: card ?? undefined,
+      penaltyDetail: detail,
+      penaltyDirection: direction,
+      playPhaseContext: phase,
+    });
     setOtherText('');
   }
 
@@ -129,9 +151,11 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
           <span className="live-penalty-yellow-bin-time" title="Time remaining">{formatMmSs(yellowSecondsLeft)}</span>
         </div>
       ) : null}
-      <p className="muted live-penalty-pick-hint">Choose an infraction (required).</p>
+      <p className="muted live-penalty-pick-hint">
+        {penaltyDirectionLabel(direction)} — choose an infraction (required).
+      </p>
       <div className="live-penalty-type-grid">
-        {STANDARD_PENALTY_TYPES.map((pt) => (
+        {infractionTypes.map((pt) => (
           <button key={pt.id} type="button" className="live-penalty-type-btn" onClick={(e) => { e.stopPropagation(); logStandard(pt.id); requestAnimationFrame(() => e.currentTarget.blur()); }}>{pt.label}</button>
         ))}
       </div>
@@ -167,7 +191,7 @@ export function SimplePlayerActions({
   onSetPieceChoice,
 }: Props) {
   const [mode, setMode] = useState<PlayerActionMode>('attack');
-  const [penaltyMenuFor, setPenaltyMenuFor] = useState<string | null>(null);
+  const [penaltyMenuFor, setPenaltyMenuFor] = useState<PenaltyMenuState | null>(null);
   const [subPickerFor, setSubPickerFor] = useState<string | null>(null);
   const [yellowSinBinUntilMs, setYellowSinBinUntilMs] = useState<Record<string, number>>({});
   const [sinBinClock, setSinBinClock] = useState(() => Date.now());
@@ -205,7 +229,7 @@ export function SimplePlayerActions({
     return [
       owesOpponentConversion
         ? { kind: 'opponent_conversion' as ZoneFlowerActionKind, abbr: 'C', title: 'Opp conversion' }
-        : { kind: 'opponent_try' as ZoneFlowerActionKind, abbr: 'Tr', title: 'Opp try' },
+        : { kind: 'opponent_try' as ZoneFlowerActionKind, abbr: 'Tr', title: 'Try conceded' },
     ];
   }, [owesOpponentConversion]);
 
@@ -233,31 +257,7 @@ export function SimplePlayerActions({
       ) : null}
 
       {mode === 'opponent' ? (
-        <div className="live-opponent-panel" aria-label="Opponent scoring and stats">
-          <div className="live-opp-score-stat muted" aria-label="Opponent tries and conversions logged">
-            <span>Tr {opponentStatBoard.oppTries}</span>
-            <span aria-hidden="true"> · </span>
-            <span>C {opponentStatBoard.oppConvs}</span>
-          </div>
-          <div className="live-opponent-chips" role="group" aria-label="Opponent try and conversion">
-            {opponentActions.map(({ kind, abbr, title }) => (
-              <ZoneFlowerActionButton
-                key={`${kind}-${owesOpponentConversion ? 'c' : 't'}`}
-                kind={kind}
-                abbr={abbr}
-                title={title}
-                playerId={OPPONENT_UI_PLAYER_ID}
-                playerLabelForAria="Opponent"
-                disabled={false}
-                conversionKick={kind === 'opponent_conversion' ? pendingOpponentConversionKick : undefined}
-                onAction={(k, _pid, pick) => {
-                  if (k === 'opponent_try' || k === 'opponent_conversion') {
-                    onOpponentScoring(k, pick);
-                  }
-                }}
-              />
-            ))}
-          </div>
+        <div className="live-opponent-panel" aria-label="Opponent substitutions and cards">
           <div className="live-opp-stat-board" aria-label="Substitutions and cards by team">
             <div className="live-opp-stat-stack">
               <section className="live-opp-stat-card" aria-labelledby="simple-opp-stat-subs">
@@ -309,13 +309,52 @@ export function SimplePlayerActions({
           </div>
         </div>
       ) : (
+        <>
+          {mode === 'defense' ? (
+            <div className="live-defense-scoring" aria-label="Try conceded">
+              <div className="live-opp-score-stat muted" aria-label="Opponent tries and conversions logged">
+                <span>Tr {opponentStatBoard.oppTries}</span>
+                <span aria-hidden="true"> · </span>
+                <span>C {opponentStatBoard.oppConvs}</span>
+              </div>
+              <div className="live-opponent-chips" role="group" aria-label="Try conceded and opponent conversion">
+                {opponentActions.map(({ kind, abbr, title }) => (
+                  <ZoneFlowerActionButton
+                    key={`${kind}-${owesOpponentConversion ? 'c' : 't'}`}
+                    kind={kind}
+                    abbr={abbr}
+                    title={title === 'Opp try' ? 'Try conceded' : title}
+                    playerId={OPPONENT_UI_PLAYER_ID}
+                    playerLabelForAria="Try conceded"
+                    disabled={false}
+                    conversionKick={kind === 'opponent_conversion' ? pendingOpponentConversionKick : undefined}
+                    onAction={(k, _pid, pick) => {
+                      if (k === 'opponent_try' || k === 'opponent_conversion') {
+                        onOpponentScoring(k, pick);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         <div className="on-field-rows">
           {players.map((p) => {
             const sinBinUntil = yellowSinBinUntilMs[p.id];
             const inYellowSinBin = sinBinUntil !== undefined;
             const sinBinSec = sinBinSecondsLeft(p.id);
             const rowSinBin = inYellowSinBin;
-            const showSinBinRowOverlay = rowSinBin && penaltyMenuFor !== p.id;
+            const showSinBinRowOverlay = rowSinBin && penaltyMenuFor?.playerId !== p.id;
+            const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
+
+            function openPenaltyMenu(direction: PenaltyDirection) {
+              setSubPickerFor(null);
+              setPenaltyMenuFor((prev) =>
+                prev?.playerId === p.id && prev.direction === direction
+                  ? null
+                  : { playerId: p.id, direction },
+              );
+            }
 
             return (
               <div key={p.id} className={`on-field-player-block${rowSinBin ? ' on-field-player-block--sin-bin' : ''}`}>
@@ -365,12 +404,21 @@ export function SimplePlayerActions({
                           )}
                           <button
                             type="button"
+                            className="live-action-round live-action-penalty-trigger live-action-penalty-trigger--awarded"
+                            disabled={rowSinBin}
+                            title="Penalty awarded — choose infraction"
+                            aria-expanded={penaltyMenuFor?.playerId === p.id && penaltyMenuFor.direction === 'awarded'}
+                            aria-label={`Penalty awarded — ${formatPlayerLabel(p)}`}
+                            onClick={(e) => tapThenBlur(e, () => openPenaltyMenu('awarded'))}
+                          >!</button>
+                          <button
+                            type="button"
                             className="live-action-round live-action-penalty-trigger"
                             disabled={rowSinBin}
-                            title="Penalty — choose card (optional) and infraction"
-                            aria-expanded={penaltyMenuFor === p.id}
-                            aria-label={`Penalty — ${formatPlayerLabel(p)}`}
-                            onClick={(e) => tapThenBlur(e, () => { setSubPickerFor(null); setPenaltyMenuFor((id) => (id === p.id ? null : p.id)); })}
+                            title="Penalty conceded — choose infraction"
+                            aria-expanded={penaltyMenuFor?.playerId === p.id && penaltyMenuFor.direction === 'conceded'}
+                            aria-label={`Penalty conceded — ${formatPlayerLabel(p)}`}
+                            onClick={(e) => tapThenBlur(e, () => openPenaltyMenu('conceded'))}
                           >!</button>
                         </>
                       ) : (
@@ -379,12 +427,21 @@ export function SimplePlayerActions({
                           <button type="button" className="live-action-round live-action-round-tackle-miss" disabled={rowSinBin} title="Tackle missed" aria-label={`Tackle missed — ${formatPlayerLabel(p)}`} onClick={(e) => tapThenBlur(e, () => onSimpleTackle(p.id, 'missed'))}>X</button>
                           <button
                             type="button"
+                            className="live-action-round live-action-penalty-trigger live-action-penalty-trigger--awarded"
+                            disabled={rowSinBin}
+                            title="Penalty awarded — choose infraction"
+                            aria-expanded={penaltyMenuFor?.playerId === p.id && penaltyMenuFor.direction === 'awarded'}
+                            aria-label={`Penalty awarded — ${formatPlayerLabel(p)}`}
+                            onClick={(e) => tapThenBlur(e, () => openPenaltyMenu('awarded'))}
+                          >!</button>
+                          <button
+                            type="button"
                             className="live-action-round live-action-penalty-trigger"
                             disabled={rowSinBin}
-                            title="Penalty — choose card (optional) and infraction"
-                            aria-expanded={penaltyMenuFor === p.id}
-                            aria-label={`Penalty — ${formatPlayerLabel(p)}`}
-                            onClick={(e) => tapThenBlur(e, () => { setSubPickerFor(null); setPenaltyMenuFor((id) => (id === p.id ? null : p.id)); })}
+                            title="Penalty conceded — choose infraction"
+                            aria-expanded={penaltyMenuFor?.playerId === p.id && penaltyMenuFor.direction === 'conceded'}
+                            aria-label={`Penalty conceded — ${formatPlayerLabel(p)}`}
+                            onClick={(e) => tapThenBlur(e, () => openPenaltyMenu('conceded'))}
                           >!</button>
                         </>
                       )}
@@ -434,9 +491,11 @@ export function SimplePlayerActions({
                     )}
                   </div>
                 ) : null}
-                {penaltyMenuFor === p.id ? (
+                {penaltyMenuFor?.playerId === p.id ? (
                   <LivePenaltySubpanel
-                    key={p.id}
+                    key={`${p.id}-${penaltyMenuFor.direction}`}
+                    phase={phaseContext}
+                    direction={penaltyMenuFor.direction}
                     yellowSecondsLeft={sinBinSecondsLeft(p.id)}
                     onYellowCardActivate={(active) => { if (active) startYellowSinBin(p.id); else clearYellowSinBin(p.id); }}
                     onSubmit={(payload) => { onTeamPenalty(p.id, payload); setPenaltyMenuFor(null); }}
@@ -446,6 +505,7 @@ export function SimplePlayerActions({
             );
           })}
         </div>
+        </>
       )}
     </div>
   );

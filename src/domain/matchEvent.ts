@@ -138,12 +138,70 @@ export function penaltyTypeLabel(id: PenaltyTypeId): string {
   return PENALTY_TYPES.find((p) => p.id === id)?.label ?? id;
 }
 
+/**
+ * One Tap / live row penalty picker: infractions available per phase and direction.
+ * Adjust these lists when coaches finalize match-day options.
+ */
+const PENALTY_PICKER_IDS: Record<
+  `${PlayPhaseContext}:${PenaltyDirection}`,
+  readonly PenaltyTypeId[]
+> = {
+  'attack:conceded': [
+    'offside',
+    'hands_in_ruck',
+    'sealing_off',
+    'not_releasing',
+    'deliberate_knock_on',
+    'dangerous_play',
+  ],
+  'attack:awarded': [
+    'offside',
+    'high_tackle',
+    'not_rolling_away',
+    'side_entry',
+    'not_releasing',
+    'hands_in_ruck',
+  ],
+  'defense:conceded': [
+    'high_tackle',
+    'not_rolling_away',
+    'not_releasing',
+    'side_entry',
+    'sealing_off',
+    'hands_in_ruck',
+    'offside',
+    'neck_roll',
+    'dangerous_play',
+  ],
+  'defense:awarded': [
+    'deliberate_knock_on',
+    'hands_in_ruck',
+    'sealing_off',
+    'not_releasing',
+    'offside',
+    'scrummage',
+    'lineout_offence',
+  ],
+};
+
+/** Infraction chips for the live penalty picker (excludes Other; add via free-text row). */
+export function penaltyTypesForPicker(
+  phase: PlayPhaseContext,
+  direction: PenaltyDirection,
+): { id: PenaltyTypeId; label: string }[] {
+  const key = `${phase}:${direction}` as const;
+  const ids = PENALTY_PICKER_IDS[key] ?? [];
+  return PENALTY_TYPES.filter((pt) => ids.includes(pt.id));
+}
+
 /** Payload for logging a team penalty from the live row UI. */
 export type TeamPenaltyPayload = {
   penaltyType: PenaltyTypeId;
   card?: PenaltyCard;
   /** Required when `penaltyType` is `other` (free-text infraction). */
   penaltyDetail?: string;
+  penaltyDirection?: PenaltyDirection;
+  playPhaseContext?: PlayPhaseContext;
 };
 
 /** Pitch length band for logged pass / try / conversion (zone flower level 2). */

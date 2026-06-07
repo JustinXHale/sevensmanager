@@ -2708,10 +2708,62 @@ a.live-tab:focus-visible {
   opacity: 0.55;
 }
 
+.live-match-panels {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-ft-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(232, 184, 74, 0.35);
+  background: rgba(232, 184, 74, 0.08);
+  flex-shrink: 0;
+}
+
+.live-ft-compact-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8b84a;
+}
+
+.live-ft-compact-score {
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-ft-compact-resume {
+  min-height: 32px;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: #1a222d;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.live-ft-compact-resume:hover {
+  border-color: var(--accent);
+}
+
 .ref-clock-complete-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 10150;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2720,6 +2772,7 @@ a.live-tab:focus-visible {
   padding: 1.5rem;
   background: rgba(8, 12, 18, 0.92);
   text-align: center;
+  border-radius: 10px;
 }
 
 .ref-clock-complete-label {
@@ -2732,20 +2785,26 @@ a.live-tab:focus-visible {
 
 .ref-clock-complete-scoreboard {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: 0.5rem 1rem;
+  gap: 1.25rem 1.5rem;
   max-width: min(100%, 28rem);
 }
 
+.ref-clock-complete-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 5rem;
+}
+
 .ref-clock-complete-team {
-  flex: 1 1 4.5rem;
-  min-width: 3.5rem;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--muted);
   text-align: center;
+  line-height: 1.2;
 }
 
 .ref-clock-complete-points {
@@ -2761,6 +2820,7 @@ a.live-tab:focus-visible {
   font-weight: 300;
   color: var(--muted);
   line-height: 1;
+  padding-top: 0.35rem;
 }
 
 .tally-setpiece-strip {
@@ -2826,21 +2886,21 @@ a.live-tab:focus-visible {
 }
 
 .tally-setpiece-btn--pen-plus {
-  border-color: #1d6f4a;
-  color: #3dd68c;
+  border-color: #e8b84a;
+  color: #fde68a;
 }
 
 .tally-setpiece-btn--pen-minus {
-  border-color: #6b5520;
-  color: #e8b84a;
+  border-color: #dc2626;
+  color: #fca5a5;
 }
 
-.tally-counter-btn--pen-minus {
-  border-color: #6b5520;
-}
-
-.tally-counter-btn--pen-plus {
-  border-color: #1d6f4a;
+.live-defense-scoring {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.25rem 0 0.35rem;
 }
 
 .tgs-card-subtitle {
@@ -2986,6 +3046,14 @@ a.live-tab:focus-visible {
   background: rgba(94, 158, 214, 0.18);
 }
 
+.tally-counter-btn--try-conceded {
+  border-color: #e67a87;
+}
+
+.tally-counter-btn--try-conceded:active {
+  background: rgba(230, 122, 135, 0.15);
+}
+
 .tally-counter-btn--miss {
   border-color: #e67a87;
 }
@@ -3035,6 +3103,24 @@ a.live-tab:focus-visible {
 
 .tally-counter-btn--missed:active {
   background: rgba(230, 122, 135, 0.15);
+}
+
+.tally-counter-btn--pen-minus {
+  border-color: #dc2626;
+  color: #fca5a5;
+}
+
+.tally-counter-btn--pen-minus:active {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.tally-counter-btn--pen-plus {
+  border-color: #e8b84a;
+  color: #fde68a;
+}
+
+.tally-counter-btn--pen-plus:active {
+  background: rgba(232, 184, 74, 0.15);
 }
 
 .tally-counter-label {
@@ -4266,6 +4352,20 @@ button.live-stats-cell--btn.live-stats-cell--open {
 
 .live-action-penalty-trigger:focus-visible {
   outline-color: #f87171 !important;
+}
+
+.live-action-penalty-trigger--awarded {
+  border-color: #e8b84a !important;
+  color: #fde68a !important;
+  background: #1f1a12 !important;
+}
+
+.live-action-penalty-trigger--awarded:hover {
+  background: rgba(232, 184, 74, 0.22) !important;
+}
+
+.live-action-penalty-trigger--awarded:focus-visible {
+  outline-color: #e8b84a !important;
 }
 
 .live-penalty-pick {

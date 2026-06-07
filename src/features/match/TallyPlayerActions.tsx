@@ -1,15 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   type ConversionOutcome,
-  type FieldLengthBandId,
   type MatchEventKind,
   type PenaltyDirection,
   type PlayPhaseContext,
   type TackleOutcome,
-  type ZoneFlowerPick,
 } from '@/domain/matchEvent';
-import type { ZoneId } from '@/domain/zone';
-import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 
 export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
@@ -24,19 +20,20 @@ type TallyCounts = {
   tackle_missed: number;
   penalty_conceded: number;
   penalty_awarded: number;
+  try_conceded: number;
 };
 
 type Props = {
   counts: TallyCounts;
   owesConversion: boolean;
   owesOpponentConversion: boolean;
-  pendingOpponentConversionKick: { zoneId: ZoneId; fieldLengthBand?: FieldLengthBandId } | null;
   onTallyAction: (kind: TallyActionKind) => void;
   onTallyTackle: (outcome: TackleOutcome) => void;
   onTallyConversion: (outcome: ConversionOutcome) => void;
   onTallySetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
   onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
-  onOpponentScoring: (kind: 'opponent_try' | 'opponent_conversion', pick?: ZoneFlowerPick) => void;
+  onTallyTryConceded: () => void;
+  onTallyOpponentConversion: (outcome: ConversionOutcome) => void;
   opponentStatBoard: {
     themLabel: string;
     usLabel: string;
@@ -55,8 +52,6 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   requestAnimationFrame(() => ev.currentTarget.blur());
 }
 
-const OPPONENT_UI_PLAYER_ID = '_opponent_';
-
 const ATTACK_BUTTONS: { kind: TallyActionKind; label: string; countKey: keyof TallyCounts }[] = [
   { kind: 'pass', label: 'Pass', countKey: 'pass' },
   { kind: 'offload', label: 'Offload', countKey: 'offload' },
@@ -74,25 +69,17 @@ export function TallyPlayerActions({
   counts,
   owesConversion,
   owesOpponentConversion,
-  pendingOpponentConversionKick,
   onTallyAction,
   onTallyTackle,
   onTallyConversion,
   onTallySetPieceChoice,
   onTallyPenalty,
-  onOpponentScoring,
+  onTallyTryConceded,
+  onTallyOpponentConversion,
   opponentStatBoard,
   onOpponentStatAdjust,
 }: Props) {
   const [mode, setMode] = useState<PhaseMode>('attack');
-
-  const opponentActions = useMemo(() => {
-    return [
-      owesOpponentConversion
-        ? { kind: 'opponent_conversion' as ZoneFlowerActionKind, abbr: 'C', title: 'Opp conversion' }
-        : { kind: 'opponent_try' as ZoneFlowerActionKind, abbr: 'Tr', title: 'Opp try' },
-    ];
-  }, [owesOpponentConversion]);
 
   const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
 
@@ -109,29 +96,7 @@ export function TallyPlayerActions({
       ) : null}
 
       {mode === 'opponent' ? (
-        <div className="live-opponent-panel" aria-label="Opponent scoring and stats">
-          <div className="live-opp-score-stat muted" aria-label="Opponent tries and conversions logged">
-            <span>Tr {opponentStatBoard.oppTries}</span>
-            <span aria-hidden="true"> &middot; </span>
-            <span>C {opponentStatBoard.oppConvs}</span>
-          </div>
-          <div className="live-opponent-chips" role="group" aria-label="Opponent try and conversion">
-            {opponentActions.map(({ kind, abbr, title }) => (
-              <ZoneFlowerActionButton
-                key={`${kind}-${owesOpponentConversion ? 'c' : 't'}`}
-                kind={kind}
-                abbr={abbr}
-                title={title}
-                playerId={OPPONENT_UI_PLAYER_ID}
-                playerLabelForAria="Opponent"
-                disabled={false}
-                conversionKick={kind === 'opponent_conversion' ? pendingOpponentConversionKick : undefined}
-                onAction={(k, _pid, pick) => {
-                  if (k === 'opponent_try' || k === 'opponent_conversion') onOpponentScoring(k, pick);
-                }}
-              />
-            ))}
-          </div>
+        <div className="live-opponent-panel" aria-label="Opponent substitutions and cards">
           <div className="live-opp-stat-board" aria-label="Substitutions and cards by team">
             <div className="live-opp-stat-stack">
               <section className="live-opp-stat-card" aria-labelledby="tally-opp-stat-subs">
@@ -184,11 +149,19 @@ export function TallyPlayerActions({
         </div>
       ) : (
         <>
-          {owesConversion ? (
+          {mode === 'attack' && owesConversion ? (
             <div className="tally-conversion-prompt" role="group" aria-label="Conversion attempt">
               <span className="tally-conversion-label">Conversion</span>
               <button type="button" className="tally-counter-btn tally-counter-btn--made" onClick={(e) => tapThenBlur(e, () => onTallyConversion('made'))}>Made</button>
               <button type="button" className="tally-counter-btn tally-counter-btn--missed" onClick={(e) => tapThenBlur(e, () => onTallyConversion('missed'))}>Missed</button>
+            </div>
+          ) : null}
+
+          {mode === 'defense' && owesOpponentConversion ? (
+            <div className="tally-conversion-prompt" role="group" aria-label="Opponent conversion attempt">
+              <span className="tally-conversion-label">Opp conversion</span>
+              <button type="button" className="tally-counter-btn tally-counter-btn--made" onClick={(e) => tapThenBlur(e, () => onTallyOpponentConversion('made'))}>Made</button>
+              <button type="button" className="tally-counter-btn tally-counter-btn--missed" onClick={(e) => tapThenBlur(e, () => onTallyOpponentConversion('missed'))}>Missed</button>
             </div>
           ) : null}
 
@@ -210,11 +183,21 @@ export function TallyPlayerActions({
                     <span className="tally-counter-badge">{counts[b.countKey]}</span>
                   </button>
                 ))}
+                {!owesOpponentConversion ? (
+                  <button
+                    type="button"
+                    className="tally-counter-btn tally-counter-btn--try-conceded"
+                    onClick={(e) => tapThenBlur(e, () => onTallyTryConceded())}
+                  >
+                    <span className="tally-counter-label">Try −</span>
+                    <span className="tally-counter-badge">{counts.try_conceded}</span>
+                  </button>
+                ) : null}
               </>
             )}
             <button
               type="button"
-              className="tally-counter-btn tally-counter-btn--penalty tally-counter-btn--pen-minus"
+              className="tally-counter-btn tally-counter-btn--pen-minus"
               onClick={(e) => tapThenBlur(e, () => onTallyPenalty('conceded', phaseContext))}
             >
               <span className="tally-counter-label">Pen −</span>
@@ -222,7 +205,7 @@ export function TallyPlayerActions({
             </button>
             <button
               type="button"
-              className="tally-counter-btn tally-counter-btn--penalty tally-counter-btn--pen-plus"
+              className="tally-counter-btn tally-counter-btn--pen-plus"
               onClick={(e) => tapThenBlur(e, () => onTallyPenalty('awarded', phaseContext))}
             >
               <span className="tally-counter-label">Pen +</span>

@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
+
+### Changed
+- Tally **Pen −** / **Pen +**, set-piece **P−** / **P+**, and One Tap awarded **!**: red for conceded, gold for awarded (fixed Pen − inheriting green accent border)
+- Tally and One Tap: **Try conceded** (and opponent conversion prompt) moved from Opp tab to **Defense**; Opp tab is subs and cards only
 - Live match **End match (FT)** — tool-row button with confirm; pauses clocks, full-time overlay with final score, **Copy summary**, and **Resume match**; navigates to Stats tab; works in any period (e.g. lightning abandonment)
 - Tally / One Tap **set-piece circles** — shared `TallySetPieceStrip` with W / L / FK / Pen+ / Pen− per lineout, restart, ruck, and scrum; Pen+ logs won + penalty awarded, Pen− logs lost + penalty conceded
 - **`penaltyDirection`** on `team_penalty` events (`conceded` | `awarded`); Tally standalone **Pen −** / **Pen +** counters (no infraction picker)
@@ -16,7 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Match roster now syncs from the team admin **master roster** (`syncMatchRosterFromTeam`): all squad members appear with names and jerseys; empty default #1–#13 seed rows are removed; jerseys 1–7 on field / 8–13 bench on first sync; updates when opening match live or roster tab
 
 ### Changed
-- Full-time overlay: larger centered final score on screen; **Copy summary** removed from overlay (still on Stats tab)
+- Full-time overlay: larger centered final score with team names under each score; shown on Tracking tab only so Stats/Timeline/Roster stay reachable; compact full-time bar on other tabs; **Copy summary** removed from overlay (still on Stats tab)
 - Match **Roster** tab: drag-and-drop board with On field / Bench / Off zones; side-by-side ▴▾ reorder controls and drop-on-row positioning for custom on-field order (e.g. 8, 2, 5, 7), persisted to match session for live tracking
 - Tally mode penalties replaced infraction picker with awarded/conceded counters; One Tap set pieces use the same circle strip as Tally
 - Tracking and stats mode switchers reordered **Tally → One Tap → Full**; **Tally** is the default for new matches

@@ -526,12 +526,14 @@ export function MatchLivePage() {
       tackle_missed: 0,
       penalty_conceded: 0,
       penalty_awarded: 0,
+      try_conceded: 0,
     };
     for (const e of events) {
       if (e.deletedAt != null) continue;
       if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
       else if (e.kind === 'line_break') c.line_break++;
       else if (e.kind === 'try') c.try++;
+      else if (e.kind === 'opponent_try') c.try_conceded++;
       else if (e.kind === 'negative_action') c.negative_action++;
       else if (e.kind === 'tackle') { if (e.tackleOutcome === 'missed') c.tackle_missed++; else c.tackle_made++; }
       else if (e.kind === 'team_penalty') {
@@ -852,6 +854,39 @@ export function MatchLivePage() {
     setActionToast({ text: outcome === 'made' ? 'Conversion made' : 'Conversion missed', key: Date.now() });
   }
 
+  async function logTallyTryConceded() {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'opponent_try',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+    });
+    await load();
+    setActionToast({ text: 'Try conceded', key: Date.now() });
+  }
+
+  async function logTallyOpponentConversion(outcome: ConversionOutcome) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    const kick = pendingOpponentConversionKickFromEvents(events);
+    await addMatchEvent({
+      matchId,
+      kind: 'opponent_conversion',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      conversionOutcome: outcome,
+      zoneId: kick?.zoneId ?? DEFAULT_LOG_ZONE,
+      fieldLengthBand: kick?.fieldLengthBand,
+    });
+    await load();
+    setActionToast({
+      text: outcome === 'made' ? 'Opp conversion made' : 'Opp conversion missed',
+      key: Date.now(),
+    });
+  }
+
   async function logTallyPenalty(direction: PenaltyDirection, phase: PlayPhaseContext) {
     if (!matchId || !session) return;
     setBanner(null);
@@ -916,6 +951,7 @@ export function MatchLivePage() {
   async function logTeamPenalty(playerId: string, payload: TeamPenaltyPayload) {
     if (!matchId || !session) return;
     setBanner(null);
+    const direction = payload.penaltyDirection ?? 'conceded';
     await addMatchEvent({
       matchId,
       kind: 'team_penalty',
@@ -925,10 +961,15 @@ export function MatchLivePage() {
       penaltyType: payload.penaltyType,
       penaltyCard: payload.card,
       penaltyDetail: payload.penaltyDetail,
+      penaltyDirection: direction,
+      playPhaseContext: payload.playPhaseContext,
       zoneId: DEFAULT_LOG_ZONE,
     });
     await load();
-    setActionToast({ text: 'Penalty logged', key: Date.now() });
+    setActionToast({
+      text: direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded',
+      key: Date.now(),
+    });
   }
 
   async function onUndoDelete(id: string) {
@@ -1044,6 +1085,19 @@ export function MatchLivePage() {
         </button>
       </div>
 
+      {session.matchComplete && liveTab !== 'live' ? (
+        <div className="live-ft-compact" role="status">
+          <span className="live-ft-compact-label">Full time</span>
+          <span className="live-ft-compact-score">
+            {ourScoreboardLabel} {ourRugbyScore} – {opponentRugbyScore} {opponentScoreboardLabel}
+          </span>
+          <button type="button" className="live-ft-compact-resume" onClick={() => void onResumeFromComplete()}>
+            Resume match
+          </button>
+        </div>
+      ) : null}
+
+      <div className="live-match-panels">
       {liveTab === 'stats' ? (
         <div
           id="panel-stats"
@@ -1158,13 +1212,13 @@ export function MatchLivePage() {
                 counts={tallyCounts}
                 owesConversion={owesConversion}
                 owesOpponentConversion={owesOpponentConversion}
-                pendingOpponentConversionKick={pendingOpponentConversionKick}
                 onTallyAction={(kind) => void logTallyAction(kind)}
                 onTallyTackle={(outcome) => void logTallyTackle(outcome)}
                 onTallyConversion={(outcome) => void logTallyConversion(outcome)}
                 onTallySetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
                 onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
-                onOpponentScoring={(kind, pick) => void logOpponentScoring(kind, pick)}
+                onTallyTryConceded={() => void logTallyTryConceded()}
+                onTallyOpponentConversion={(outcome) => void logTallyOpponentConversion(outcome)}
                 opponentStatBoard={opponentStatBoard}
                 onOpponentStatAdjust={(row, delta) => void onOpponentStatAdjust(row, delta)}
               />
@@ -1259,6 +1313,17 @@ export function MatchLivePage() {
         </div>
       )}
 
+      {session.matchComplete && liveTab === 'live' ? (
+        <MatchCompleteOverlay
+          ourScore={ourRugbyScore}
+          opponentScore={opponentRugbyScore}
+          ourLabel={ourScoreboardLabel}
+          opponentLabel={opponentScoreboardLabel}
+          onResume={() => void onResumeFromComplete()}
+        />
+      ) : null}
+      </div>
+
       {undoToast ? (
         <div key={undoToast.key} className="undo-toast" role="status" aria-live="polite">
           <span>{undoToast.text}</span>
@@ -1270,16 +1335,6 @@ export function MatchLivePage() {
             Undo
           </button>
         </div>
-      ) : null}
-
-      {session.matchComplete ? (
-        <MatchCompleteOverlay
-          ourScore={ourRugbyScore}
-          opponentScore={opponentRugbyScore}
-          ourLabel={ourScoreboardLabel}
-          opponentLabel={opponentScoreboardLabel}
-          onResume={() => void onResumeFromComplete()}
-        />
       ) : null}
     </div>
   );
