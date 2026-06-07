@@ -180,6 +180,7 @@ const EVENT_COUNTS: GlossaryEntry[] = [
   { abbr: 'Substitutions', full: 'Substitutions', desc: 'Your team\u2019s player changes during the match.' },
   { abbr: 'Starred moments', full: 'Starred moments', desc: 'Film bookmarks from ★ Star moment — match and film clock for footage scrubbing.' },
   { abbr: 'System moments', full: 'System moments', desc: 'Positive attack system plays logged from the gold System Moment button in Tally Attack.' },
+  { abbr: 'Forced turnovers', full: 'Forced turnovers', desc: 'Positive defensive turnovers logged from the gold Forced Turnover button in Tally Defense.' },
 ];
 
 const POINTS_BY_MATCH: GlossaryEntry[] = [
@@ -236,9 +237,11 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'System Moment', full: 'System moment', desc: 'Gold circle on Tally Attack — marks a positive structured attack worth reviewing on film.', group: 'Attack' },
   { abbr: 'Try −', full: 'Try conceded', desc: 'Opponent try scored against you — logged on the Defense tab.', group: 'Defense' },
   { abbr: 'C', full: 'Conversion', desc: 'Kick at goal after a try (2 pts).', group: 'Attack' },
+  { abbr: 'Forced Turnover', full: 'Forced turnover', desc: 'Gold circle on Tally Defense — marks a positive turnover you forced.', group: 'Defense' },
   { abbr: 'M', full: 'Tackle made', desc: 'Successful tackle — ball carrier brought down or held.', group: 'Defense' },
   { abbr: 'X', full: 'Tackle missed', desc: 'Attempted tackle where the ball carrier broke free.', group: 'Defense' },
-  { abbr: 'Neg', full: 'Negative action', desc: 'An error: knock-on, bad pass, or forward pass.', group: 'Shared' },
+  { abbr: 'Neg', full: 'Negative action', desc: 'Red circle on Tally Attack — generic handling error (not knock-on).', group: 'Attack' },
+  { abbr: 'Knock On', full: 'Knock-on', desc: 'Red circle on Tally Attack — logs a knock-on separately from other negatives.', group: 'Attack' },
   { abbr: 'Pen −', full: 'Penalty conceded', desc: 'Red ! — infringement by your team; infraction list depends on Attack vs Defense.', group: 'Shared' },
   { abbr: 'Pen +', full: 'Penalty awarded', desc: 'Gold ! / Pen + — infringement by the opponent; infraction list depends on Attack vs Defense.', group: 'Shared' },
   { abbr: 'W/L', full: 'Won / Lost', desc: 'Set piece outcome with no penalty at that restart.', group: 'Set pieces' },

@@ -8,10 +8,10 @@ export type TallySetPieceChoice =
   | 'penalty_conceded';
 
 const SET_PIECE_KINDS: { kind: MatchEventKind; label: string }[] = [
-  { kind: 'lineout', label: 'Lineout' },
   { kind: 'restart', label: 'Restart' },
   { kind: 'ruck', label: 'Ruck' },
   { kind: 'scrum', label: 'Scrum' },
+  { kind: 'lineout', label: 'Lineout' },
 ];
 
 const OUTCOME_BUTTONS: {
@@ -47,20 +47,31 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   requestAnimationFrame(() => ev.currentTarget.blur());
 }
 
+function setPieceKindLabel(kind: MatchEventKind, phase: PlayPhaseContext, baseLabel: string): string {
+  if (kind === 'restart') {
+    return phase === 'attack' ? 'Restart (Receiving kick)' : 'Restart (Kicking off)';
+  }
+  return baseLabel;
+}
+
 export function TallySetPieceStrip({ phase, onChoice }: Props) {
   return (
     <div className="tally-setpiece-strip" aria-label={`Set pieces (${phase})`}>
-      {SET_PIECE_KINDS.map(({ kind, label }) => (
+      {SET_PIECE_KINDS.map(({ kind, label }) => {
+        const displayLabel = setPieceKindLabel(kind, phase, label);
+        return (
         <div key={kind} className="tally-setpiece-group">
-          <span className="tally-setpiece-kind">{label}</span>
-          <div className="tally-setpiece-btns" role="group" aria-label={label}>
+          <span className={`tally-setpiece-kind${kind === 'restart' ? ' tally-setpiece-kind--restart' : ''}`}>
+            {displayLabel}
+          </span>
+          <div className="tally-setpiece-btns" role="group" aria-label={displayLabel}>
             {OUTCOME_BUTTONS.map(({ choice, label: btnLabel, title, className }) => (
               <button
                 key={choice}
                 type="button"
                 className={`tally-setpiece-btn${className ? ` ${className}` : ''}`}
                 title={title}
-                aria-label={`${label} · ${title}`}
+                aria-label={`${displayLabel} · ${title}`}
                 onClick={(e) => tapThenBlur(e, () => onChoice(kind, choice, phase))}
               >
                 {btnLabel}
@@ -68,7 +79,8 @@ export function TallySetPieceStrip({ phase, onChoice }: Props) {
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

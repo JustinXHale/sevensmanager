@@ -18,7 +18,8 @@ export type MatchEventKind =
   | 'line_break'
   | 'negative_action'
   | 'film_star'
-  | 'system_moment';
+  | 'system_moment'
+  | 'forced_turnover';
 
 /** All event kinds (for filters, iteration). Order is not significant. */
 export const MATCH_EVENT_KINDS: readonly MatchEventKind[] = [
@@ -39,6 +40,7 @@ export const MATCH_EVENT_KINDS: readonly MatchEventKind[] = [
   'negative_action',
   'film_star',
   'system_moment',
+  'forced_turnover',
 ];
 
 /** Handling / skill errors (attack) — pick type then zone. */

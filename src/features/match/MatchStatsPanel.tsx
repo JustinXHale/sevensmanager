@@ -49,7 +49,7 @@ import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/Se
 type StatsDetail = 'full' | 'one_tap' | 'tally';
 
 const STATS_MODE_HELP: GlossaryEntry[] = [
-  { abbr: 'Tally', full: 'Tally summary', desc: 'Scoreboard plus attack/defense splits: actions, set pieces (W/L/FK/Pen), penalties awarded/conceded, tries conceded, system moments, and film bookmarks with scrub times. Best when tracking in Tally mode.' },
+  { abbr: 'Tally', full: 'Tally summary', desc: 'Scoreboard plus attack/defense splits: actions, set pieces (W/L/FK/Pen), penalties awarded/conceded, tries conceded, system moments, forced turnovers, and film bookmarks with scrub times. Best when tracking in Tally mode.' },
   { abbr: 'One Tap', full: 'One Tap summary', desc: 'Overview plus grouped event counts: attack, defense, and set pieces. Designed for One Tap tracking where zone-level data isn\u2019t captured.' },
   { abbr: 'Full', full: 'Full analytics', desc: 'All sections: phase split, zones, set pieces, ruck speed, penalties, negatives, scoring timeline, event counts, and player detail. Best when tracking in Full mode.' },
 ];
@@ -93,7 +93,7 @@ const HEAT_ROW_TONE: Record<string, 'bad' | undefined> = {
 };
 
 const KIND_ORDER: MatchEventKind[] = [
-  'film_star', 'system_moment',
+  'film_star', 'system_moment', 'forced_turnover',
   'try', 'conversion', 'opponent_try', 'opponent_conversion',
   'opponent_substitution', 'opponent_card', 'pass', 'line_break',
   'negative_action', 'scrum', 'lineout', 'restart', 'team_penalty', 'ruck',
@@ -103,7 +103,7 @@ const ONE_TAP_ATTACK_KINDS: MatchEventKind[] = [
   'pass', 'line_break', 'try', 'conversion', 'negative_action',
 ];
 const TALLY_DEFENSE_KINDS: MatchEventKind[] = ['team_penalty'];
-const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['scrum', 'lineout', 'restart', 'ruck'];
+const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['restart', 'ruck', 'scrum', 'lineout'];
 
 function fmtMs(ms: number): string {
   const totalSec = Math.round(ms / 1000);
@@ -167,6 +167,26 @@ function getPanelPayload(
       ),
     };
   }
+  if (key === 'neg:knock_on') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter(
+          (e) => e.deletedAt == null && e.kind === 'negative_action' && e.negativeActionId === 'knock_on',
+        ),
+      ),
+    };
+  }
+  if (key === 'neg:other') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter(
+          (e) => e.deletedAt == null && e.kind === 'negative_action' && e.negativeActionId !== 'knock_on',
+        ),
+      ),
+    };
+  }
   if (key.startsWith('pen:')) {
     const [, dir, phase] = key.split(':') as [string, 'conceded' | 'awarded', PlayPhaseContext];
     return {
@@ -214,7 +234,7 @@ function StatExpandContent({
           <li key={e.id} className="live-stats-expand-row">
             <span className="live-stats-expand-time">
               P{e.period} {formatClock(e.matchTimeMs)}
-              {(e.kind === 'film_star' || e.kind === 'system_moment') && e.filmTimeMs != null ? (
+              {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') && e.filmTimeMs != null ? (
                 <span className="live-stats-expand-film"> · Film {formatClock(e.filmTimeMs)}</span>
               ) : null}
             </span>
@@ -327,6 +347,8 @@ function expandPanelTitle(key: string): string {
   if (key === 'tackle:missed') return 'Tackles missed';
   if (key === 'pass:offload') return 'Offloads';
   if (key === 'pass:standard') return 'Passes';
+  if (key === 'neg:knock_on') return 'Knock-ons';
+  if (key === 'neg:other') return 'Other negatives';
   if (key.startsWith('pen:')) return 'Penalties';
   if (key.startsWith('kind:')) return kindLabel(key.slice(5) as MatchEventKind);
   if (key.startsWith('zone:')) return `Tries \u00b7 ${key.slice(5)}`;
@@ -849,6 +871,13 @@ export function MatchStatsPanel({
         const conv = countConversionsMadeMissed(events);
         const penAtk = countPenaltiesByDirection(events, 'attack');
         const penDef = countPenaltiesByDirection(events, 'defense');
+        let knockOnCount = 0;
+        let otherNegCount = 0;
+        for (const e of events) {
+          if (e.deletedAt != null || e.kind !== 'negative_action') continue;
+          if (e.negativeActionId === 'knock_on') knockOnCount += 1;
+          else otherNegCount += 1;
+        }
         return (
           <>
             <section className="card tgs-card">
@@ -886,7 +915,8 @@ export function MatchStatsPanel({
                 <StatCard statKey="kind:try" value={byKind.try ?? 0} label="Tries" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="conv:made" value={conv.made} label="Conv. made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="conv:missed" value={conv.missed} label="Conv. missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:negative_action" value={byKind.negative_action ?? 0} label="Negatives" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="neg:other" value={otherNegCount} label="Neg" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="neg:knock_on" value={knockOnCount} label="Knock-ons" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:conceded:attack" value={penAtk.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:awarded:attack" value={penAtk.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="kind:system_moment" value={byKind.system_moment ?? 0} label="System moments" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
@@ -905,6 +935,7 @@ export function MatchStatsPanel({
                 <StatCard statKey="kind:opponent_conversion" value={byKind.opponent_conversion ?? 0} label="Opp conv." expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:conceded:defense" value={penDef.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:awarded:defense" value={penDef.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:forced_turnover" value={byKind.forced_turnover ?? 0} label="Forced turnovers" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
               </div>
               <h4 className="tgs-card-subtitle">Set pieces (defense)</h4>
               {tallySetPieceKinds().map((kind) => (

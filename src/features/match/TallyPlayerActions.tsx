@@ -10,7 +10,7 @@ import type { PlayerRecord } from '@/domain/player';
 import { TallyRosterPick } from './TallyRosterPick';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 
-export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
+export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action' | 'knock_on';
 
 type TallyCounts = {
   pass: number;
@@ -18,12 +18,14 @@ type TallyCounts = {
   line_break: number;
   try: number;
   negative_action: number;
+  knock_on: number;
   tackle_made: number;
   tackle_missed: number;
   penalty_conceded: number;
   penalty_awarded: number;
   try_conceded: number;
   system_moment: number;
+  forced_turnover: number;
 };
 
 type ScorerPick =
@@ -42,6 +44,7 @@ type Props = {
   onTallySetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
   onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
   onTallySystemMoment: () => void;
+  onTallyForcedTurnover: () => void;
   onTallyTryConceded: () => void;
   onTallyOpponentConversion: (outcome: ConversionOutcome) => void;
   opponentStatBoard: {
@@ -62,12 +65,19 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   requestAnimationFrame(() => ev.currentTarget.blur());
 }
 
-const ATTACK_BUTTONS: { kind: TallyActionKind; label: string; countKey: keyof TallyCounts }[] = [
+const ATTACK_BUTTONS: {
+  kind: TallyActionKind;
+  label: string;
+  stackedLabel?: [string, string];
+  countKey: keyof TallyCounts;
+  className?: string;
+}[] = [
   { kind: 'pass', label: 'Pass', countKey: 'pass' },
   { kind: 'offload', label: 'Offload', countKey: 'offload' },
   { kind: 'line_break', label: 'Line Brk', countKey: 'line_break' },
   { kind: 'try', label: 'Try', countKey: 'try' },
-  { kind: 'negative_action', label: 'Neg', countKey: 'negative_action' },
+  { kind: 'negative_action', label: 'Neg', countKey: 'negative_action', className: 'tally-counter-btn--negative' },
+  { kind: 'knock_on', label: 'Knock On', stackedLabel: ['Knock', 'On'], countKey: 'knock_on', className: 'tally-counter-btn--negative' },
 ];
 
 const DEFENSE_BUTTONS: { outcome: TackleOutcome; label: string; countKey: keyof TallyCounts }[] = [
@@ -87,6 +97,7 @@ export function TallyPlayerActions({
   onTallySetPieceChoice,
   onTallyPenalty,
   onTallySystemMoment,
+  onTallyForcedTurnover,
   onTallyTryConceded,
   onTallyOpponentConversion,
   opponentStatBoard,
@@ -222,7 +233,7 @@ export function TallyPlayerActions({
                   <button
                     key={b.kind}
                     type="button"
-                    className={`tally-counter-btn${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}`}
+                    className={`tally-counter-btn${b.className ? ` ${b.className}` : ''}${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}`}
                     disabled={b.kind === 'try' && owesConversion}
                     onClick={(e) =>
                       tapThenBlur(e, () => {
@@ -235,7 +246,14 @@ export function TallyPlayerActions({
                       })
                     }
                   >
-                    <span className="tally-counter-label">{b.label}</span>
+                    {b.stackedLabel ? (
+                      <span className="tally-counter-label tally-counter-label--stacked">
+                        <span>{b.stackedLabel[0]}</span>
+                        <span>{b.stackedLabel[1]}</span>
+                      </span>
+                    ) : (
+                      <span className="tally-counter-label">{b.label}</span>
+                    )}
                     <span className="tally-counter-badge">{counts[b.countKey]}</span>
                   </button>
                 ))}
@@ -279,7 +297,7 @@ export function TallyPlayerActions({
             {mode === 'attack' ? (
               <button
                 type="button"
-                className="tally-counter-btn tally-counter-btn--system-moment"
+                className="tally-counter-btn tally-counter-btn--gold-filled"
                 title="Mark a positive system moment in attack"
                 aria-label="System moment — positive attack play"
                 onClick={(e) => tapThenBlur(e, () => onTallySystemMoment())}
@@ -289,6 +307,21 @@ export function TallyPlayerActions({
                   <span>Moment</span>
                 </span>
                 <span className="tally-counter-badge">{counts.system_moment}</span>
+              </button>
+            ) : null}
+            {mode === 'defense' ? (
+              <button
+                type="button"
+                className="tally-counter-btn tally-counter-btn--gold-filled"
+                title="Mark a forced turnover on defense"
+                aria-label="Forced turnover — positive defensive play"
+                onClick={(e) => tapThenBlur(e, () => onTallyForcedTurnover())}
+              >
+                <span className="tally-counter-label tally-counter-label--stacked">
+                  <span>Forced</span>
+                  <span>Turnover</span>
+                </span>
+                <span className="tally-counter-badge">{counts.forced_turnover}</span>
               </button>
             ) : null}
           </div>

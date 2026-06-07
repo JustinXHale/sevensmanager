@@ -2845,6 +2845,13 @@ a.live-tab:focus-visible {
   letter-spacing: 0.04em;
 }
 
+.tally-setpiece-kind--restart {
+  text-transform: none;
+  text-align: center;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
 .tally-setpiece-btns {
   display: flex;
   flex-wrap: wrap;
@@ -3067,6 +3074,15 @@ a.live-tab:focus-visible {
   background: rgba(230, 122, 135, 0.15);
 }
 
+.tally-counter-btn--negative {
+  border-color: #dc2626;
+  color: #fca5a5;
+}
+
+.tally-counter-btn--negative:active {
+  background: rgba(220, 38, 38, 0.15);
+}
+
 .tally-counter-btn--penalty {
   border-color: #c9a54e;
 }
@@ -3128,7 +3144,7 @@ a.live-tab:focus-visible {
   background: rgba(232, 184, 74, 0.15);
 }
 
-.tally-counter-btn--system-moment {
+.tally-counter-btn--gold-filled {
   border: none;
   background: #e8b84a;
   color: #1c1400;
@@ -3136,11 +3152,11 @@ a.live-tab:focus-visible {
   box-shadow: 0 2px 8px rgba(232, 184, 74, 0.35);
 }
 
-.tally-counter-btn--system-moment:active {
+.tally-counter-btn--gold-filled:active {
   background: #d4a63a;
 }
 
-.tally-counter-btn--system-moment .tally-counter-badge {
+.tally-counter-btn--gold-filled .tally-counter-badge {
   color: #1c1400;
   opacity: 0.8;
 }

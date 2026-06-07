@@ -2,7 +2,7 @@ import type { SetPieceSplit } from '@/domain/matchAnalytics';
 import type { MatchEventKind, MatchEventRecord, PlayPhaseContext, SetPieceOutcome } from '@/domain/matchEvent';
 import { resolvePenaltyDirection } from '@/domain/matchEvent';
 
-const SET_PIECE_KINDS: MatchEventKind[] = ['scrum', 'lineout', 'restart', 'ruck'];
+const SET_PIECE_KINDS: MatchEventKind[] = ['restart', 'ruck', 'scrum', 'lineout'];
 
 function splitSetPieceOutcomes(events: MatchEventRecord[]): SetPieceSplit {
   const out: SetPieceSplit = { won: 0, lost: 0, penalized: 0, freeKick: 0 };

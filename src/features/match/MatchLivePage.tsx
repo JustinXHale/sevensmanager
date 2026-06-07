@@ -529,21 +529,27 @@ export function MatchLivePage() {
       line_break: 0,
       try: 0,
       negative_action: 0,
+      knock_on: 0,
       tackle_made: 0,
       tackle_missed: 0,
       penalty_conceded: 0,
       penalty_awarded: 0,
       try_conceded: 0,
       system_moment: 0,
+      forced_turnover: 0,
     };
     for (const e of events) {
       if (e.deletedAt != null) continue;
-      if (e.kind === 'system_moment') c.system_moment++;
+      if (e.kind === 'forced_turnover') c.forced_turnover++;
+      else if (e.kind === 'system_moment') c.system_moment++;
       else if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
       else if (e.kind === 'line_break') c.line_break++;
       else if (e.kind === 'try') c.try++;
       else if (e.kind === 'opponent_try') c.try_conceded++;
-      else if (e.kind === 'negative_action') c.negative_action++;
+      else if (e.kind === 'negative_action') {
+        if (e.negativeActionId === 'knock_on') c.knock_on++;
+        else c.negative_action++;
+      }
       else if (e.kind === 'tackle') { if (e.tackleOutcome === 'missed') c.tackle_missed++; else c.tackle_made++; }
       else if (e.kind === 'team_penalty') {
         if (resolvePenaltyDirection(e) === 'awarded') c.penalty_awarded++;
@@ -849,20 +855,42 @@ export function MatchLivePage() {
     setActionToast({ text: 'System moment logged', key: Date.now() });
   }
 
+  async function logTallyForcedTurnover() {
+    if (!matchId || !session || session.matchComplete) return;
+    setBanner(null);
+    const now = Date.now();
+    await addMatchEvent({
+      matchId,
+      kind: 'forced_turnover',
+      matchTimeMs: cumulativeMatchTimeMs(session, now),
+      period: session.period,
+      playPhaseContext: 'defense',
+      filmTimeMs: currentGameElapsedDisplayMs(session, now),
+    });
+    await load();
+    setActionToast({ text: 'Forced turnover logged', key: Date.now() });
+  }
+
   async function logTallyAction(kind: TallyActionKind) {
     if (!matchId || !session || kind === 'try') return;
     setBanner(null);
     const isOffload = kind === 'offload';
-    const eventKind = isOffload ? 'pass' : kind;
+    const isKnockOn = kind === 'knock_on';
+    const eventKind = isOffload ? 'pass' : isKnockOn ? 'negative_action' : kind;
     await addMatchEvent({
       matchId,
       kind: eventKind,
       matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
       period: session.period,
       ...(isOffload ? { passVariant: 'offload' as const } : kind === 'pass' ? { passVariant: 'standard' as const } : {}),
+      ...(isKnockOn ? { negativeActionId: 'knock_on' as const } : {}),
     });
     await load();
-    const ack = isOffload ? 'Offload logged' : ACTION_ACK[kind as keyof typeof ACTION_ACK];
+    const ack = isOffload
+      ? 'Offload logged'
+      : isKnockOn
+        ? 'Knock-on logged'
+        : ACTION_ACK[kind as keyof typeof ACTION_ACK];
     setActionToast({ text: ack, key: Date.now() });
   }
 
@@ -1282,6 +1310,7 @@ export function MatchLivePage() {
                 onTallySetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
                 onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
                 onTallySystemMoment={() => void logTallySystemMoment()}
+                onTallyForcedTurnover={() => void logTallyForcedTurnover()}
                 onTallyTryConceded={() => void logTallyTryConceded()}
                 onTallyOpponentConversion={(outcome) => void logTallyOpponentConversion(outcome)}
                 opponentStatBoard={opponentStatBoard}

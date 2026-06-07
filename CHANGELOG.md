@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tally and One Tap: **★ Star moment** button — bookmarks match + film clock for footage review; starred rows on Timeline show film time (filter **Starred moments**)
 - Tally **Attack**: filled gold **System Moment** circle at end of counter grid — logs positive attack system plays with match + film clock for timeline review
 - Match **Stats** (Tally / One Tap / Full): **Film bookmarks** section with starred + system moment counts, expandable event lists with film times, and scrub list sorted by film clock; Tally Attack card includes system moment count
+- Tally **Defense**: gold **Forced Turnover** circle at end of counter grid; set-piece strip reordered **Restart → Ruck → Scrum → Lineout**
+- Tally **Attack**: **Neg** and **Knock On** circles styled red; Knock On logs `knock_on` negatives separately; Stats Attack splits Neg vs Knock-ons
+- Tally set-piece strip: **Restart** label shows **(Receiving kick)** in Attack and **(Kicking off)** in Defense
 - Tally mode: **Try** and **conversion** (Made/Missed) prompt to pick scorer/kicker from the on-field roster
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 

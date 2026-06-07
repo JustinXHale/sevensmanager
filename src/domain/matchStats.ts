@@ -76,6 +76,7 @@ const KIND_LABEL: Record<MatchEventKind, string> = {
   negative_action: 'Negative plays',
   film_star: 'Starred moments',
   system_moment: 'System moments',
+  forced_turnover: 'Forced turnovers',
 };
 
 export function kindLabel(kind: MatchEventKind): string {

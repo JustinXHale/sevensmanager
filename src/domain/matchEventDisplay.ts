@@ -62,6 +62,10 @@ export function formatMatchEventSummary(
     const film = e.filmTimeMs != null ? ` · Film ${formatClock(e.filmTimeMs)}` : '';
     return `System moment · Attack${film}`;
   }
+  if (e.kind === 'forced_turnover') {
+    const film = e.filmTimeMs != null ? ` · Film ${formatClock(e.filmTimeMs)}` : '';
+    return `Forced turnover · Defense${film}`;
+  }
   if (e.kind === 'scrum') return setPieceLineParts(e, 'Scrum');
   if (e.kind === 'lineout') return setPieceLineParts(e, 'Lineout');
   if (e.kind === 'team_penalty') {
