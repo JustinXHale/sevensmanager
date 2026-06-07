@@ -282,7 +282,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
           </>
         )}
         <p className="muted roster-seed-note">
-          Drag or use ↑↓ to set order in each group (e.g. on-field 8, 2, 5, 7). Up to {ON_FIELD_MAX} on field.
+          Drag or use ▴▾ to set order in each group (e.g. on-field 8, 2, 5, 7). Up to {ON_FIELD_MAX} on field.
         </p>
 
         {banner ? <p className="error-text">{banner}</p> : null}

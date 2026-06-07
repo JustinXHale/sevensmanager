@@ -30,8 +30,6 @@ type Props = {
   onHalftime: () => void;
   onResumeFromHalftime: () => void;
   onEndMatch: () => void;
-  onResumeFromComplete: () => void;
-  onCopySummary?: () => void;
   onOpenClockSettings: () => void;
 };
 
@@ -59,8 +57,6 @@ export function RefClockBar({
   onHalftime,
   onResumeFromHalftime,
   onEndMatch,
-  onResumeFromComplete,
-  onCopySummary,
   onOpenClockSettings,
 }: Props) {
   const warn = shouldBlink ? ' ref-clk-digits--warn' : '';
@@ -216,26 +212,6 @@ export function RefClockBar({
         </div>
       ) : null}
 
-      {matchComplete ? (
-        <div className="ref-clock-complete-overlay" role="dialog" aria-label="Full time" aria-modal="true">
-          <div className="ref-clock-complete-banner">
-            <span className="ref-clock-complete-label">Full time</span>
-            <span className="ref-clock-complete-score" aria-label={`Final score ${ourScore} to ${opponentScore}`}>
-              {ourLabel} {ourScore} &ndash; {opponentScore} {opponentLabel}
-            </span>
-          </div>
-          <div className="ref-clock-complete-actions">
-            {onCopySummary ? (
-              <button type="button" className="ref-clock-complete-copy" onClick={onCopySummary}>
-                Copy summary
-              </button>
-            ) : null}
-            <button type="button" className="ref-clock-halftime-resume" onClick={onResumeFromComplete}>
-              Resume match
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -83,6 +83,7 @@ import { SimplePlayerActions, type SimpleActionKind } from './SimplePlayerAction
 import { TallyPlayerActions, type TallyActionKind } from './TallyPlayerActions';
 import type { TallySetPieceChoice } from './TallySetPieceStrip';
 import { buildMatchSummaryText } from '@/domain/matchSummary';
+import { MatchCompleteOverlay } from './MatchCompleteOverlay';
 import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
@@ -1098,8 +1099,6 @@ export function MatchLivePage() {
             onHalftime={() => void onHalftime()}
             onResumeFromHalftime={() => void onResumeFromHalftime()}
             onEndMatch={() => void onEndMatch()}
-            onResumeFromComplete={() => void onResumeFromComplete()}
-            onCopySummary={() => void onCopyMatchSummary()}
             onOpenClockSettings={() => setClockSettingsOpen(true)}
           />
 
@@ -1271,6 +1270,16 @@ export function MatchLivePage() {
             Undo
           </button>
         </div>
+      ) : null}
+
+      {session.matchComplete ? (
+        <MatchCompleteOverlay
+          ourScore={ourRugbyScore}
+          opponentScore={opponentRugbyScore}
+          ourLabel={ourScoreboardLabel}
+          opponentLabel={opponentScoreboardLabel}
+          onResume={() => void onResumeFromComplete()}
+        />
       ) : null}
     </div>
   );

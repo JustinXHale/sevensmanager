@@ -1813,23 +1813,40 @@
 
 .roster-row-sort {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.2rem;
   flex-shrink: 0;
 }
 
 .roster-row-sort-btn {
-  width: 1.35rem;
-  height: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-size: 0.625rem;
   line-height: 1;
   cursor: pointer;
   font-family: inherit;
+  touch-action: manipulation;
+}
+
+.roster-row-sort-caret {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.roster-row-sort-btn--up .roster-row-sort-caret {
+  transform: translateY(-1px);
+}
+
+.roster-row-sort-btn--down .roster-row-sort-caret {
+  transform: translateY(1px);
 }
 
 .roster-row-sort-btn:hover:not(:disabled) {
@@ -2692,63 +2709,58 @@ a.live-tab:focus-visible {
 }
 
 .ref-clock-complete-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 4;
+  z-index: 10150;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
-  padding: 0.75rem;
-  background: rgba(8, 12, 18, 0.88);
-  border-radius: inherit;
-}
-
-.ref-clock-complete-banner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: rgba(8, 12, 18, 0.92);
   text-align: center;
 }
 
 .ref-clock-complete-label {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #e8b84a;
 }
 
-.ref-clock-complete-score {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.ref-clock-complete-actions {
+.ref-clock-complete-scoreboard {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
   justify-content: center;
+  gap: 0.5rem 1rem;
+  max-width: min(100%, 28rem);
 }
 
-.ref-clock-complete-copy {
-  min-height: 36px;
-  padding: 0.35rem 0.85rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-strong);
-  background: #1a222d;
-  color: var(--text);
+.ref-clock-complete-team {
+  flex: 1 1 4.5rem;
+  min-width: 3.5rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  font-size: 0.82rem;
-  font-family: inherit;
-  cursor: pointer;
+  color: var(--muted);
+  text-align: center;
 }
 
-.ref-clock-complete-copy:hover {
-  border-color: var(--accent);
+.ref-clock-complete-points {
+  font-size: clamp(2.75rem, 14vw, 4.25rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+
+.ref-clock-complete-sep {
+  font-size: clamp(1.75rem, 8vw, 2.75rem);
+  font-weight: 300;
+  color: var(--muted);
+  line-height: 1;
 }
 
 .tally-setpiece-strip {

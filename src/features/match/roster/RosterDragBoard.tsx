@@ -171,7 +171,7 @@ export function RosterDragBoard({
       onPointerCancel={onBoardPointerCancel}
     >
       <p className="muted roster-drag-hint">
-        Drag between groups or drop on a row to set position. Use ↑↓ to nudge order (e.g. 8, 2, 5, 7).
+        Drag between groups or drop on a row to set position. Use ▴▾ to nudge order (e.g. 8, 2, 5, 7).
       </p>
       {ZONES.map(({ status, title, hint }) => {
         const list = listForZone(status);

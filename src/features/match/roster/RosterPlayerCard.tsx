@@ -79,21 +79,25 @@ export function RosterPlayerCard({
         <div className="roster-row-sort" role="group" aria-label={`Reorder #${player.number}`}>
           <button
             type="button"
-            className="roster-row-sort-btn"
+            className="roster-row-sort-btn roster-row-sort-btn--up"
             disabled={!canMoveUp}
             aria-label={`Move #${player.number} up`}
             onClick={onMoveUp}
           >
-            ↑
+            <span className="roster-row-sort-caret" aria-hidden>
+              ▴
+            </span>
           </button>
           <button
             type="button"
-            className="roster-row-sort-btn"
+            className="roster-row-sort-btn roster-row-sort-btn--down"
             disabled={!canMoveDown}
             aria-label={`Move #${player.number} down`}
             onClick={onMoveDown}
           >
-            ↓
+            <span className="roster-row-sort-caret" aria-hidden>
+              ▾
+            </span>
           </button>
         </div>
       ) : null}
