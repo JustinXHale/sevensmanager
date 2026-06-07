@@ -19,6 +19,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tally mode: **Try** and **conversion** (Made/Missed) prompt to pick scorer/kicker from the on-field roster
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 
+### Fixed
+- Tally penalty picker types: `TallyPenaltyInfractionPick` and set-piece strip `SetPiecePenaltyContext` typing so production `tsc` build passes
+
 ### Changed
 - Tally **Pen −** / **Pen +**, set-piece **P−** / **P+**, and One Tap awarded **!**: red for conceded, gold for awarded (fixed Pen − inheriting green accent border)
 - Tally and One Tap: **Try conceded** (and opponent conversion prompt) moved from Opp tab to **Defense**; Opp tab is subs and cards only

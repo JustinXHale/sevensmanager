@@ -8,13 +8,13 @@ import {
   type PenaltyTypeId,
   type PlayPhaseContext,
   type SetPiecePenaltyContext,
-  type TeamPenaltyPayload,
 } from '@/domain/matchEvent';
 
-export type TallyPenaltyInfractionPick = Pick<
-  TeamPenaltyPayload,
-  'penaltyType' | 'penaltyDetail' | 'penaltyCard'
->;
+export type TallyPenaltyInfractionPick = {
+  penaltyType: PenaltyTypeId;
+  penaltyDetail?: string;
+  penaltyCard?: PenaltyCard;
+};
 
 type Props = {
   phase: PlayPhaseContext;

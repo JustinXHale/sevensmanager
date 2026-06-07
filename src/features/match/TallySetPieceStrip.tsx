@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { MatchEventKind, PenaltyDirection, PlayPhaseContext, RuckContest } from '@/domain/matchEvent';
+import type {
+  PenaltyDirection,
+  PlayPhaseContext,
+  RuckContest,
+  SetPiecePenaltyContext,
+} from '@/domain/matchEvent';
 import {
   TallyPenaltyInfractionPicker,
   type TallyPenaltyInfractionPick,
@@ -7,7 +12,7 @@ import {
 
 export type TallySetPieceChoice = 'won' | 'lost' | 'free_kick';
 
-const SET_PIECE_KINDS: { kind: MatchEventKind; label: string }[] = [
+const SET_PIECE_KINDS: { kind: SetPiecePenaltyContext; label: string }[] = [
   { kind: 'restart', label: 'Restart' },
   { kind: 'ruck', label: 'Ruck' },
   { kind: 'scrum', label: 'Scrum' },
@@ -45,7 +50,7 @@ const RUCK_CONTEST_BUTTONS: { contest: RuckContest; label: string; title: string
 type PendingRuck = { choice: 'won' | 'lost'; phase: PlayPhaseContext };
 
 type PendingPenalty = {
-  kind: MatchEventKind;
+  kind: SetPiecePenaltyContext;
   direction: PenaltyDirection;
   phase: PlayPhaseContext;
 };
@@ -53,13 +58,13 @@ type PendingPenalty = {
 type Props = {
   phase: PlayPhaseContext;
   onChoice: (
-    kind: MatchEventKind,
+    kind: SetPiecePenaltyContext,
     choice: TallySetPieceChoice,
     phase: PlayPhaseContext,
     ruckContest?: RuckContest,
   ) => void;
   onPenaltyChoice: (
-    kind: MatchEventKind,
+    kind: SetPiecePenaltyContext,
     direction: PenaltyDirection,
     phase: PlayPhaseContext,
     payload: TallyPenaltyInfractionPick,
@@ -71,7 +76,7 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   requestAnimationFrame(() => ev.currentTarget.blur());
 }
 
-function setPieceKindLabel(kind: MatchEventKind, phase: PlayPhaseContext, baseLabel: string): string {
+function setPieceKindLabel(kind: SetPiecePenaltyContext, phase: PlayPhaseContext, baseLabel: string): string {
   if (kind === 'restart') {
     return phase === 'attack' ? 'Restart (Receiving kick)' : 'Restart (Kicking off)';
   }
