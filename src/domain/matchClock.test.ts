@@ -17,6 +17,8 @@ import {
   formatFilmClock,
   normalizeMmSsInput,
   parseMmSsToMs,
+  applyFilmSyncToSession,
+  clockDisplayMatchesSession,
   syncSessionVideoTimeNow,
   videoTimeDisplayMs,
   pauseGameSession,
@@ -272,6 +274,39 @@ describe('matchClock', () => {
     expect(footageGapBeforeMatchMs(resumed, 8 * 60 * 1000)).toBe(120_000);
     expect(videoTimeDisplayMs(resumed, 0)).toBe(7 * 60 * 1000 + 48_000 + 120_000);
     expect(footageGapBeforeMatchMs(resumed, 6 * 60 * 1000)).toBe(0);
+  });
+
+  it('applyFilmSyncToSession updates video time without changing match elapsed', () => {
+    const s = baseSession({
+      period: 2,
+      cumulativeMsBeforeCurrentPeriod: 7 * 60 * 1000,
+      elapsedMsInCurrentPeriod: 0,
+      filmTimeOffsetMs: 48_000,
+      filmFootageGaps: [{ afterMatchMs: 7 * 60 * 1000, gapMs: 120_000 }],
+    });
+    const synced = applyFilmSyncToSession(s, 0, 48_000, 10 * 60 * 1000 + 14_000);
+    expect(cumulativeMatchTimeMs(synced, 0)).toBe(7 * 60 * 1000);
+    expect(synced.filmFootageGaps).toEqual([{ afterMatchMs: 7 * 60 * 1000, gapMs: 146_000 }]);
+    expect(videoTimeDisplayMs(synced, 0)).toBe(10 * 60 * 1000 + 14_000);
+  });
+
+  it('clockDisplayMatchesSession detects unchanged match and period fields', () => {
+    const s = baseSession({
+      period: 2,
+      cumulativeMsBeforeCurrentPeriod: 7 * 60 * 1000,
+      elapsedMsInCurrentPeriod: 0,
+    });
+    const payload = {
+      period: 2,
+      matchClockDisplayMode: 'up' as const,
+      matchCountdownLengthMs: 14 * 60 * 1000,
+      periodClockDisplayMode: 'up' as const,
+      periodCountdownLengthMs: 7 * 60 * 1000,
+      matchDisplayedMs: 7 * 60 * 1000,
+      periodDisplayedMs: 0,
+    };
+    expect(clockDisplayMatchesSession(s, 0, payload)).toBe(true);
+    expect(clockDisplayMatchesSession(s, 0, { ...payload, matchDisplayedMs: 0 })).toBe(false);
   });
 
   it('syncSessionVideoTimeNow adjusts kickoff offset in first half', () => {

@@ -452,6 +452,56 @@ function lastFootageGapIndexAtOrBeforeMatchMs(session: MatchSessionRecord, match
  * Align parentheses / film scrub time with the video player right now.
  * First half → adjusts kickoff offset; after a banked HT gap → adjusts that gap; during HT → shifts HT wall anchor.
  */
+export type ClockDisplayPayload = {
+  period: number;
+  matchClockDisplayMode: MatchClockDisplayMode;
+  matchCountdownLengthMs: number;
+  periodClockDisplayMode: PeriodClockDisplayMode;
+  periodCountdownLengthMs: number;
+  matchDisplayedMs: number;
+  periodDisplayedMs: number;
+};
+
+/** True when clock settings match/period fields already reflect the live session (paused at nowMs). */
+export function clockDisplayMatchesSession(
+  session: MatchSessionRecord,
+  nowMs: number,
+  payload: ClockDisplayPayload,
+): boolean {
+  const paused = pauseSession(session, nowMs);
+  const withModes = applyClockDisplaySettings(paused, {
+    matchClockDisplayMode: payload.matchClockDisplayMode,
+    matchCountdownLengthMs: payload.matchCountdownLengthMs,
+    periodClockDisplayMode: payload.periodClockDisplayMode,
+    periodCountdownLengthMs: payload.periodCountdownLengthMs,
+  });
+  return (
+    payload.period === paused.period &&
+    payload.matchDisplayedMs === currentMatchDisplayForUi(withModes, nowMs) &&
+    payload.periodDisplayedMs === currentPeriodDisplayForUi(withModes, nowMs) &&
+    payload.matchClockDisplayMode === (paused.matchClockDisplayMode ?? 'up') &&
+    payload.periodClockDisplayMode === (paused.periodClockDisplayMode ?? 'up') &&
+    payload.matchCountdownLengthMs === (paused.matchCountdownLengthMs ?? DEFAULT_MATCH_COUNTDOWN_MS) &&
+    payload.periodCountdownLengthMs === (paused.periodCountdownLengthMs ?? DEFAULT_PERIOD_COUNTDOWN_MS)
+  );
+}
+
+/** Update film offset / video-now sync only — does not change match or period clocks. */
+export function applyFilmSyncToSession(
+  session: MatchSessionRecord,
+  nowMs: number,
+  offsetMs: number,
+  videoTimeNowMs: number,
+): MatchSessionRecord {
+  let next = pauseSession(session, nowMs);
+  next = { ...next, filmTimeOffsetMs: offsetMs };
+  const naturalVideoMs = videoTimeDisplayMs(next, nowMs);
+  if (videoTimeNowMs !== naturalVideoMs) {
+    next = syncSessionVideoTimeNow(next, nowMs, videoTimeNowMs);
+  }
+  return next;
+}
+
 export function syncSessionVideoTimeNow(
   session: MatchSessionRecord,
   nowMs: number,

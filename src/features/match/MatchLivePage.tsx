@@ -18,8 +18,9 @@ import {
   adjustCurrentPeriod,
   advancePeriod,
   applyClockDisplaySettings,
+  applyFilmSyncToSession,
+  clockDisplayMatchesSession,
   cumulativeMatchTimeMs,
-  syncSessionVideoTimeNow,
   videoTimeDisplayMs,
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
@@ -89,7 +90,11 @@ import type { TallySetPieceChoice } from './TallySetPieceStrip';
 import { buildMatchSummaryText } from '@/domain/matchSummary';
 import { MatchCompleteOverlay } from './MatchCompleteOverlay';
 import { RefClockBar } from './RefClockBar';
-import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
+import {
+  RefClockSettingsDialog,
+  type ClockSettingsApplyPayload,
+  type FilmSyncApplyPayload,
+} from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
 import { StarMomentButton } from './StarMomentButton';
 import { SectionHelp, TRACKING_GLOSSARY } from '@/components/SectionHelp';
@@ -457,35 +462,40 @@ export function MatchLivePage() {
     await persist(enterHalfTime(advanced, now));
   }
 
+  async function onApplyFilmSync(payload: FilmSyncApplyPayload) {
+    if (!session) return;
+    setBanner(null);
+    const now = Date.now();
+    let next = flushPlayerMinutes(session, players, now);
+    next = applyFilmSyncToSession(next, now, payload.filmTimeOffsetMs, payload.videoTimeNowMs);
+    await persist(next);
+  }
+
   async function onApplyClockSettings(payload: ClockSettingsApplyPayload) {
     if (!session) return;
     setBanner(null);
     const now = Date.now();
     let next = flushPlayerMinutes(session, players, now);
     next = pauseSession(next, now);
-    next = {
-      ...next,
-      period: clampSessionPeriod(payload.period),
-      filmTimeOffsetMs: payload.filmTimeOffsetMs,
-    };
-    const naturalVideoMs = videoTimeDisplayMs(next, now);
-    if (payload.videoTimeNowMs !== naturalVideoMs) {
-      next = syncSessionVideoTimeNow(next, now, payload.videoTimeNowMs);
-    }
+    next = applyFilmSyncToSession(next, now, payload.filmTimeOffsetMs, payload.videoTimeNowMs);
     next = applyClockDisplaySettings(next, {
       matchClockDisplayMode: payload.matchClockDisplayMode,
       matchCountdownLengthMs: payload.matchCountdownLengthMs,
       periodClockDisplayMode: payload.periodClockDisplayMode,
       periodCountdownLengthMs: payload.periodCountdownLengthMs,
     });
-    const mt = setMatchTotalFromDisplayedValue(next, payload.matchDisplayedMs);
-    if ('error' in mt) {
-      setBanner(mt.error);
-      throw new Error(mt.error);
+    const clockUnchanged = clockDisplayMatchesSession(next, now, payload);
+    if (!clockUnchanged) {
+      next = { ...next, period: clampSessionPeriod(payload.period) };
+      const mt = setMatchTotalFromDisplayedValue(next, payload.matchDisplayedMs);
+      if ('error' in mt) {
+        setBanner(mt.error);
+        throw new Error(mt.error);
+      }
+      next = mt;
+      next = setPeriodFromDisplayedMs(next, payload.periodDisplayedMs);
+      next = syncMinutesLedgerToMatchClock(next, now);
     }
-    next = mt;
-    next = setPeriodFromDisplayedMs(next, payload.periodDisplayedMs);
-    next = syncMinutesLedgerToMatchClock(next, now);
     await persist(next);
   }
 
@@ -1351,10 +1361,14 @@ export function MatchLivePage() {
 
           <RefClockSettingsDialog
             open={clockSettingsOpen}
-            onClose={() => setClockSettingsOpen(false)}
+            onClose={() => {
+              setClockSettingsOpen(false);
+              setBanner(null);
+            }}
             session={session}
             nowMs={nowMs}
             onApply={(p) => onApplyClockSettings(p)}
+            onApplyFilmSync={(p) => onApplyFilmSync(p)}
             onReset={() => onResetMatchClock()}
           />
 

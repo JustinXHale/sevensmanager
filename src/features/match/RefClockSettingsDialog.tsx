@@ -29,19 +29,34 @@ export type ClockSettingsApplyPayload = {
   videoTimeNowMs: number;
 };
 
+export type FilmSyncApplyPayload = {
+  filmTimeOffsetMs: number;
+  videoTimeNowMs: number;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   session: MatchSessionRecord | null;
   nowMs: number;
   onApply: (payload: ClockSettingsApplyPayload) => Promise<void>;
+  onApplyFilmSync: (payload: FilmSyncApplyPayload) => Promise<void>;
   onReset: () => Promise<void>;
 };
 
 const PERIOD_OPTIONS = Array.from({ length: SESSION_PERIOD_MAX }, (_, i) => i + 1);
 
-export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply, onReset }: Props) {
+export function RefClockSettingsDialog({
+  open,
+  onClose,
+  session,
+  nowMs,
+  onApply,
+  onApplyFilmSync,
+  onReset,
+}: Props) {
   const ref = useRef<HTMLDialogElement>(null);
+  const formInitializedRef = useRef(false);
   const [matchMode, setMatchMode] = useState<MatchClockDisplayMode>('up');
   const [matchLenStr, setMatchLenStr] = useState('14:00');
   const [periodMode, setPeriodMode] = useState<PeriodClockDisplayMode>('up');
@@ -65,17 +80,25 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   }, [open]);
 
   useEffect(() => {
-    if (!open || !session) return;
+    if (!open) {
+      formInitializedRef.current = false;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !session || formInitializedRef.current) return;
+    formInitializedRef.current = true;
+    const snap = nowMs;
     setMatchMode(session.matchClockDisplayMode ?? 'up');
     setMatchLenStr(formatClock(session.matchCountdownLengthMs ?? DEFAULT_MATCH_COUNTDOWN_MS));
     setPeriodMode(session.periodClockDisplayMode ?? 'up');
     const len = session.periodCountdownLengthMs ?? 7 * 60 * 1000;
     setCountdownLenStr(formatClock(len));
-    setMatchStr(formatClock(currentMatchDisplayForUi(session, nowMs)));
-    setPeriodStr(formatClock(currentPeriodDisplayForUi(session, nowMs)));
+    setMatchStr(formatClock(currentMatchDisplayForUi(session, snap)));
+    setPeriodStr(formatClock(currentPeriodDisplayForUi(session, snap)));
     setPeriodSegment(session.period);
     setFilmOffsetStr(formatClock(filmTimeOffsetMs(session)));
-    setVideoNowStr(formatClock(videoTimeDisplayMs(session, nowMs)));
+    setVideoNowStr(formatClock(videoTimeDisplayMs(session, snap)));
     setFormError(null);
   }, [open, session, nowMs]);
 
@@ -192,6 +215,44 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
     }
   }
 
+  function parseFilmSyncFields(): { filmOffsetParsed: number; videoNowParsed: number } | null {
+    const filmOffsetParsed = parseMmSsToMs(filmOffsetStr);
+    if (filmOffsetParsed === null || filmOffsetParsed < 0) {
+      setFormError('Video offset must be zero or positive (e.g. 0:48 or type 48).');
+      return null;
+    }
+    const videoNowParsed = parseMmSsToMs(videoNowStr);
+    if (videoNowParsed === null || videoNowParsed < 0) {
+      setFormError('Video time right now must be zero or positive (e.g. 12:34 or type 1234).');
+      return null;
+    }
+    return { filmOffsetParsed, videoNowParsed };
+  }
+
+  async function handleApplyFilmSync() {
+    if (!session) return;
+    setFormError(null);
+    const parsed = parseFilmSyncFields();
+    if (!parsed) return;
+    setSaving(true);
+    try {
+      await onApplyFilmSync({
+        filmTimeOffsetMs: parsed.filmOffsetParsed,
+        videoTimeNowMs: parsed.videoNowParsed,
+      });
+      onClose();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Could not apply film sync.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setFormError(null);
+    onClose();
+  }
+
   async function handleReset() {
     setFormError(null);
     try {
@@ -203,7 +264,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   }
 
   return (
-    <dialog ref={ref} className="roster-dialog ref-clock-settings-dialog" onClose={onClose}>
+    <dialog ref={ref} className="roster-dialog ref-clock-settings-dialog" onClose={handleCancel}>
       <form className="roster-dialog-inner ref-clock-settings-inner" onSubmit={(e) => void handleSubmit(e)}>
         <h2 className="roster-dialog-title ref-clock-settings-title">Clock settings</h2>
         <p className="muted roster-dialog-lead ref-clock-settings-lead">
@@ -339,51 +400,60 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
           />
         </div>
 
-        <fieldset className="ref-clock-settings-fieldset">
+        <fieldset className="ref-clock-settings-fieldset ref-clock-settings-fieldset--film">
           <legend className="ref-clock-settings-legend">Film / video sync</legend>
-          <p className="muted ref-clock-settings-hint">
-            When match time is <strong>0:00</strong>, where does kickoff sit on your video file? Halftime on
-            footage is banked when you tap <strong>Resume match</strong> after HT. To fix drift, set{' '}
-            <strong>Video time right now</strong> to what your player shows — first half adjusts the kickoff
-            offset; second half adjusts the halftime gap. On the number pad, type digits only (e.g.{' '}
-            <strong>1048</strong> → <strong>10:48</strong>) — no colon needed.
-          </p>
-          <div className="field ref-clock-settings-field">
-            <span>Video time at match 0:00</span>
-            <input
-              type="text"
-              className="filter-select"
-              inputMode="numeric"
-              autoComplete="off"
-              value={filmOffsetStr}
-              onChange={(e) => handleFilmOffsetChange(e.target.value)}
-              onBlur={(e) => {
-                const next = blurMmSs(e.target.value);
-                handleFilmOffsetChange(next);
-              }}
-              placeholder="48"
-              aria-label="Video time at match zero — digits only, e.g. 48 for 0:48"
-            />
-          </div>
-          <div className="field ref-clock-settings-field">
-            <span>Video time right now</span>
-            <input
-              type="text"
-              className="filter-select"
-              inputMode="numeric"
-              autoComplete="off"
-              value={videoNowStr}
-              onChange={(e) => setVideoNowStr(e.target.value)}
-              onBlur={(e) => setVideoNowStr(blurMmSs(e.target.value))}
-              placeholder="1234"
-              aria-label="Video player position right now — digits only, e.g. 1234 for 12:34"
-            />
-          </div>
-          {session && bankedGapMs > 0 ? (
+          <div className="ref-clock-settings-film-body">
             <p className="muted ref-clock-settings-hint">
-              Banked halftime on footage: <strong>{formatClock(bankedGapMs)}</strong>
+              Set <strong>Video time right now</strong> to what your player shows and tap{' '}
+              <strong>Apply film sync</strong> — match clock is not changed. Halftime on footage is banked on
+              Resume match; this corrects drift (injury stoppages, short/long HT, etc.). Number pad: type digits
+              only (e.g. <strong>1014</strong> → <strong>10:14</strong>).
             </p>
-          ) : null}
+            <div className="field ref-clock-settings-field">
+              <span>Video time at match 0:00</span>
+              <input
+                type="text"
+                className="filter-select"
+                inputMode="numeric"
+                autoComplete="off"
+                value={filmOffsetStr}
+                onChange={(e) => handleFilmOffsetChange(e.target.value)}
+                onBlur={(e) => {
+                  const next = blurMmSs(e.target.value);
+                  handleFilmOffsetChange(next);
+                }}
+                placeholder="48"
+                aria-label="Video time at match zero — digits only, e.g. 48 for 0:48"
+              />
+            </div>
+            <div className="field ref-clock-settings-field">
+              <span>Video time right now</span>
+              <input
+                type="text"
+                className="filter-select"
+                inputMode="numeric"
+                autoComplete="off"
+                value={videoNowStr}
+                onChange={(e) => setVideoNowStr(e.target.value)}
+                onBlur={(e) => setVideoNowStr(blurMmSs(e.target.value))}
+                placeholder="1234"
+                aria-label="Video player position right now — digits only, e.g. 1234 for 12:34"
+              />
+            </div>
+            {session && bankedGapMs > 0 ? (
+              <p className="muted ref-clock-settings-hint">
+                Banked halftime on footage: <strong>{formatClock(bankedGapMs)}</strong>
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-primary ref-clock-settings-film-apply"
+              disabled={saving}
+              onClick={() => void handleApplyFilmSync()}
+            >
+              {saving ? 'Applying…' : 'Apply film sync'}
+            </button>
+          </div>
         </fieldset>
 
         <div className="field ref-clock-settings-field">
@@ -405,7 +475,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
         {formError ? <p className="error-text ref-clock-settings-error" role="alert">{formError}</p> : null}
 
         <div className="roster-dialog-actions ref-clock-settings-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
+          <button type="button" className="btn btn-ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => void handleReset()}>

@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 
 ### Fixed
+- Clock settings **Apply film sync** updates video time only (no match-clock validation); main Apply skips match/period when unchanged; cancel clears stale error banner
 - Tally penalty picker types: `TallyPenaltyInfractionPick` and set-piece strip `SetPiecePenaltyContext` typing so production `tsc` build passes
 
 ### Added
@@ -27,9 +28,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Film / video sync**: set video time at match 0:00 (e.g. 0:48) so starred moments and film bookmarks match your player timeline
 - Live match clock shows **video time in parentheses** beside match time when a film offset is set (e.g. `3:45 (4:33)`)
 - **Halftime footage sync**: wall-clock elapsed during HT is banked on Resume match and added to video times (footage that does not cut at halftime)
-- Clock settings **Video time right now** — edit to match your player; fixes parentheses and film bookmarks (kickoff offset in first half, halftime gap after HT)
+- Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- Clock settings **Film / video sync** section: left-aligned labels, full-width inputs, and Apply film sync button
 - Clock settings time fields accept **digits-only** on the number pad (e.g. `1048` → `10:48`) so film sync works without typing a colon
 - Clock settings: **Period** moved below time fields and uses a dropdown (avoids mobile keyboard opening on dialog open)
 - Live match layout: fixture title and event count moved into the app header; **★** star button inline with tracking mode switch; tighter tab strip — more tally controls visible without scrolling

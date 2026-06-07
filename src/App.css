@@ -2597,6 +2597,34 @@ a.live-tab:focus-visible {
   text-align: left;
 }
 
+.ref-clock-settings-film-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ref-clock-settings-film-body .ref-clock-settings-hint {
+  margin: 0;
+}
+
+.ref-clock-settings-film-body .ref-clock-settings-field {
+  width: 100%;
+}
+
+.ref-clock-settings-film-body .ref-clock-settings-field span {
+  text-align: left;
+}
+
+.ref-clock-settings-film-body .ref-clock-settings-field .filter-select {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.ref-clock-settings-film-apply {
+  width: 100%;
+}
+
 .ref-clock-settings-dialog .roster-dialog-actions.ref-clock-settings-actions {
   justify-content: center;
 }
