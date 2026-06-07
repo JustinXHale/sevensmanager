@@ -1,5 +1,6 @@
 import type { PlayerRecord, PlayerStatus, SubstitutionRecord } from '@/domain/player';
 import { ON_FIELD_MAX, SQUAD_MAX } from '@/domain/player';
+import type { TeamMemberRecord } from '@/domain/teamMember';
 import { sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
 import { listTeamMembers } from './teamMembersRepo';
 import { db } from './db';
@@ -53,33 +54,133 @@ export async function seedSevensRosterForNewMatch(matchId: string): Promise<void
   }
 }
 
-/**
- * Copy team roster names and teamMemberId into match players by jersey number (1–{SQUAD_MAX}).
- * Only fills `PlayerRecord.name` when it is empty and the linked team member has a non-empty name
- * (preserves names edited on the match roster). Always sets `teamMemberId` when a member matches.
- */
-export async function syncMatchPlayerNamesFromTeam(teamId: string, matchId: string): Promise<void> {
-  const members = await listTeamMembers(teamId);
-  const byNumber = new Map<number, { name: string; memberId: string }>();
-  for (const m of members) {
-    if (m.number == null || m.number < 1 || m.number > SQUAD_MAX) continue;
-    byNumber.set(m.number, { name: m.name.trim(), memberId: m.id });
-  }
-  if (byNumber.size === 0) return;
+type RosterSyncCounters = { on: number; bench: number };
 
-  const rows = await db.players.where('matchId').equals(matchId).toArray();
+/** Default on/bench/off for a new match player derived from admin jersey (1–7 on, 8–13 bench). */
+export function initialStatusForTeamMember(
+  member: Pick<TeamMemberRecord, 'number'>,
+  counters: RosterSyncCounters,
+): PlayerStatus {
+  const n = member.number;
+  if (n != null && n >= 1 && n <= ON_FIELD_MAX && counters.on < ON_FIELD_MAX) {
+    counters.on += 1;
+    return 'on';
+  }
+  if (n != null && n >= 1 && n <= SQUAD_MAX && counters.on + counters.bench < SQUAD_MAX) {
+    counters.bench += 1;
+    return 'bench';
+  }
+  if (counters.on < ON_FIELD_MAX) {
+    counters.on += 1;
+    return 'on';
+  }
+  if (counters.on + counters.bench < SQUAD_MAX) {
+    counters.bench += 1;
+    return 'bench';
+  }
+  return 'off';
+}
+
+function sortMembersForRoster(members: TeamMemberRecord[]): TeamMemberRecord[] {
+  return [...members].sort((a, b) => {
+    const an = a.number ?? 9999;
+    const bn = b.number ?? 9999;
+    if (an !== bn) return an - bn;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+}
+
+/**
+ * Build / refresh the match roster from the team admin master roster.
+ * One `PlayerRecord` per `TeamMemberRecord` (linked by `teamMemberId`).
+ * Jerseys 1–7 start on field, 8–13 on bench (for new rows only when `preserveStatus` is true).
+ */
+export async function syncMatchRosterFromTeam(
+  teamId: string,
+  matchId: string,
+  options: { preserveStatus?: boolean } = {},
+): Promise<void> {
+  const preserveStatus = options.preserveStatus ?? true;
+  const members = await listTeamMembers(teamId);
+  if (members.length === 0) {
+    await ensureSevensRoster(matchId);
+    return;
+  }
+
+  const existing = (await db.players.where('matchId').equals(matchId).toArray()).map((p) =>
+    normalizeRow(p as PlayerRecord & { onField?: boolean }),
+  );
+  const byMemberId = new Map<string, PlayerRecord>();
+  const byNumber = new Map<number, PlayerRecord>();
+  for (const p of existing) {
+    if (p.teamMemberId) byMemberId.set(p.teamMemberId, p);
+    if (p.number != null && !byNumber.has(p.number)) byNumber.set(p.number, p);
+  }
+
+  const memberIds = new Set(members.map((m) => m.id));
+  const claimedPlayerIds = new Set<string>();
+  const sorted = sortMembersForRoster(members);
+  const assignCounters: RosterSyncCounters = preserveStatus
+    ? {
+        on: existing.filter((p) => p.status === 'on').length,
+        bench: existing.filter((p) => p.status === 'bench').length,
+      }
+    : { on: 0, bench: 0 };
+
   await db.transaction('rw', db.players, async () => {
-    for (const p of rows) {
-      const num = p.number;
-      if (num == null || num < 1 || num > SQUAD_MAX) continue;
-      const member = byNumber.get(num);
-      if (!member) continue;
-      const current = (normalizeRow(p as PlayerRecord & { onField?: boolean }).name ?? '').trim();
-      const patch: Partial<PlayerRecord> = { teamMemberId: member.memberId };
-      if (current === '' && member.name) patch.name = member.name;
-      await db.players.update(p.id, patch);
+    for (const m of sorted) {
+      let player =
+        byMemberId.get(m.id) ??
+        (m.number != null ? byNumber.get(m.number) : undefined);
+
+      const name = m.name.trim();
+      const number = m.number;
+
+      if (player) {
+        claimedPlayerIds.add(player.id);
+        if (player.teamMemberId) byMemberId.set(player.teamMemberId, player);
+        await db.players.update(player.id, {
+          teamMemberId: m.id,
+          name,
+          number,
+        });
+        if (number != null) byNumber.set(number, { ...player, teamMemberId: m.id, name, number });
+        continue;
+      }
+
+      const status = initialStatusForTeamMember(m, assignCounters);
+      const row: PlayerRecord = {
+        id: crypto.randomUUID(),
+        matchId,
+        name,
+        number,
+        status,
+        teamMemberId: m.id,
+        createdAt: Date.now(),
+      };
+      await db.players.add(row);
+      claimedPlayerIds.add(row.id);
+      byMemberId.set(m.id, row);
+      if (number != null) byNumber.set(number, row);
+    }
+
+    for (const p of existing) {
+      if (p.teamMemberId && !memberIds.has(p.teamMemberId)) {
+        await db.players.delete(p.id);
+        continue;
+      }
+      if (claimedPlayerIds.has(p.id)) continue;
+      const isEmptySeed = !p.teamMemberId && !(p.name ?? '').trim();
+      if (isEmptySeed) {
+        await db.players.delete(p.id);
+      }
     }
   });
+}
+
+/** @deprecated Use {@link syncMatchRosterFromTeam}. */
+export async function syncMatchPlayerNamesFromTeam(teamId: string, matchId: string): Promise<void> {
+  await syncMatchRosterFromTeam(teamId, matchId);
 }
 
 /**

@@ -12,6 +12,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tally **stats** — scoreboard (points, tries, tries conceded), attack/defense split with offloads, conversion made/missed, penalties by phase, and set-piece W/L/FK/Pen bars per phase
 - Match stats panel **Copy summary** button (clipboard via `buildMatchSummaryText`)
 
+### Fixed
+- Match roster now syncs from the team admin **master roster** (`syncMatchRosterFromTeam`): all squad members appear with names and jerseys; empty default #1–#13 seed rows are removed; jerseys 1–7 on field / 8–13 bench on first sync; updates when opening match live or roster tab
+
 ### Changed
 - Tally mode penalties replaced infraction picker with awarded/conceded counters; One Tap set pieces use the same circle strip as Tally
 - Tracking and stats mode switchers reordered **Tally → One Tap → Full**; **Tally** is the default for new matches

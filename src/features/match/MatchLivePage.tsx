@@ -74,7 +74,7 @@ import {
 import { derivedPlayerMinutesMs, flushPlayerMinutes } from '@/domain/playerMinutes';
 import { addMatchEvent, deleteMatchEvent, listMatchEvents, restoreMatchEvent } from '@/repos/matchEventsRepo';
 import { getMatch, getSession, saveSession } from '@/repos/matchesRepo';
-import { listPlayers, listSubstitutions, recordSubstitution, syncMatchPlayerNamesFromTeam } from '@/repos/rosterRepo';
+import { listPlayers, listSubstitutions, recordSubstitution, syncMatchRosterFromTeam } from '@/repos/rosterRepo';
 import { MatchStatsPanel } from './MatchStatsPanel';
 import { MatchEventTimeline } from './MatchEventTimeline';
 import { OnFieldPlayerActions } from './OnFieldPlayerActions';
@@ -178,7 +178,7 @@ export function MatchLivePage() {
     if (!matchId) return undefined;
     const m = await getMatch(matchId);
     if (m?.teamId) {
-      await syncMatchPlayerNamesFromTeam(m.teamId, matchId);
+      await syncMatchRosterFromTeam(m.teamId, matchId);
     }
     const [s, ev, plRaw, sub] = await Promise.all([
       getSession(matchId),

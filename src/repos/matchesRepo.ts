@@ -5,7 +5,7 @@ import { getOrCreateDefaultCompetitionId } from './competitionsRepo';
 import { getClub } from './clubsRepo';
 import { clearRecentMatchIfStale } from '@/components/AppNavDrawer';
 import { db } from './db';
-import { seedSevensRosterForNewMatch, syncMatchPlayerNamesFromTeam } from './rosterRepo';
+import { seedSevensRosterForNewMatch, syncMatchRosterFromTeam } from './rosterRepo';
 import { getTeam } from './teamsRepo';
 
 export type CreateMatchInput = {
@@ -75,11 +75,13 @@ export async function createMatch(input: CreateMatchInput): Promise<MatchRecord>
   await db.transaction('rw', db.matches, db.matchSessions, db.players, async () => {
     await db.matches.put(match);
     await db.matchSessions.put(session);
-    await seedSevensRosterForNewMatch(id);
+    if (!fields.teamId) {
+      await seedSevensRosterForNewMatch(id);
+    }
   });
 
   if (fields.teamId) {
-    await syncMatchPlayerNamesFromTeam(fields.teamId, id);
+    await syncMatchRosterFromTeam(fields.teamId, id, { preserveStatus: false });
   }
 
   return match;

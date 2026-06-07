@@ -9,6 +9,7 @@ import { getMatch, getSession, saveSession } from '@/repos/matchesRepo';
 import {
   ensureSevensRoster,
   listPlayers,
+  syncMatchRosterFromTeam,
   listSubstitutions,
   recordSubstitution,
   removePlayer,
@@ -55,7 +56,11 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
       sess = created;
     }
     setSession(sess ?? null);
-    await ensureSevensRoster(matchId);
+    if (m?.teamId) {
+      await syncMatchRosterFromTeam(m.teamId, matchId);
+    } else {
+      await ensureSevensRoster(matchId);
+    }
     const [plRaw, sb] = await Promise.all([
       listPlayers(matchId, sortByStatus),
       listSubstitutions(matchId),
