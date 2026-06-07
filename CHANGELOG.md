@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Tally and One Tap: **★ Star moment** button — bookmarks match + film clock for footage review; starred rows on Timeline show film time (filter **Starred moments**)
 - Tally mode: **Try** and **conversion** (Made/Missed) prompt to pick scorer/kicker from the on-field roster
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 

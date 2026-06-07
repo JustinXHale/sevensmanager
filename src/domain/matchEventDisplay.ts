@@ -1,3 +1,4 @@
+import { formatClock } from '@/domain/matchClock';
 import type { PlayerRecord } from '@/domain/player';
 import { resolveOffloadTone } from '@/domain/matchEvent';
 import type { MatchEventRecord } from '@/domain/matchEvent';
@@ -52,6 +53,11 @@ export function formatMatchEventSummary(
   e: MatchEventRecord,
   playersById: Map<string, PlayerRecord>,
 ): string {
+  if (e.kind === 'film_star') {
+    const film = e.filmTimeMs != null ? ` · Film ${formatClock(e.filmTimeMs)}` : '';
+    const note = e.markerNote?.trim() ? ` · ${e.markerNote.trim()}` : '';
+    return `★ Starred moment${film}${note}`;
+  }
   if (e.kind === 'scrum') return setPieceLineParts(e, 'Scrum');
   if (e.kind === 'lineout') return setPieceLineParts(e, 'Lineout');
   if (e.kind === 'team_penalty') {

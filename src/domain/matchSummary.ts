@@ -68,6 +68,18 @@ export function buildMatchSummaryText(
   lines.push('');
 
   const sorted = [...events].sort((a, b) => a.matchTimeMs - b.matchTimeMs || a.createdAt - b.createdAt);
+  const filmStars = sorted.filter((e) => e.kind === 'film_star');
+  if (filmStars.length > 0) {
+    lines.push('--- Starred moments (film) ---');
+    const byFilm = [...filmStars].sort(
+      (a, b) => (a.filmTimeMs ?? 0) - (b.filmTimeMs ?? 0) || a.matchTimeMs - b.matchTimeMs,
+    );
+    for (const e of byFilm) {
+      const film = e.filmTimeMs != null ? formatClock(e.filmTimeMs) : '—';
+      lines.push(`Film ${film} · Match P${e.period} ${formatClock(e.matchTimeMs)}`);
+    }
+    lines.push('');
+  }
   lines.push('--- Event log (oldest first) ---');
   if (sorted.length === 0) {
     lines.push('(no events)');

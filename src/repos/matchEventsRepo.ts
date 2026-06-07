@@ -40,6 +40,8 @@ export async function addMatchEvent(input: {
   playPhaseContext?: PlayPhaseContext;
   negativeActionId?: NegativeActionId;
   conversionOutcome?: ConversionOutcome;
+  filmTimeMs?: number;
+  markerNote?: string;
 }): Promise<MatchEventRecord> {
   const row: MatchEventRecord = {
     id: crypto.randomUUID(),
@@ -69,6 +71,12 @@ export async function addMatchEvent(input: {
   }
   if (input.fieldLengthBand !== undefined) {
     row.fieldLengthBand = input.fieldLengthBand;
+  }
+  if (input.filmTimeMs !== undefined) {
+    row.filmTimeMs = input.filmTimeMs;
+  }
+  if (input.markerNote !== undefined) {
+    row.markerNote = input.markerNote;
   }
   await db.matchEvents.put(row);
   return row;

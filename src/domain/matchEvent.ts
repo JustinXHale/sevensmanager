@@ -16,7 +16,8 @@ export type MatchEventKind =
   | 'opponent_card'
   | 'ruck'
   | 'line_break'
-  | 'negative_action';
+  | 'negative_action'
+  | 'film_star';
 
 /** All event kinds (for filters, iteration). Order is not significant. */
 export const MATCH_EVENT_KINDS: readonly MatchEventKind[] = [
@@ -35,6 +36,7 @@ export const MATCH_EVENT_KINDS: readonly MatchEventKind[] = [
   'ruck',
   'line_break',
   'negative_action',
+  'film_star',
 ];
 
 /** Handling / skill errors (attack) — pick type then zone. */
@@ -297,6 +299,10 @@ export interface MatchEventRecord {
   negativeActionId?: StoredNegativeActionId;
   /** For `kind === 'conversion'` / `opponent_conversion`. */
   conversionOutcome?: ConversionOutcome;
+  /** For `kind === 'film_star'`: film / game clock when starred (for footage scrubbing). */
+  filmTimeMs?: number;
+  /** For `kind === 'film_star'`: optional sideline note. */
+  markerNote?: string;
 }
 
 /** Resolve direction for analytics; missing field means conceded (full-mode infraction pickers). */

@@ -19,6 +19,7 @@ import {
   advancePeriod,
   applyClockDisplaySettings,
   cumulativeMatchTimeMs,
+  currentGameElapsedDisplayMs,
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   enterHalfTime,
@@ -87,6 +88,7 @@ import { MatchCompleteOverlay } from './MatchCompleteOverlay';
 import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
+import { StarMomentButton } from './StarMomentButton';
 import { SectionHelp, TRACKING_GLOSSARY } from '@/components/SectionHelp';
 import { writeRecentMatch } from '@/components/AppNavDrawer';
 import type { ZoneId } from '@/domain/zone';
@@ -504,6 +506,11 @@ export function MatchLivePage() {
 
   const disciplineBadgesByPlayerId = useMemo(() => accumulateDisciplineBadgesFromEvents(events), [events]);
 
+  const filmStarCount = useMemo(
+    () => events.filter((e) => e.kind === 'film_star').length,
+    [events],
+  );
+
   const owesConversion = useMemo(() => matchOwesConversion(events), [events]);
 
   const pendingConversionKick = useMemo(() => pendingConversionKickFromEvents(events), [events]);
@@ -807,6 +814,21 @@ export function MatchLivePage() {
       text: outcome === 'missed' ? 'Tackle missed logged' : 'Tackle made logged',
       key: Date.now(),
     });
+  }
+
+  async function logFilmStar() {
+    if (!matchId || !session || session.matchComplete) return;
+    setBanner(null);
+    const now = Date.now();
+    await addMatchEvent({
+      matchId,
+      kind: 'film_star',
+      matchTimeMs: cumulativeMatchTimeMs(session, now),
+      period: session.period,
+      filmTimeMs: currentGameElapsedDisplayMs(session, now),
+    });
+    await load();
+    setActionToast({ text: 'Moment starred — see Timeline for film time', key: Date.now() });
   }
 
   async function logTallyAction(kind: TallyActionKind) {
@@ -1222,6 +1244,13 @@ export function MatchLivePage() {
             {trackingMode === 'tally' && (
               <p className="tracking-mode-hint">Team tallies — pick try scorer and kicker from on-field roster.</p>
             )}
+            {trackingMode === 'tally' || trackingMode === 'one_tap' ? (
+              <StarMomentButton
+                disabled={session.matchComplete}
+                starCount={filmStarCount}
+                onStar={() => void logFilmStar()}
+              />
+            ) : null}
             {trackingMode === 'tally' ? (
               <TallyPlayerActions
                 onFieldPlayers={onFieldPlayers}

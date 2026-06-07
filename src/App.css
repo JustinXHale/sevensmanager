@@ -3139,6 +3139,16 @@ a.live-tab:focus-visible {
   opacity: 0.85;
 }
 
+.tracking-star-moment-btn {
+  width: 100%;
+  min-height: 3rem;
+  margin: 0.15rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 10px;
+}
+
 .tally-roster-pick {
   margin-top: 0.15rem;
 }
@@ -5209,6 +5219,16 @@ button.live-stats-cell--btn.live-stats-cell--open {
   background: #121820;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+.live-timeline-row--film-star {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, #121820);
+}
+
+.live-timeline-film-time {
+  color: #e8c547;
+  font-weight: 700;
 }
 
 .live-timeline-meta {

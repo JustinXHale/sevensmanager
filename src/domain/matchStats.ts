@@ -74,6 +74,7 @@ const KIND_LABEL: Record<MatchEventKind, string> = {
   ruck: 'Rucks',
   line_break: 'Line breaks',
   negative_action: 'Negative plays',
+  film_star: 'Starred moments',
 };
 
 export function kindLabel(kind: MatchEventKind): string {

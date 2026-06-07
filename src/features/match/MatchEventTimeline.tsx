@@ -15,6 +15,7 @@ type Props = {
 
 /** Option order in the category dropdown. */
 const TIMELINE_KIND_ORDER: MatchEventKind[] = [
+  'film_star',
   'try',
   'conversion',
   'opponent_try',
@@ -87,10 +88,16 @@ export function MatchEventTimeline({ events, playersById, onDelete, onEditSaved 
           ) : (
             <ul className="live-timeline-list">
               {filteredEvents.map((e) => (
-                <li key={e.id} className="live-timeline-row">
+                <li
+                  key={e.id}
+                  className={`live-timeline-row${e.kind === 'film_star' ? ' live-timeline-row--film-star' : ''}`}
+                >
                   <div className="live-timeline-meta">
                     <span className="live-timeline-time">
                       P{e.period} {formatClock(e.matchTimeMs)}
+                      {e.kind === 'film_star' && e.filmTimeMs != null ? (
+                        <span className="live-timeline-film-time"> · Film {formatClock(e.filmTimeMs)}</span>
+                      ) : null}
                     </span>
                     <span className="live-timeline-label">{formatMatchEventSummary(e, playersById)}</span>
                   </div>

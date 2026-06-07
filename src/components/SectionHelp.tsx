@@ -241,5 +241,6 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'W/L', full: 'Won / Lost', desc: 'Set piece outcome with no penalty at that restart.', group: 'Set pieces' },
   { abbr: 'FK', full: 'Free kick', desc: 'Free kick at the set piece.', group: 'Set pieces' },
   { abbr: 'P+/P−', full: 'Penalty at set piece', desc: 'Penalty awarded (won) or conceded (lost) at that scrum, lineout, ruck, or restart.', group: 'Set pieces' },
+  { abbr: '★ Star moment', full: 'Film bookmark', desc: 'Filled button on Tally / One Tap — marks the current match and film clock so you can jump to that point in footage from the Timeline.', group: 'Tracking' },
   { abbr: 'FT', full: 'Full time', desc: 'End the match — pauses clocks and shows the final score; you can reopen from Resume match.', group: 'Clock' },
 ];
