@@ -810,7 +810,7 @@ export function MatchLivePage() {
   }
 
   async function logTallyAction(kind: TallyActionKind) {
-    if (!matchId || !session) return;
+    if (!matchId || !session || kind === 'try') return;
     setBanner(null);
     const isOffload = kind === 'offload';
     const eventKind = isOffload ? 'pass' : kind;
@@ -824,6 +824,20 @@ export function MatchLivePage() {
     await load();
     const ack = isOffload ? 'Offload logged' : ACTION_ACK[kind as keyof typeof ACTION_ACK];
     setActionToast({ text: ack, key: Date.now() });
+  }
+
+  async function logTallyTry(playerId: string) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'try',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      playerId,
+    });
+    await load();
+    setActionToast({ text: 'Try logged', key: Date.now() });
   }
 
   async function logTallyTackle(outcome: TackleOutcome) {
@@ -840,7 +854,7 @@ export function MatchLivePage() {
     setActionToast({ text: outcome === 'missed' ? 'Tackle missed' : 'Tackle made', key: Date.now() });
   }
 
-  async function logTallyConversion(outcome: ConversionOutcome) {
+  async function logTallyConversion(outcome: ConversionOutcome, playerId: string) {
     if (!matchId || !session) return;
     setBanner(null);
     await addMatchEvent({
@@ -848,6 +862,7 @@ export function MatchLivePage() {
       kind: 'conversion',
       matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
       period: session.period,
+      playerId,
       conversionOutcome: outcome,
     });
     await load();
@@ -1205,16 +1220,18 @@ export function MatchLivePage() {
               <p className="tracking-mode-hint">Quick counters — one tap per action, no zone detail.</p>
             )}
             {trackingMode === 'tally' && (
-              <p className="tracking-mode-hint">Team-level tallies — no player attribution.</p>
+              <p className="tracking-mode-hint">Team tallies — pick try scorer and kicker from on-field roster.</p>
             )}
             {trackingMode === 'tally' ? (
               <TallyPlayerActions
+                onFieldPlayers={onFieldPlayers}
                 counts={tallyCounts}
                 owesConversion={owesConversion}
                 owesOpponentConversion={owesOpponentConversion}
                 onTallyAction={(kind) => void logTallyAction(kind)}
+                onTallyTry={(playerId) => void logTallyTry(playerId)}
                 onTallyTackle={(outcome) => void logTallyTackle(outcome)}
-                onTallyConversion={(outcome) => void logTallyConversion(outcome)}
+                onTallyConversion={(outcome, playerId) => void logTallyConversion(outcome, playerId)}
                 onTallySetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
                 onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
                 onTallyTryConceded={() => void logTallyTryConceded()}

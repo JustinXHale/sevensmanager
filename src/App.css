@@ -3046,6 +3046,11 @@ a.live-tab:focus-visible {
   background: rgba(94, 158, 214, 0.18);
 }
 
+.tally-counter-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .tally-counter-btn--try-conceded {
   border-color: #e67a87;
 }
@@ -3132,6 +3137,35 @@ a.live-tab:focus-visible {
   font-weight: 700;
   line-height: 1;
   opacity: 0.85;
+}
+
+.tally-roster-pick {
+  margin-top: 0.15rem;
+}
+
+.tally-roster-pick-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tally-roster-pick-cancel {
+  min-height: 32px;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tally-roster-pick-cancel:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 .tally-conversion-prompt {

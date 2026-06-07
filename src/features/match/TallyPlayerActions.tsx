@@ -6,6 +6,8 @@ import {
   type PlayPhaseContext,
   type TackleOutcome,
 } from '@/domain/matchEvent';
+import type { PlayerRecord } from '@/domain/player';
+import { TallyRosterPick } from './TallyRosterPick';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 
 export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
@@ -23,13 +25,19 @@ type TallyCounts = {
   try_conceded: number;
 };
 
+type ScorerPick =
+  | { type: 'try' }
+  | { type: 'conversion'; outcome: ConversionOutcome };
+
 type Props = {
+  onFieldPlayers: PlayerRecord[];
   counts: TallyCounts;
   owesConversion: boolean;
   owesOpponentConversion: boolean;
   onTallyAction: (kind: TallyActionKind) => void;
+  onTallyTry: (playerId: string) => void;
   onTallyTackle: (outcome: TackleOutcome) => void;
-  onTallyConversion: (outcome: ConversionOutcome) => void;
+  onTallyConversion: (outcome: ConversionOutcome, playerId: string) => void;
   onTallySetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
   onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
   onTallyTryConceded: () => void;
@@ -66,10 +74,12 @@ const DEFENSE_BUTTONS: { outcome: TackleOutcome; label: string; countKey: keyof 
 ];
 
 export function TallyPlayerActions({
+  onFieldPlayers,
   counts,
   owesConversion,
   owesOpponentConversion,
   onTallyAction,
+  onTallyTry,
   onTallyTackle,
   onTallyConversion,
   onTallySetPieceChoice,
@@ -80,15 +90,31 @@ export function TallyPlayerActions({
   onOpponentStatAdjust,
 }: Props) {
   const [mode, setMode] = useState<PhaseMode>('attack');
+  const [scorerPick, setScorerPick] = useState<ScorerPick | null>(null);
 
   const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
+
+  function switchMode(next: PhaseMode) {
+    setMode(next);
+    setScorerPick(null);
+  }
+
+  function onPlayerPicked(playerId: string) {
+    if (!scorerPick) return;
+    if (scorerPick.type === 'try') {
+      onTallyTry(playerId);
+    } else {
+      onTallyConversion(scorerPick.outcome, playerId);
+    }
+    setScorerPick(null);
+  }
 
   return (
     <div className="on-field-actions-wrap">
       <div className="live-phase-switch" role="group" aria-label="Tally: attack, defense, or opponent">
-        <button type="button" className={`live-phase-btn${mode === 'attack' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'attack'} onClick={(e) => tapThenBlur(e, () => setMode('attack'))}>Attack</button>
-        <button type="button" className={`live-phase-btn${mode === 'defense' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'defense'} onClick={(e) => tapThenBlur(e, () => setMode('defense'))}>Defense</button>
-        <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => setMode('opponent'))}>Opp</button>
+        <button type="button" className={`live-phase-btn${mode === 'attack' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'attack'} onClick={(e) => tapThenBlur(e, () => switchMode('attack'))}>Attack</button>
+        <button type="button" className={`live-phase-btn${mode === 'defense' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'defense'} onClick={(e) => tapThenBlur(e, () => switchMode('defense'))}>Defense</button>
+        <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => switchMode('opponent'))}>Opp</button>
       </div>
 
       {mode !== 'opponent' ? (
@@ -152,9 +178,30 @@ export function TallyPlayerActions({
           {mode === 'attack' && owesConversion ? (
             <div className="tally-conversion-prompt" role="group" aria-label="Conversion attempt">
               <span className="tally-conversion-label">Conversion</span>
-              <button type="button" className="tally-counter-btn tally-counter-btn--made" onClick={(e) => tapThenBlur(e, () => onTallyConversion('made'))}>Made</button>
-              <button type="button" className="tally-counter-btn tally-counter-btn--missed" onClick={(e) => tapThenBlur(e, () => onTallyConversion('missed'))}>Missed</button>
+              <button
+                type="button"
+                className={`tally-counter-btn tally-counter-btn--made${scorerPick?.type === 'conversion' && scorerPick.outcome === 'made' ? ' tally-counter-btn--active' : ''}`}
+                onClick={(e) => tapThenBlur(e, () => setScorerPick({ type: 'conversion', outcome: 'made' }))}
+              >
+                Made
+              </button>
+              <button
+                type="button"
+                className={`tally-counter-btn tally-counter-btn--missed${scorerPick?.type === 'conversion' && scorerPick.outcome === 'missed' ? ' tally-counter-btn--active' : ''}`}
+                onClick={(e) => tapThenBlur(e, () => setScorerPick({ type: 'conversion', outcome: 'missed' }))}
+              >
+                Missed
+              </button>
             </div>
+          ) : null}
+
+          {scorerPick ? (
+            <TallyRosterPick
+              heading={scorerPick.type === 'try' ? 'Who scored?' : 'Who kicked?'}
+              players={onFieldPlayers}
+              onSelect={onPlayerPicked}
+              onCancel={() => setScorerPick(null)}
+            />
           ) : null}
 
           {mode === 'defense' && owesOpponentConversion ? (
@@ -169,7 +216,22 @@ export function TallyPlayerActions({
             {mode === 'attack' ? (
               <>
                 {ATTACK_BUTTONS.map((b) => (
-                  <button key={b.kind} type="button" className="tally-counter-btn" onClick={(e) => tapThenBlur(e, () => onTallyAction(b.kind))}>
+                  <button
+                    key={b.kind}
+                    type="button"
+                    className={`tally-counter-btn${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}`}
+                    disabled={b.kind === 'try' && owesConversion}
+                    onClick={(e) =>
+                      tapThenBlur(e, () => {
+                        if (b.kind === 'try') {
+                          setScorerPick({ type: 'try' });
+                          return;
+                        }
+                        setScorerPick(null);
+                        onTallyAction(b.kind);
+                      })
+                    }
+                  >
                     <span className="tally-counter-label">{b.label}</span>
                     <span className="tally-counter-badge">{counts[b.countKey]}</span>
                   </button>
