@@ -130,6 +130,9 @@ export function penaltyDirectionLabel(d: PenaltyDirection): string {
 
 export const PENALTY_TYPES = [
   { id: 'offside', label: 'Offside' },
+  { id: 'playing_man_in_air', label: 'Playing man in air' },
+  { id: 'holding_on', label: 'Holding on' },
+  { id: 'driving_up', label: 'Driving up' },
   { id: 'hands_in_ruck', label: 'Hands in ruck' },
   { id: 'high_tackle', label: 'High tackle' },
   { id: 'neck_roll', label: 'Neck roll' },
@@ -138,6 +141,7 @@ export const PENALTY_TYPES = [
   { id: 'not_releasing', label: 'Not releasing' },
   { id: 'not_rolling_away', label: 'Not rolling away' },
   { id: 'sealing_off', label: 'Sealing off' },
+  { id: 'off_feet', label: 'Off feet' },
   { id: 'scrummage', label: 'Scrummage (binding/angle)' },
   { id: 'lineout_offence', label: 'Lineout offence' },
   { id: 'dangerous_play', label: 'Dangerous play' },
@@ -205,6 +209,72 @@ export function penaltyTypesForPicker(
   const key = `${phase}:${direction}` as const;
   const ids = PENALTY_PICKER_IDS[key] ?? [];
   return PENALTY_TYPES.filter((pt) => ids.includes(pt.id));
+}
+
+/** Set-piece kinds that use contextual penalty lists in Tally / One Tap P+ / P−. */
+export type SetPiecePenaltyContext = 'restart' | 'ruck' | 'scrum' | 'lineout';
+
+/**
+ * Tally set-piece P+ / P− infractions — scoped per restart / ruck / scrum / lineout.
+ * P+ (awarded): opponent infringements. P− (conceded): our infringements.
+ * Open-play grid Pen+/Pen− still uses {@link penaltyTypesForPicker}.
+ */
+const SET_PIECE_PENALTY_PICKER_IDS: Record<
+  SetPiecePenaltyContext,
+  Record<`${PlayPhaseContext}:${PenaltyDirection}`, readonly PenaltyTypeId[]>
+> = {
+  restart: {
+    'attack:awarded': ['playing_man_in_air', 'high_tackle', 'dangerous_play'],
+    'attack:conceded': ['playing_man_in_air', 'high_tackle', 'dangerous_play'],
+    'defense:awarded': ['playing_man_in_air', 'high_tackle', 'dangerous_play'],
+    'defense:conceded': ['playing_man_in_air', 'high_tackle', 'dangerous_play'],
+  },
+  scrum: {
+    'attack:awarded': ['driving_up', 'offside', 'scrummage', 'collapsing'],
+    'attack:conceded': ['driving_up', 'offside', 'scrummage', 'collapsing'],
+    'defense:awarded': ['driving_up', 'offside', 'scrummage', 'collapsing'],
+    'defense:conceded': ['driving_up', 'offside', 'scrummage', 'collapsing'],
+  },
+  lineout: {
+    'attack:awarded': ['offside', 'playing_man_in_air', 'lineout_offence'],
+    'attack:conceded': ['offside', 'playing_man_in_air', 'lineout_offence'],
+    'defense:awarded': ['offside', 'playing_man_in_air', 'lineout_offence'],
+    'defense:conceded': ['offside', 'playing_man_in_air', 'lineout_offence'],
+  },
+  ruck: {
+    // We have ball — defense errors vs our breakdown errors
+    'attack:awarded': [
+      'not_rolling_away',
+      'not_releasing',
+      'offside',
+      'hands_in_ruck',
+      'dangerous_play',
+      'side_entry',
+    ],
+    'attack:conceded': ['holding_on', 'hands_in_ruck', 'off_feet', 'sealing_off', 'offside', 'side_entry'],
+    // They have ball — their errors vs tackler/defender errors
+    'defense:awarded': ['holding_on', 'hands_in_ruck', 'off_feet', 'sealing_off', 'offside', 'dangerous_play'],
+    'defense:conceded': [
+      'not_releasing',
+      'not_rolling_away',
+      'offside',
+      'hands_in_ruck',
+      'side_entry',
+      'off_feet',
+    ],
+  },
+};
+
+export function penaltyTypesForSetPiecePicker(
+  setPiece: SetPiecePenaltyContext,
+  phase: PlayPhaseContext,
+  direction: PenaltyDirection,
+): { id: PenaltyTypeId; label: string }[] {
+  const key = `${phase}:${direction}` as const;
+  const ids = SET_PIECE_PENALTY_PICKER_IDS[setPiece][key] ?? [];
+  return ids
+    .map((id) => PENALTY_TYPES.find((pt) => pt.id === id))
+    .filter((pt): pt is (typeof PENALTY_TYPES)[number] => pt != null);
 }
 
 /** Payload for logging a team penalty from the live row UI. */

@@ -240,6 +240,7 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'Forced Turnover', full: 'Forced turnover', desc: 'Gold circle on Tally Defense — marks a positive turnover you forced.', group: 'Defense' },
   { abbr: 'Pass', full: 'Opponent pass', desc: 'Defense circle — counts passes the opposition makes against you while you defend.', group: 'Defense' },
   { abbr: 'Con / Unc', full: 'Ruck contested', desc: 'After Ruck W or L, pick Contested or Uncontested before the ruck is logged.', group: 'Set pieces' },
+  { abbr: 'P+ / P−', full: 'Set-piece penalty', desc: 'P+ lists opponent errors; P− lists our errors. Restart: aerial/dangerous; scrum: driving up/offside/scrummage/collapse; lineout: offside/man in air/lineout offence; ruck varies by attack vs defense phase. Optional YC/RC.', group: 'Set pieces' },
   { abbr: 'M', full: 'Tackle made', desc: 'Successful tackle — ball carrier brought down or held.', group: 'Defense' },
   { abbr: 'X', full: 'Tackle missed', desc: 'Attempted tackle where the ball carrier broke free.', group: 'Defense' },
   { abbr: 'Neg', full: 'Negative action', desc: 'Red circle on Tally Attack — generic handling error (not knock-on).', group: 'Attack' },

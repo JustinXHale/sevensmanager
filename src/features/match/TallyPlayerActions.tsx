@@ -9,7 +9,9 @@ import {
 } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
 import { TallyRosterPick } from './TallyRosterPick';
+import { TallyPenaltyInfractionPicker } from './TallyPenaltyInfractionPicker';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
+import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 
 export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action' | 'knock_on';
 
@@ -49,7 +51,17 @@ type Props = {
     phase: PlayPhaseContext,
     ruckContest?: RuckContest,
   ) => void;
-  onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
+  onTallySetPiecePenalty: (
+    kind: MatchEventKind,
+    direction: PenaltyDirection,
+    phase: PlayPhaseContext,
+    payload: TallyPenaltyInfractionPick,
+  ) => void;
+  onTallyPenalty: (
+    direction: PenaltyDirection,
+    phase: PlayPhaseContext,
+    payload: TallyPenaltyInfractionPick,
+  ) => void;
   onTallySystemMoment: () => void;
   onTallyForcedTurnover: () => void;
   onTallyDefensePass: () => void;
@@ -103,6 +115,7 @@ export function TallyPlayerActions({
   onTallyTackle,
   onTallyConversion,
   onTallySetPieceChoice,
+  onTallySetPiecePenalty,
   onTallyPenalty,
   onTallySystemMoment,
   onTallyForcedTurnover,
@@ -114,12 +127,17 @@ export function TallyPlayerActions({
 }: Props) {
   const [mode, setMode] = useState<PhaseMode>('attack');
   const [scorerPick, setScorerPick] = useState<ScorerPick | null>(null);
+  const [pendingGridPenalty, setPendingGridPenalty] = useState<{
+    direction: PenaltyDirection;
+    phase: PlayPhaseContext;
+  } | null>(null);
 
   const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
 
   function switchMode(next: PhaseMode) {
     setMode(next);
     setScorerPick(null);
+    setPendingGridPenalty(null);
   }
 
   function onPlayerPicked(playerId: string) {
@@ -141,7 +159,11 @@ export function TallyPlayerActions({
       </div>
 
       {mode !== 'opponent' ? (
-        <TallySetPieceStrip phase={phaseContext} onChoice={onTallySetPieceChoice} />
+        <TallySetPieceStrip
+          phase={phaseContext}
+          onChoice={onTallySetPieceChoice}
+          onPenaltyChoice={onTallySetPiecePenalty}
+        />
       ) : null}
 
       {mode === 'opponent' ? (
@@ -300,7 +322,9 @@ export function TallyPlayerActions({
             <button
               type="button"
               className="tally-counter-btn tally-counter-btn--pen-minus"
-              onClick={(e) => tapThenBlur(e, () => onTallyPenalty('conceded', phaseContext))}
+              onClick={(e) =>
+                tapThenBlur(e, () => setPendingGridPenalty({ direction: 'conceded', phase: phaseContext }))
+              }
             >
               <span className="tally-counter-label">Pen −</span>
               <span className="tally-counter-badge">{counts.penalty_conceded}</span>
@@ -308,7 +332,9 @@ export function TallyPlayerActions({
             <button
               type="button"
               className="tally-counter-btn tally-counter-btn--pen-plus"
-              onClick={(e) => tapThenBlur(e, () => onTallyPenalty('awarded', phaseContext))}
+              onClick={(e) =>
+                tapThenBlur(e, () => setPendingGridPenalty({ direction: 'awarded', phase: phaseContext }))
+              }
             >
               <span className="tally-counter-label">Pen +</span>
               <span className="tally-counter-badge">{counts.penalty_awarded}</span>
@@ -344,6 +370,19 @@ export function TallyPlayerActions({
               </button>
             ) : null}
           </div>
+
+          {pendingGridPenalty ? (
+            <TallyPenaltyInfractionPicker
+              phase={pendingGridPenalty.phase}
+              direction={pendingGridPenalty.direction}
+              contextLabel="Open play"
+              onSubmit={(payload) => {
+                onTallyPenalty(pendingGridPenalty.direction, pendingGridPenalty.phase, payload);
+                setPendingGridPenalty(null);
+              }}
+              onCancel={() => setPendingGridPenalty(null)}
+            />
+          ) : null}
         </>
       )}
     </div>

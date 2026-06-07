@@ -13,6 +13,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tally **Attack**: **Neg** and **Knock On** circles styled red; Knock On logs `knock_on` negatives separately; Stats Attack splits Neg vs Knock-ons
 - Tally set-piece strip: **Restart** label shows **(Receiving kick)** in Attack and **(Kicking off)** in Defense
 - Tally / One Tap **Ruck** W/L: two-tap flow — **Con** (contested) or **Unc** (uncontested) before logging
+- Tally / One Tap set-piece **P+** / **P−**: contextual infraction lists per restart/ruck/scrum/lineout, optional YC/RC, then auto-logs won/lost (ruck P+/P− also contested); open-play **Pen +** / **Pen −** keep phase-based lists
+- Set-piece **P+ / P−** infraction lists aligned: P+ = opponent errors, P− = our errors; ruck attack/defense split (e.g. attack P−: holding on / hands / off feet; defense P−: not releasing / not rolling away); scrum + lineout + restart lists expanded
 - Tally / One Tap **Defense**: **Pass** circle tracks opponent passes against us; Stats Defense shows **Opp passes**
 - Tally mode: **Try** and **conversion** (Made/Missed) prompt to pick scorer/kicker from the on-field roster
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker

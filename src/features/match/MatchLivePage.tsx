@@ -83,6 +83,7 @@ import { MatchEventTimeline } from './MatchEventTimeline';
 import { OnFieldPlayerActions } from './OnFieldPlayerActions';
 import { SimplePlayerActions, type SimpleActionKind } from './SimplePlayerActions';
 import { TallyPlayerActions, type TallyActionKind } from './TallyPlayerActions';
+import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 import type { TallySetPieceChoice } from './TallySetPieceStrip';
 import { buildMatchSummaryText } from '@/domain/matchSummary';
 import { MatchCompleteOverlay } from './MatchCompleteOverlay';
@@ -976,7 +977,11 @@ export function MatchLivePage() {
     });
   }
 
-  async function logTallyPenalty(direction: PenaltyDirection, phase: PlayPhaseContext) {
+  async function logTallyPenalty(
+    direction: PenaltyDirection,
+    phase: PlayPhaseContext,
+    payload: TallyPenaltyInfractionPick,
+  ) {
     if (!matchId || !session) return;
     setBanner(null);
     await addMatchEvent({
@@ -986,10 +991,47 @@ export function MatchLivePage() {
       period: session.period,
       penaltyDirection: direction,
       playPhaseContext: phase,
+      penaltyType: payload.penaltyType,
+      penaltyDetail: payload.penaltyDetail,
+      penaltyCard: payload.penaltyCard,
     });
     await load();
     setActionToast({
       text: direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded',
+      key: Date.now(),
+    });
+  }
+
+  async function logTallySetPiecePenalty(
+    kind: MatchEventKind,
+    direction: PenaltyDirection,
+    phase: PlayPhaseContext,
+    payload: TallyPenaltyInfractionPick,
+  ) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    const t = cumulativeMatchTimeMs(session, Date.now());
+    const base = { matchId, matchTimeMs: t, period: session.period, playPhaseContext: phase };
+    const label =
+      kind === 'scrum' ? 'Scrum' : kind === 'lineout' ? 'Lineout' : kind === 'ruck' ? 'Ruck' : 'Restart';
+    const setOutcome = direction === 'awarded' ? 'won' : 'lost';
+    const ruckFields = kind === 'ruck' ? { ruckContest: 'contested' as const } : {};
+
+    await addMatchEvent({ ...base, kind, setPieceOutcome: setOutcome, ...ruckFields });
+    await addMatchEvent({
+      matchId,
+      kind: 'team_penalty',
+      matchTimeMs: t,
+      period: session.period,
+      penaltyDirection: direction,
+      playPhaseContext: phase,
+      penaltyType: payload.penaltyType,
+      penaltyDetail: payload.penaltyDetail,
+      penaltyCard: payload.penaltyCard,
+    });
+    await load();
+    setActionToast({
+      text: `${label} ${setOutcome === 'won' ? 'won' : 'lost'} + penalty`,
       key: Date.now(),
     });
   }
@@ -1035,26 +1077,6 @@ export function MatchLivePage() {
       await addMatchEvent({ ...base, kind, setPieceOutcome: 'lost', ...ruckFields });
     } else if (choice === 'free_kick') {
       await addMatchEvent({ ...base, kind, setPieceOutcome: 'free_kick' });
-    } else if (choice === 'penalty_awarded') {
-      await addMatchEvent({ ...base, kind, setPieceOutcome: 'won' });
-      await addMatchEvent({
-        matchId,
-        kind: 'team_penalty',
-        matchTimeMs: t,
-        period: session.period,
-        penaltyDirection: 'awarded',
-        playPhaseContext: phase,
-      });
-    } else {
-      await addMatchEvent({ ...base, kind, setPieceOutcome: 'lost' });
-      await addMatchEvent({
-        matchId,
-        kind: 'team_penalty',
-        matchTimeMs: t,
-        period: session.period,
-        penaltyDirection: 'conceded',
-        playPhaseContext: phase,
-      });
     }
     await load();
     setActionToast({ text: `${label} logged`, key: Date.now() });
@@ -1339,7 +1361,10 @@ export function MatchLivePage() {
                 onTallySetPieceChoice={(kind, choice, phase, ruckContest) =>
                   void logTallySetPieceChoice(kind, choice, phase, ruckContest)
                 }
-                onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
+                onTallySetPiecePenalty={(kind, direction, phase, payload) =>
+                  void logTallySetPiecePenalty(kind, direction, phase, payload)
+                }
+                onTallyPenalty={(direction, phase, payload) => void logTallyPenalty(direction, phase, payload)}
                 onTallySystemMoment={() => void logTallySystemMoment()}
                 onTallyForcedTurnover={() => void logTallyForcedTurnover()}
                 onTallyDefensePass={() => void logDefensePass()}
@@ -1379,6 +1404,9 @@ export function MatchLivePage() {
                 onSimpleTackle={(pid, outcome) => void logSimpleTackle(pid, outcome)}
                 onSetPieceChoice={(kind, choice, phase, ruckContest) =>
                   void logTallySetPieceChoice(kind, choice, phase, ruckContest)
+                }
+                onSetPiecePenalty={(kind, direction, phase, payload) =>
+                  void logTallySetPiecePenalty(kind, direction, phase, payload)
                 }
                 defensePassCount={defensePassCount}
                 onDefensePass={() => void logDefensePass()}

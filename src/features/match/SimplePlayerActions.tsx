@@ -19,6 +19,7 @@ import type { PlayerRecord } from '@/domain/player';
 import { formatPlayerMinutesLabel } from '@/domain/playerMinutes';
 import { formatPlayerLabel, formatPlayerNameOnly, sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
 import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
+import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 
 export type SimpleActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
@@ -77,6 +78,12 @@ type Props = {
     choice: TallySetPieceChoice,
     phase: PlayPhaseContext,
     ruckContest?: RuckContest,
+  ) => void;
+  onSetPiecePenalty: (
+    kind: MatchEventKind,
+    direction: PenaltyDirection,
+    phase: PlayPhaseContext,
+    payload: TallyPenaltyInfractionPick,
   ) => void;
   defensePassCount: number;
   onDefensePass: () => void;
@@ -197,6 +204,7 @@ export function SimplePlayerActions({
   onSimpleAction,
   onSimpleTackle,
   onSetPieceChoice,
+  onSetPiecePenalty,
   defensePassCount,
   onDefensePass,
 }: Props) {
@@ -263,6 +271,7 @@ export function SimplePlayerActions({
         <TallySetPieceStrip
           phase={mode === 'defense' ? 'defense' : 'attack'}
           onChoice={onSetPieceChoice}
+          onPenaltyChoice={onSetPiecePenalty}
         />
       ) : null}
 
