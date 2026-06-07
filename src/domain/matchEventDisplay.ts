@@ -1,4 +1,5 @@
-import { filmTimeForDisplay, formatClock } from '@/domain/matchClock';
+import { filmDisplayMsForSession, filmTimeForDisplay, formatClock } from '@/domain/matchClock';
+import type { MatchSessionRecord } from '@/domain/match';
 import type { PlayerRecord } from '@/domain/player';
 import { resolveOffloadTone } from '@/domain/matchEvent';
 import type { MatchEventRecord } from '@/domain/matchEvent';
@@ -53,28 +54,26 @@ function setPieceLineParts(e: MatchEventRecord, kindLabel: string): string {
 export function formatMatchEventSummary(
   e: MatchEventRecord,
   playersById: Map<string, PlayerRecord>,
-  filmTimeOffsetMs = 0,
+  filmSession?: MatchSessionRecord | null,
 ): string {
+  const filmClock = (raw: number | undefined) => {
+    if (raw == null) return '';
+    const ms = filmSession
+      ? filmDisplayMsForSession(filmSession, raw)
+      : filmTimeForDisplay(raw, 0);
+    return ms != null ? ` · Film ${formatClock(ms)}` : '';
+  };
   if (e.kind === 'film_star') {
-    const film =
-      e.filmTimeMs != null
-        ? ` · Film ${formatClock(filmTimeForDisplay(e.filmTimeMs, filmTimeOffsetMs) ?? e.filmTimeMs)}`
-        : '';
+    const film = filmClock(e.filmTimeMs);
     const note = e.markerNote?.trim() ? ` · ${e.markerNote.trim()}` : '';
     return `★ Starred moment${film}${note}`;
   }
   if (e.kind === 'system_moment') {
-    const film =
-      e.filmTimeMs != null
-        ? ` · Film ${formatClock(filmTimeForDisplay(e.filmTimeMs, filmTimeOffsetMs) ?? e.filmTimeMs)}`
-        : '';
+    const film = filmClock(e.filmTimeMs);
     return `System moment · Attack${film}`;
   }
   if (e.kind === 'forced_turnover') {
-    const film =
-      e.filmTimeMs != null
-        ? ` · Film ${formatClock(filmTimeForDisplay(e.filmTimeMs, filmTimeOffsetMs) ?? e.filmTimeMs)}`
-        : '';
+    const film = filmClock(e.filmTimeMs);
     return `Forced turnover · Defense${film}`;
   }
   if (e.kind === 'scrum') return setPieceLineParts(e, 'Scrum');

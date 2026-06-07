@@ -12,6 +12,8 @@ import {
   filmTimeOffsetMs,
   formatClock,
   parseMmSsToMs,
+  totalFootageGapMs,
+  videoTimeDisplayMs,
 } from '@/domain/matchClock';
 
 export type ClockSettingsApplyPayload = {
@@ -23,6 +25,7 @@ export type ClockSettingsApplyPayload = {
   matchDisplayedMs: number;
   periodDisplayedMs: number;
   filmTimeOffsetMs: number;
+  videoTimeNowMs: number;
 };
 
 type Props = {
@@ -46,6 +49,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   const [periodStr, setPeriodStr] = useState('0:00');
   const [periodSegment, setPeriodSegment] = useState(1);
   const [filmOffsetStr, setFilmOffsetStr] = useState('0:00');
+  const [videoNowStr, setVideoNowStr] = useState('0:00');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -70,8 +74,22 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
     setPeriodStr(formatClock(currentPeriodDisplayForUi(session, nowMs)));
     setPeriodSegment(session.period);
     setFilmOffsetStr(formatClock(filmTimeOffsetMs(session)));
+    setVideoNowStr(formatClock(videoTimeDisplayMs(session, nowMs)));
     setFormError(null);
   }, [open, session, nowMs]);
+
+  function previewVideoNowMs(nextOffsetMs: number): number {
+    if (!session) return 0;
+    return videoTimeDisplayMs({ ...session, filmTimeOffsetMs: nextOffsetMs }, nowMs);
+  }
+
+  function handleFilmOffsetChange(value: string) {
+    setFilmOffsetStr(value);
+    const parsed = parseMmSsToMs(value);
+    if (parsed != null && parsed >= 0) {
+      setVideoNowStr(formatClock(previewVideoNowMs(parsed)));
+    }
+  }
 
   function syncMatchFieldToMode(nextMode: MatchClockDisplayMode) {
     if (!session) return;
@@ -94,10 +112,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   }
 
   const bankedMs = session ? bankedMatchMsBeforeCurrentPeriod(session) : 0;
-  const filmOffsetPreviewMs = session
-    ? parseMmSsToMs(filmOffsetStr) ?? filmTimeOffsetMs(session)
-    : 0;
-  const videoNowMs = session ? cumulativeMatchTimeMs(session, nowMs) + filmOffsetPreviewMs : 0;
+  const bankedGapMs = session ? totalFootageGapMs(session) : 0;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -133,6 +148,11 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
       setFormError('Video offset must be zero or positive (e.g. 0:48).');
       return;
     }
+    const videoNowParsed = parseMmSsToMs(videoNowStr);
+    if (videoNowParsed === null || videoNowParsed < 0) {
+      setFormError('Video time right now must be zero or positive (e.g. 12:34).');
+      return;
+    }
     const pSeg = Math.round(periodSegment);
     if (!Number.isFinite(pSeg) || pSeg < 1 || pSeg > SESSION_PERIOD_MAX) {
       setFormError(`Period must be from 1 to ${SESSION_PERIOD_MAX}.`);
@@ -152,6 +172,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
       matchDisplayedMs: matchMs,
       periodDisplayedMs: periodMs,
       filmTimeOffsetMs: filmOffsetParsed,
+      videoTimeNowMs: videoNowParsed,
     };
     setSaving(true);
     try {
@@ -306,8 +327,10 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
         <fieldset className="ref-clock-settings-fieldset">
           <legend className="ref-clock-settings-legend">Film / video sync</legend>
           <p className="muted ref-clock-settings-hint">
-            When match time is <strong>0:00</strong>, where does kickoff sit on your video file? Starred moments and
-            film bookmarks, and the live match clock show <strong>video time</strong> (match elapsed + this offset).
+            When match time is <strong>0:00</strong>, where does kickoff sit on your video file? Halftime on
+            footage is banked when you tap <strong>Resume match</strong> after HT. To fix drift, set{' '}
+            <strong>Video time right now</strong> to what your player shows — first half adjusts the kickoff
+            offset; second half adjusts the halftime gap.
           </p>
           <div className="field ref-clock-settings-field">
             <span>Video time at match 0:00</span>
@@ -316,14 +339,26 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
               className="filter-select"
               inputMode="numeric"
               value={filmOffsetStr}
-              onChange={(e) => setFilmOffsetStr(e.target.value)}
+              onChange={(e) => handleFilmOffsetChange(e.target.value)}
               placeholder="0:48"
               aria-label="Video time at match zero m:ss"
             />
           </div>
-          {session ? (
-            <p className="muted ref-clock-settings-hint" aria-live="polite">
-              Video position now: <strong>{formatClock(videoNowMs)}</strong>
+          <div className="field ref-clock-settings-field">
+            <span>Video time right now</span>
+            <input
+              type="text"
+              className="filter-select"
+              inputMode="numeric"
+              value={videoNowStr}
+              onChange={(e) => setVideoNowStr(e.target.value)}
+              placeholder="12:34"
+              aria-label="Video player position right now m:ss"
+            />
+          </div>
+          {session && bankedGapMs > 0 ? (
+            <p className="muted ref-clock-settings-hint">
+              Banked halftime on footage: <strong>{formatClock(bankedGapMs)}</strong>
             </p>
           ) : null}
         </fieldset>

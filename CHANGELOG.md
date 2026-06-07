@@ -23,8 +23,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tally penalty picker types: `TallyPenaltyInfractionPick` and set-piece strip `SetPiecePenaltyContext` typing so production `tsc` build passes
 
 ### Added
+- Tally / One Tap **auto phase switch**: Attack / Defense tab flips on possession turnovers (penalties, forced turnover, set-piece W/L); tries wait until conversion is logged, then switch to Attack for kickoff receive
 - Clock settings **Film / video sync**: set video time at match 0:00 (e.g. 0:48) so starred moments and film bookmarks match your player timeline
 - Live match clock shows **video time in parentheses** beside match time when a film offset is set (e.g. `3:45 (4:33)`)
+- **Halftime footage sync**: wall-clock elapsed during HT is banked on Resume match and added to video times (footage that does not cut at halftime)
+- Clock settings **Video time right now** — edit to match your player; fixes parentheses and film bookmarks (kickoff offset in first half, halftime gap after HT)
 
 ### Changed
 - Clock settings: **Period** moved below time fields and uses a dropdown (avoids mobile keyboard opening on dialog open)

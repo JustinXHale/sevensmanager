@@ -1,6 +1,7 @@
 import type { MatchRecord } from '@/domain/match';
 import type { MatchEventRecord } from '@/domain/matchEvent';
-import { filmTimeForDisplay, formatClock } from '@/domain/matchClock';
+import type { MatchSessionRecord } from '@/domain/match';
+import { filmDisplayMsForSession, formatClock } from '@/domain/matchClock';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
 import { countPenaltiesByDirection } from '@/domain/tallyStats';
 import { countEventsByKind, kindLabel, tackleMadeMissed, triesByZone } from '@/domain/matchStats';
@@ -16,7 +17,7 @@ export function buildMatchSummaryText(
   events: MatchEventRecord[],
   substitutions: SubstitutionRecord[],
   playersById: Map<string, PlayerRecord>,
-  filmTimeOffsetMs = 0,
+  filmSession?: MatchSessionRecord | null,
 ): string {
   const title = match.title?.trim() || 'Match';
   const lines: string[] = [title];
@@ -78,10 +79,12 @@ export function buildMatchSummaryText(
     for (const e of byFilm) {
       const film =
         e.filmTimeMs != null
-          ? formatClock(filmTimeForDisplay(e.filmTimeMs, filmTimeOffsetMs) ?? e.filmTimeMs)
+          ? formatClock(
+              (filmSession ? filmDisplayMsForSession(filmSession, e.filmTimeMs) : e.filmTimeMs) ?? e.filmTimeMs,
+            )
           : '—';
       lines.push(
-        `Film ${film} · Match P${e.period} ${formatClock(e.matchTimeMs)} · ${formatMatchEventSummary(e, playersById, filmTimeOffsetMs)}`,
+        `Film ${film} · Match P${e.period} ${formatClock(e.matchTimeMs)} · ${formatMatchEventSummary(e, playersById, filmSession)}`,
       );
     }
     lines.push('');
@@ -92,7 +95,7 @@ export function buildMatchSummaryText(
   } else {
     for (const e of sorted) {
       lines.push(
-        `P${e.period} ${formatClock(e.matchTimeMs)} · ${formatMatchEventSummary(e, playersById, filmTimeOffsetMs)}`,
+        `P${e.period} ${formatClock(e.matchTimeMs)} · ${formatMatchEventSummary(e, playersById, filmSession)}`,
       );
     }
   }

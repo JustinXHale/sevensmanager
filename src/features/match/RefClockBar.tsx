@@ -68,7 +68,7 @@ export function RefClockBar({
   const matchLabel = matchClockMode === 'down' ? 'Match ↓' : 'Match';
   const periodLabel = periodClockMode === 'down' ? `P${period} ↓` : `P${period}`;
   const clockLocked = halfTimeActive || matchComplete;
-  const showVideoTime = filmTimeOffsetMs > 0;
+  const showVideoTime = filmTimeOffsetMs > 0 || videoDisplayMs > 0;
 
   return (
     <div

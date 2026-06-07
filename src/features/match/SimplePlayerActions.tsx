@@ -21,10 +21,9 @@ import { formatPlayerLabel, formatPlayerNameOnly, sortPlayersRefLogStyle } from 
 import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
 import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
+import type { LivePhaseMode } from '@/domain/livePhaseMode';
 
 export type SimpleActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
-
-export type PlayerActionMode = 'attack' | 'defense' | 'opponent';
 
 function PlayerDisciplineSuffix({ badges }: { badges: PlayerDisciplineBadges }) {
   if (!badges.yellow && !badges.red) return null;
@@ -46,6 +45,8 @@ function PlayerDisciplineSuffix({ badges }: { badges: PlayerDisciplineBadges }) 
 }
 
 type Props = {
+  phaseMode: LivePhaseMode;
+  onPhaseModeChange: (mode: LivePhaseMode) => void;
   players: PlayerRecord[];
   substituteOptions: PlayerRecord[];
   disciplineBadgesByPlayerId: Record<string, PlayerDisciplineBadges>;
@@ -207,8 +208,9 @@ export function SimplePlayerActions({
   onSetPiecePenalty,
   defensePassCount,
   onDefensePass,
+  phaseMode: mode,
+  onPhaseModeChange,
 }: Props) {
-  const [mode, setMode] = useState<PlayerActionMode>('attack');
   const [penaltyMenuFor, setPenaltyMenuFor] = useState<PenaltyMenuState | null>(null);
   const [subPickerFor, setSubPickerFor] = useState<string | null>(null);
   const [yellowSinBinUntilMs, setYellowSinBinUntilMs] = useState<Record<string, number>>({});
@@ -262,9 +264,9 @@ export function SimplePlayerActions({
   return (
     <div className="on-field-actions-wrap">
       <div className="live-phase-switch" role="group" aria-label="Player actions: attack, defense, or opponent">
-        <button type="button" className={`live-phase-btn${mode === 'attack' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'attack'} onClick={(e) => tapThenBlur(e, () => { setMode('attack'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Attack</button>
-        <button type="button" className={`live-phase-btn${mode === 'defense' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'defense'} onClick={(e) => tapThenBlur(e, () => { setMode('defense'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Defense</button>
-        <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => { setMode('opponent'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Opp</button>
+        <button type="button" className={`live-phase-btn${mode === 'attack' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'attack'} onClick={(e) => tapThenBlur(e, () => { onPhaseModeChange('attack'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Attack</button>
+        <button type="button" className={`live-phase-btn${mode === 'defense' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'defense'} onClick={(e) => tapThenBlur(e, () => { onPhaseModeChange('defense'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Defense</button>
+        <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => { onPhaseModeChange('opponent'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Opp</button>
       </div>
 
       {mode !== 'opponent' ? (

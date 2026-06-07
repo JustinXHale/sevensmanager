@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { formatClock, formatFilmClock } from '@/domain/matchClock';
+import type { MatchSessionRecord } from '@/domain/match';
+import { formatClock, formatFilmClockForSession } from '@/domain/matchClock';
 import type { MatchEventKind, MatchEventRecord } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
@@ -9,7 +10,7 @@ import { MatchEventEditDialog } from './MatchEventEditDialog';
 type Props = {
   events: MatchEventRecord[];
   playersById: Map<string, PlayerRecord>;
-  filmTimeOffsetMs?: number;
+  filmSession?: MatchSessionRecord | null;
   onDelete: (id: string) => void;
   onEditSaved: () => void;
 };
@@ -41,7 +42,7 @@ type FilterValue = 'all' | MatchEventKind;
 export function MatchEventTimeline({
   events,
   playersById,
-  filmTimeOffsetMs = 0,
+  filmSession = null,
   onDelete,
   onEditSaved,
 }: Props) {
@@ -105,15 +106,15 @@ export function MatchEventTimeline({
                     <span className="live-timeline-time">
                       P{e.period} {formatClock(e.matchTimeMs)}
                       {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') &&
-                      formatFilmClock(e.filmTimeMs, filmTimeOffsetMs) != null ? (
+                      filmSession && formatFilmClockForSession(filmSession, e.filmTimeMs) != null ? (
                         <span className="live-timeline-film-time">
                           {' '}
-                          · Film {formatFilmClock(e.filmTimeMs, filmTimeOffsetMs)}
+                          · Film {formatFilmClockForSession(filmSession, e.filmTimeMs)}
                         </span>
                       ) : null}
                     </span>
                     <span className="live-timeline-label">
-                      {formatMatchEventSummary(e, playersById, filmTimeOffsetMs)}
+                      {formatMatchEventSummary(e, playersById, filmSession)}
                     </span>
                   </div>
                   <div className="live-timeline-actions">

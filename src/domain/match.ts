@@ -63,6 +63,11 @@ export interface MatchSessionRecord {
    */
   filmTimeOffsetMs?: number;
   /**
+   * Footage keeps running during halftime; each entry is wall-clock gap banked on resume.
+   * Applied to video times at or after `afterMatchMs` (match clock at halftime).
+   */
+  filmFootageGaps?: { afterMatchMs: number; gapMs: number }[];
+  /**
    * Cumulative match-time ms while each player was on field (match clock running).
    * Updated on flush (pause, periodic save, sub, etc.).
    */
@@ -116,6 +121,7 @@ export function normalizeSession(raw: MatchSessionRecord | undefined): MatchSess
     gameAnchorWallMs: raw.gameAnchorWallMs ?? 0,
     gameElapsedMs: raw.gameElapsedMs ?? 0,
     filmTimeOffsetMs: raw.filmTimeOffsetMs ?? 0,
+    filmFootageGaps: raw.filmFootageGaps ?? [],
     playerMinutesMs: raw.playerMinutesMs ?? {},
     halfTimeActive: raw.halfTimeActive ?? false,
     matchComplete: raw.matchComplete ?? false,
@@ -157,6 +163,7 @@ export function resetMatchClockSession(session: MatchSessionRecord): MatchSessio
     gameAnchorWallMs: session.gameAnchorWallMs,
     gameElapsedMs: session.gameElapsedMs,
     filmTimeOffsetMs: session.filmTimeOffsetMs ?? 0,
+    filmFootageGaps: session.filmFootageGaps ?? [],
     playerMinutesMs: {},
     minutesLedgerMatchMs: undefined,
     matchComplete: false,

@@ -276,11 +276,25 @@ export function enterHalfTime(session: MatchSessionRecord, nowMs: number): Match
   };
 }
 
-export function exitHalfTime(session: MatchSessionRecord): MatchSessionRecord {
+/**
+ * Resume from halftime; bank wall-clock elapsed on the footage (match clock was paused).
+ */
+export function exitHalfTime(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
+  if (!session.halfTimeActive || session.halfTimeStartedWallMs == null) {
+    return {
+      ...session,
+      halfTimeActive: false,
+      halfTimeStartedWallMs: undefined,
+    };
+  }
+  const gapMs = Math.max(0, nowMs - session.halfTimeStartedWallMs);
+  const afterMatchMs = cumulativeMatchTimeMs(session, nowMs);
+  const gaps = [...(session.filmFootageGaps ?? []), { afterMatchMs, gapMs }];
   return {
     ...session,
     halfTimeActive: false,
     halfTimeStartedWallMs: undefined,
+    filmFootageGaps: gaps,
   };
 }
 
@@ -288,7 +302,7 @@ export function exitHalfTime(session: MatchSessionRecord): MatchSessionRecord {
 export function enterMatchComplete(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
   let s = pauseSession(session, nowMs);
   s = pauseGameSession(s, nowMs);
-  s = exitHalfTime(s);
+  s = exitHalfTime(s, nowMs);
   return {
     ...s,
     matchComplete: true,
@@ -349,19 +363,108 @@ export function filmTimeOffsetMs(session: MatchSessionRecord): number {
   return session.filmTimeOffsetMs ?? 0;
 }
 
-/** Raw logged film ms → position on your video file. */
-export function filmTimeForDisplay(rawMs: number | undefined, offsetMs = 0): number | undefined {
-  if (rawMs == null) return undefined;
-  return rawMs + offsetMs;
+/** Sum of banked footage gaps (halftime, etc.) that apply at this match-clock position. */
+export function footageGapBeforeMatchMs(session: MatchSessionRecord, matchMs: number): number {
+  let total = 0;
+  for (const g of session.filmFootageGaps ?? []) {
+    if (g.afterMatchMs <= matchMs) total += g.gapMs;
+  }
+  return total;
 }
 
-export function formatFilmClock(rawMs: number | undefined, offsetMs = 0): string | null {
-  const displayMs = filmTimeForDisplay(rawMs, offsetMs);
+/** Total banked footage gap ms (all completed halftimes). */
+export function totalFootageGapMs(session: MatchSessionRecord): number {
+  return (session.filmFootageGaps ?? []).reduce((n, g) => n + g.gapMs, 0);
+}
+
+/** Raw logged film ms → position on your video file (offset + gaps before that match time). */
+export function filmTimeForDisplay(rawMs: number | undefined, offsetMs = 0, gapMs = 0): number | undefined {
+  if (rawMs == null) return undefined;
+  return rawMs + offsetMs + gapMs;
+}
+
+/** Video position for a logged moment (match elapsed at log + offset + prior gaps). */
+export function filmDisplayMsForSession(
+  session: MatchSessionRecord,
+  rawMatchFilmMs: number | undefined,
+): number | undefined {
+  if (rawMatchFilmMs == null) return undefined;
+  return (
+    rawMatchFilmMs +
+    filmTimeOffsetMs(session) +
+    footageGapBeforeMatchMs(session, rawMatchFilmMs)
+  );
+}
+
+export function formatFilmClock(rawMs: number | undefined, offsetMs = 0, gapMs = 0): string | null {
+  const displayMs = filmTimeForDisplay(rawMs, offsetMs, gapMs);
   if (displayMs == null) return null;
   return formatClock(displayMs);
 }
 
-/** Video player position: match elapsed + film offset (see clock settings). */
+export function formatFilmClockForSession(
+  session: MatchSessionRecord,
+  rawMatchFilmMs: number | undefined,
+): string | null {
+  const displayMs = filmDisplayMsForSession(session, rawMatchFilmMs);
+  if (displayMs == null) return null;
+  return formatClock(displayMs);
+}
+
+/** Video player position now: match elapsed + offset + banked gaps + in-progress halftime wall time. */
 export function videoTimeDisplayMs(session: MatchSessionRecord, nowMs: number): number {
-  return cumulativeMatchTimeMs(session, nowMs) + filmTimeOffsetMs(session);
+  const matchMs = cumulativeMatchTimeMs(session, nowMs);
+  const inProgressHt = session.halfTimeActive ? halfTimeElapsedDisplayMs(session, nowMs) : 0;
+  return matchMs + filmTimeOffsetMs(session) + footageGapBeforeMatchMs(session, matchMs) + inProgressHt;
+}
+
+function lastFootageGapIndexAtOrBeforeMatchMs(session: MatchSessionRecord, matchMs: number): number {
+  const gaps = session.filmFootageGaps ?? [];
+  let last = -1;
+  for (let i = 0; i < gaps.length; i++) {
+    if (gaps[i].afterMatchMs <= matchMs) last = i;
+  }
+  return last;
+}
+
+/**
+ * Align parentheses / film scrub time with the video player right now.
+ * First half → adjusts kickoff offset; after a banked HT gap → adjusts that gap; during HT → shifts HT wall anchor.
+ */
+export function syncSessionVideoTimeNow(
+  session: MatchSessionRecord,
+  nowMs: number,
+  desiredVideoMs: number,
+): MatchSessionRecord {
+  const current = videoTimeDisplayMs(session, nowMs);
+  const delta = desiredVideoMs - current;
+  if (delta === 0) return session;
+
+  if (session.halfTimeActive && session.halfTimeStartedWallMs != null) {
+    return {
+      ...session,
+      halfTimeStartedWallMs: session.halfTimeStartedWallMs - delta,
+    };
+  }
+
+  const matchMs = cumulativeMatchTimeMs(session, nowMs);
+  const gapIdx = lastFootageGapIndexAtOrBeforeMatchMs(session, matchMs);
+  if (gapIdx >= 0) {
+    const gaps = [...(session.filmFootageGaps ?? [])];
+    gaps[gapIdx] = {
+      ...gaps[gapIdx],
+      gapMs: Math.max(0, gaps[gapIdx].gapMs + delta),
+    };
+    return { ...session, filmFootageGaps: gaps };
+  }
+
+  return {
+    ...session,
+    filmTimeOffsetMs: Math.max(0, filmTimeOffsetMs(session) + delta),
+  };
+}
+
+/** Effective offset for display helpers that take a single offset number. */
+export function filmDisplayOffsetForMatchMs(session: MatchSessionRecord, matchMs: number): number {
+  return filmTimeOffsetMs(session) + footageGapBeforeMatchMs(session, matchMs);
 }

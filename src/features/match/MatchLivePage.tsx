@@ -19,6 +19,7 @@ import {
   advancePeriod,
   applyClockDisplaySettings,
   cumulativeMatchTimeMs,
+  syncSessionVideoTimeNow,
   videoTimeDisplayMs,
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
@@ -93,6 +94,14 @@ import { MatchRosterPanel } from './roster/MatchRosterPanel';
 import { StarMomentButton } from './StarMomentButton';
 import { SectionHelp, TRACKING_GLOSSARY } from '@/components/SectionHelp';
 import { writeRecentMatch } from '@/components/AppNavDrawer';
+import {
+  suggestPhaseAfterForcedTurnover,
+  suggestPhaseAfterOpponentConversion,
+  suggestPhaseAfterOurConversion,
+  suggestPhaseAfterPenalty,
+  suggestPhaseAfterSetPieceOutcome,
+  type LivePhaseMode,
+} from '@/domain/livePhaseMode';
 import type { ZoneId } from '@/domain/zone';
 
 /** When no zone flower pick: default width zone for set-pieces, tackles without pick, etc. */
@@ -141,6 +150,7 @@ export function MatchLivePage() {
   const [onFieldDisplayOrder, setOnFieldDisplayOrder] = useState<string[] | null>(null);
   const [clockSettingsOpen, setClockSettingsOpen] = useState(false);
   const [trackingMode, setTrackingMode] = useState<TrackingMode>(() => readStoredTrackingMode(matchId));
+  const [livePhaseMode, setLivePhaseMode] = useState<LivePhaseMode>('attack');
   const liveTab = useMemo((): 'live' | 'timeline' | 'stats' | 'roster' => {
     const t = searchParams.get('tab');
     if (t === 'roster' || t === 'timeline' || t === 'stats' || t === 'live') return t;
@@ -226,6 +236,20 @@ export function MatchLivePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setLivePhaseMode('attack');
+  }, [matchId]);
+
+  const applyPhaseSwitch = useCallback((next: LivePhaseMode | null) => {
+    if (next != null) setLivePhaseMode(next);
+    return next;
+  }, []);
+
+  const phaseSwitchSuffix = useCallback((next: LivePhaseMode | null) => {
+    if (next == null) return '';
+    return next === 'attack' ? ' → Attack' : next === 'defense' ? ' → Defense' : ' → Opp';
+  }, []);
 
   useEffect(() => {
     const base = {
@@ -331,9 +355,11 @@ export function MatchLivePage() {
       conversionOutcome: pick.conversionOutcome,
     });
     await load();
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterOpponentConversion());
     setActionToast({
       text:
-        pick.conversionOutcome === 'made' ? 'Opponent conversion made' : 'Opponent conversion missed',
+        (pick.conversionOutcome === 'made' ? 'Opp conversion made' : 'Opp conversion missed') +
+        phaseSwitchSuffix(phaseNext),
       key: Date.now(),
     });
   }
@@ -442,6 +468,10 @@ export function MatchLivePage() {
       period: clampSessionPeriod(payload.period),
       filmTimeOffsetMs: payload.filmTimeOffsetMs,
     };
+    const naturalVideoMs = videoTimeDisplayMs(next, now);
+    if (payload.videoTimeNowMs !== naturalVideoMs) {
+      next = syncSessionVideoTimeNow(next, now, payload.videoTimeNowMs);
+    }
     next = applyClockDisplaySettings(next, {
       matchClockDisplayMode: payload.matchClockDisplayMode,
       matchCountdownLengthMs: payload.matchCountdownLengthMs,
@@ -469,7 +499,7 @@ export function MatchLivePage() {
 
   async function onResumeFromHalftime() {
     if (!session || !session.halfTimeActive) return;
-    await persist(exitHalfTime(session));
+    await persist(exitHalfTime(session, Date.now()));
   }
 
   async function onEndMatch() {
@@ -497,7 +527,7 @@ export function MatchLivePage() {
       events,
       substitutions,
       playersById,
-      session?.filmTimeOffsetMs ?? 0,
+      session,
     );
     try {
       await navigator.clipboard.writeText(text);
@@ -686,8 +716,11 @@ export function MatchLivePage() {
         conversionOutcome: pick.conversionOutcome,
       });
       await load();
+      const phaseNext = applyPhaseSwitch(suggestPhaseAfterOurConversion());
       setActionToast({
-        text: pick.conversionOutcome === 'made' ? 'Conversion made' : 'Conversion missed',
+        text:
+          (pick.conversionOutcome === 'made' ? 'Conversion made' : 'Conversion missed') +
+          phaseSwitchSuffix(phaseNext),
         key: Date.now(),
       });
       return;
@@ -892,7 +925,8 @@ export function MatchLivePage() {
       filmTimeMs: cumulativeMatchTimeMs(session, now),
     });
     await load();
-    setActionToast({ text: 'Forced turnover logged', key: Date.now() });
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterForcedTurnover());
+    setActionToast({ text: `Forced turnover logged${phaseSwitchSuffix(phaseNext)}`, key: Date.now() });
   }
 
   async function logTallyAction(kind: TallyActionKind) {
@@ -958,7 +992,11 @@ export function MatchLivePage() {
       conversionOutcome: outcome,
     });
     await load();
-    setActionToast({ text: outcome === 'made' ? 'Conversion made' : 'Conversion missed', key: Date.now() });
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterOurConversion());
+    setActionToast({
+      text: (outcome === 'made' ? 'Conversion made' : 'Conversion missed') + phaseSwitchSuffix(phaseNext),
+      key: Date.now(),
+    });
   }
 
   async function logTallyTryConceded() {
@@ -988,8 +1026,10 @@ export function MatchLivePage() {
       fieldLengthBand: kick?.fieldLengthBand,
     });
     await load();
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterOpponentConversion());
     setActionToast({
-      text: outcome === 'made' ? 'Opp conversion made' : 'Opp conversion missed',
+      text:
+        (outcome === 'made' ? 'Opp conversion made' : 'Opp conversion missed') + phaseSwitchSuffix(phaseNext),
       key: Date.now(),
     });
   }
@@ -1013,10 +1053,9 @@ export function MatchLivePage() {
       penaltyCard: payload.penaltyCard,
     });
     await load();
-    setActionToast({
-      text: direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded',
-      key: Date.now(),
-    });
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterPenalty(direction, phase));
+    const base = direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded';
+    setActionToast({ text: base + phaseSwitchSuffix(phaseNext), key: Date.now() });
   }
 
   async function logTallySetPiecePenalty(
@@ -1047,8 +1086,9 @@ export function MatchLivePage() {
       penaltyCard: payload.penaltyCard,
     });
     await load();
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterPenalty(direction, phase));
     setActionToast({
-      text: `${label} ${setOutcome === 'won' ? 'won' : 'lost'} + penalty`,
+      text: `${label} ${setOutcome === 'won' ? 'won' : 'lost'} + penalty${phaseSwitchSuffix(phaseNext)}`,
       key: Date.now(),
     });
   }
@@ -1096,7 +1136,11 @@ export function MatchLivePage() {
       await addMatchEvent({ ...base, kind, setPieceOutcome: 'free_kick' });
     }
     await load();
-    setActionToast({ text: `${label} logged`, key: Date.now() });
+    const phaseNext =
+      choice === 'won' || choice === 'lost'
+        ? applyPhaseSwitch(suggestPhaseAfterSetPieceOutcome(choice, phase))
+        : null;
+    setActionToast({ text: `${label} logged${phaseSwitchSuffix(phaseNext)}`, key: Date.now() });
   }
 
   async function logTeamPenalty(playerId: string, payload: TeamPenaltyPayload) {
@@ -1117,10 +1161,10 @@ export function MatchLivePage() {
       zoneId: DEFAULT_LOG_ZONE,
     });
     await load();
-    setActionToast({
-      text: direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded',
-      key: Date.now(),
-    });
+    const phase = payload.playPhaseContext ?? 'attack';
+    const phaseNext = applyPhaseSwitch(suggestPhaseAfterPenalty(direction, phase));
+    const base = direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded';
+    setActionToast({ text: base + phaseSwitchSuffix(phaseNext), key: Date.now() });
   }
 
   async function onUndoDelete(id: string) {
@@ -1255,7 +1299,7 @@ export function MatchLivePage() {
             events={events}
             substitutions={substitutions}
             playersById={playersById}
-            filmTimeOffsetMs={session.filmTimeOffsetMs ?? 0}
+            filmSession={session}
             statsDetail={trackingMode === 'tally' ? 'tally' : trackingMode === 'one_tap' ? 'one_tap' : 'full'}
             onStatsDetailChange={(mode) => setTrackingMode(mode)}
             onCopySummary={() => void onCopyMatchSummary()}
@@ -1362,6 +1406,8 @@ export function MatchLivePage() {
             </div>
             {trackingMode === 'tally' ? (
               <TallyPlayerActions
+                phaseMode={livePhaseMode}
+                onPhaseModeChange={setLivePhaseMode}
                 onFieldPlayers={onFieldPlayers}
                 counts={tallyCounts}
                 owesConversion={owesConversion}
@@ -1387,6 +1433,8 @@ export function MatchLivePage() {
               />
             ) : trackingMode === 'one_tap' ? (
               <SimplePlayerActions
+                phaseMode={livePhaseMode}
+                onPhaseModeChange={setLivePhaseMode}
                 players={onFieldPlayers}
                 substituteOptions={benchOrOff}
                 disciplineBadgesByPlayerId={disciplineBadgesByPlayerId}
@@ -1477,7 +1525,7 @@ export function MatchLivePage() {
           <MatchEventTimeline
             events={events}
             playersById={playersById}
-            filmTimeOffsetMs={session.filmTimeOffsetMs ?? 0}
+            filmSession={session}
             onDelete={(id) => void onDeleteEvent(id)}
             onEditSaved={() => void load()}
           />

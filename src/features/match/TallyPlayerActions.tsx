@@ -12,6 +12,7 @@ import { TallyRosterPick } from './TallyRosterPick';
 import { TallyPenaltyInfractionPicker } from './TallyPenaltyInfractionPicker';
 import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
+import type { LivePhaseMode } from '@/domain/livePhaseMode';
 
 export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action' | 'knock_on';
 
@@ -37,6 +38,8 @@ type ScorerPick =
   | { type: 'conversion'; outcome: ConversionOutcome };
 
 type Props = {
+  phaseMode: LivePhaseMode;
+  onPhaseModeChange: (mode: LivePhaseMode) => void;
   onFieldPlayers: PlayerRecord[];
   counts: TallyCounts;
   owesConversion: boolean;
@@ -78,8 +81,6 @@ type Props = {
   onOpponentStatAdjust: (row: 'subs' | 'yc' | 'rc', delta: 1 | -1) => void;
 };
 
-type PhaseMode = 'attack' | 'defense' | 'opponent';
-
 function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   run();
   requestAnimationFrame(() => ev.currentTarget.blur());
@@ -106,6 +107,8 @@ const DEFENSE_BUTTONS: { outcome: TackleOutcome; label: string; countKey: keyof 
 ];
 
 export function TallyPlayerActions({
+  phaseMode: mode,
+  onPhaseModeChange,
   onFieldPlayers,
   counts,
   owesConversion,
@@ -125,7 +128,6 @@ export function TallyPlayerActions({
   opponentStatBoard,
   onOpponentStatAdjust,
 }: Props) {
-  const [mode, setMode] = useState<PhaseMode>('attack');
   const [scorerPick, setScorerPick] = useState<ScorerPick | null>(null);
   const [pendingGridPenalty, setPendingGridPenalty] = useState<{
     direction: PenaltyDirection;
@@ -134,8 +136,8 @@ export function TallyPlayerActions({
 
   const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
 
-  function switchMode(next: PhaseMode) {
-    setMode(next);
+  function switchMode(next: LivePhaseMode) {
+    onPhaseModeChange(next);
     setScorerPick(null);
     setPendingGridPenalty(null);
   }

@@ -10,10 +10,13 @@ import {
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   currentPeriodElapsedDisplayMs,
+  exitHalfTime,
   filmTimeForDisplay,
+  footageGapBeforeMatchMs,
   formatClock,
   formatFilmClock,
   parseMmSsToMs,
+  syncSessionVideoTimeNow,
   videoTimeDisplayMs,
   pauseGameSession,
   pauseSession,
@@ -240,6 +243,63 @@ describe('matchClock', () => {
   it('videoTimeDisplayMs uses match elapsed plus offset', () => {
     const s = baseSession({ filmTimeOffsetMs: 48_000, elapsedMsInCurrentPeriod: 90_000 });
     expect(videoTimeDisplayMs(s, 0)).toBe(138_000);
+  });
+
+  it('exitHalfTime banks footage gap for video sync', () => {
+    const s = baseSession({
+      halfTimeActive: true,
+      halfTimeStartedWallMs: 1_000,
+      elapsedMsInCurrentPeriod: 7 * 60 * 1000,
+      filmTimeOffsetMs: 48_000,
+    });
+    const resumed = exitHalfTime(s, 121_000);
+    expect(resumed.halfTimeActive).toBe(false);
+    expect(resumed.filmFootageGaps).toEqual([{ afterMatchMs: 7 * 60 * 1000, gapMs: 120_000 }]);
+    expect(footageGapBeforeMatchMs(resumed, 8 * 60 * 1000)).toBe(120_000);
+    expect(videoTimeDisplayMs(resumed, 0)).toBe(7 * 60 * 1000 + 48_000 + 120_000);
+    expect(footageGapBeforeMatchMs(resumed, 6 * 60 * 1000)).toBe(0);
+  });
+
+  it('syncSessionVideoTimeNow adjusts kickoff offset in first half', () => {
+    const s = baseSession({ filmTimeOffsetMs: 48_000, elapsedMsInCurrentPeriod: 90_000 });
+    const synced = syncSessionVideoTimeNow(s, 0, 143_000);
+    expect(synced.filmTimeOffsetMs).toBe(53_000);
+    expect(videoTimeDisplayMs(synced, 0)).toBe(143_000);
+  });
+
+  it('syncSessionVideoTimeNow adjusts banked halftime gap in second half', () => {
+    const s = baseSession({
+      filmTimeOffsetMs: 48_000,
+      elapsedMsInCurrentPeriod: 60_000,
+      cumulativeMsBeforeCurrentPeriod: 7 * 60 * 1000,
+      filmFootageGaps: [{ afterMatchMs: 7 * 60 * 1000, gapMs: 120_000 }],
+    });
+    const synced = syncSessionVideoTimeNow(s, 0, 8 * 60 * 1000 + 48_000 + 125_000);
+    expect(synced.filmTimeOffsetMs).toBe(48_000);
+    expect(synced.filmFootageGaps).toEqual([{ afterMatchMs: 7 * 60 * 1000, gapMs: 125_000 }]);
+    expect(videoTimeDisplayMs(synced, 0)).toBe(8 * 60 * 1000 + 48_000 + 125_000);
+  });
+
+  it('syncSessionVideoTimeNow shifts halftime wall anchor while HT is active', () => {
+    const s = baseSession({
+      halfTimeActive: true,
+      halfTimeStartedWallMs: 1_000,
+      elapsedMsInCurrentPeriod: 7 * 60 * 1000,
+      filmTimeOffsetMs: 48_000,
+    });
+    const synced = syncSessionVideoTimeNow(s, 61_000, 7 * 60 * 1000 + 48_000 + 55_000);
+    expect(synced.halfTimeStartedWallMs).toBe(6_000);
+    expect(videoTimeDisplayMs(synced, 61_000)).toBe(7 * 60 * 1000 + 48_000 + 55_000);
+  });
+
+  it('videoTimeDisplayMs includes in-progress halftime wall time', () => {
+    const s = baseSession({
+      halfTimeActive: true,
+      halfTimeStartedWallMs: 1_000,
+      elapsedMsInCurrentPeriod: 7 * 60 * 1000,
+      filmTimeOffsetMs: 48_000,
+    });
+    expect(videoTimeDisplayMs(s, 61_000)).toBe(7 * 60 * 1000 + 48_000 + 60_000);
   });
 
   it('resumeGameSession sets game anchor', () => {
