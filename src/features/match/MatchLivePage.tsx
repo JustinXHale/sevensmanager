@@ -19,7 +19,7 @@ import {
   advancePeriod,
   applyClockDisplaySettings,
   cumulativeMatchTimeMs,
-  currentGameElapsedDisplayMs,
+  videoTimeDisplayMs,
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   enterHalfTime,
@@ -857,7 +857,7 @@ export function MatchLivePage() {
       kind: 'film_star',
       matchTimeMs: cumulativeMatchTimeMs(session, now),
       period: session.period,
-      filmTimeMs: currentGameElapsedDisplayMs(session, now),
+      filmTimeMs: cumulativeMatchTimeMs(session, now),
     });
     await load();
     setActionToast({ text: 'Moment starred — see Timeline for film time', key: Date.now() });
@@ -873,7 +873,7 @@ export function MatchLivePage() {
       matchTimeMs: cumulativeMatchTimeMs(session, now),
       period: session.period,
       playPhaseContext: 'attack',
-      filmTimeMs: currentGameElapsedDisplayMs(session, now),
+      filmTimeMs: cumulativeMatchTimeMs(session, now),
     });
     await load();
     setActionToast({ text: 'System moment logged', key: Date.now() });
@@ -889,7 +889,7 @@ export function MatchLivePage() {
       matchTimeMs: cumulativeMatchTimeMs(session, now),
       period: session.period,
       playPhaseContext: 'defense',
-      filmTimeMs: currentGameElapsedDisplayMs(session, now),
+      filmTimeMs: cumulativeMatchTimeMs(session, now),
     });
     await load();
     setActionToast({ text: 'Forced turnover logged', key: Date.now() });
@@ -1175,6 +1175,8 @@ export function MatchLivePage() {
 
   const matchDisplayMs = currentMatchDisplayForUi(session, nowMs);
   const periodDisplayMs = currentPeriodDisplayForUi(session, nowMs);
+  const filmOffsetMs = session.filmTimeOffsetMs ?? 0;
+  const videoDisplayMs = videoTimeDisplayMs(session, nowMs);
   const clockBlink = shouldBlinkMatchThreshold(session, nowMs);
   const halfTimeElapsedMs = halfTimeElapsedDisplayMs(session, nowMs);
 
@@ -1283,6 +1285,8 @@ export function MatchLivePage() {
             periodClockMode={session.periodClockDisplayMode ?? 'up'}
             matchDisplayMs={matchDisplayMs}
             periodDisplayMs={periodDisplayMs}
+            filmTimeOffsetMs={filmOffsetMs}
+            videoDisplayMs={videoDisplayMs}
             shouldBlink={clockBlink}
             running={session.clockRunning}
             halfTimeActive={!!session.halfTimeActive}

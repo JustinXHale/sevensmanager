@@ -360,3 +360,8 @@ export function formatFilmClock(rawMs: number | undefined, offsetMs = 0): string
   if (displayMs == null) return null;
   return formatClock(displayMs);
 }
+
+/** Video player position: match elapsed + film offset (see clock settings). */
+export function videoTimeDisplayMs(session: MatchSessionRecord, nowMs: number): number {
+  return cumulativeMatchTimeMs(session, nowMs) + filmTimeOffsetMs(session);
+}

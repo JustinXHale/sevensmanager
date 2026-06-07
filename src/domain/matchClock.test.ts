@@ -14,6 +14,7 @@ import {
   formatClock,
   formatFilmClock,
   parseMmSsToMs,
+  videoTimeDisplayMs,
   pauseGameSession,
   pauseSession,
   resumeGameSession,
@@ -234,6 +235,11 @@ describe('matchClock', () => {
     expect(filmTimeForDisplay(60_000, 48_000)).toBe(108_000);
     expect(formatFilmClock(60_000, 48_000)).toBe('1:48');
     expect(formatFilmClock(undefined, 48_000)).toBeNull();
+  });
+
+  it('videoTimeDisplayMs uses match elapsed plus offset', () => {
+    const s = baseSession({ filmTimeOffsetMs: 48_000, elapsedMsInCurrentPeriod: 90_000 });
+    expect(videoTimeDisplayMs(s, 0)).toBe(138_000);
   });
 
   it('resumeGameSession sets game anchor', () => {

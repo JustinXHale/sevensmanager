@@ -2617,12 +2617,38 @@ a.live-tab:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.ref-clk-digits-row {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  line-height: 1;
+  min-width: 3.25rem;
+}
+
+.ref-clk-digits-row.ref-clk-digits--neg .ref-clk-digits {
+  color: #f87171;
+}
+
+.ref-clk-digits-row.ref-clk-digits--warn .ref-clk-digits {
+  animation: ref-clk-blink 1s linear infinite;
+  color: #fbbf24;
+}
+
 .ref-clk-digits {
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1;
   color: var(--text);
-  min-width: 3.25rem;
+  min-width: 0;
+}
+
+.ref-clk-digits--video {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .ref-clk-tap {

@@ -24,6 +24,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Clock settings **Film / video sync**: set video time at match 0:00 (e.g. 0:48) so starred moments and film bookmarks match your player timeline
+- Live match clock shows **video time in parentheses** beside match time when a film offset is set (e.g. `3:45 (4:33)`)
 
 ### Changed
 - Clock settings: **Period** moved below time fields and uses a dropdown (avoids mobile keyboard opening on dialog open)

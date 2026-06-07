@@ -11,6 +11,9 @@ type Props = {
   matchDisplayMs: number;
   /** Current period row (elapsed or remaining). */
   periodDisplayMs: number;
+  /** Video player position (match elapsed + film offset). Shown beside match when offset is set. */
+  filmTimeOffsetMs?: number;
+  videoDisplayMs?: number;
   shouldBlink: boolean;
   running: boolean;
   halfTimeActive: boolean;
@@ -42,6 +45,8 @@ export function RefClockBar({
   periodClockMode,
   matchDisplayMs,
   periodDisplayMs,
+  filmTimeOffsetMs = 0,
+  videoDisplayMs = 0,
   shouldBlink,
   running,
   halfTimeActive,
@@ -63,6 +68,7 @@ export function RefClockBar({
   const matchLabel = matchClockMode === 'down' ? 'Match ↓' : 'Match';
   const periodLabel = periodClockMode === 'down' ? `P${period} ↓` : `P${period}`;
   const clockLocked = halfTimeActive || matchComplete;
+  const showVideoTime = filmTimeOffsetMs > 0;
 
   return (
     <div
@@ -90,10 +96,16 @@ export function RefClockBar({
               <div className="ref-clk-block ref-clk-block--match">
                 <span className="ref-clk-block-label">{matchLabel}</span>
                 <span
-                  className={`ref-clk-digits${warn}${matchDisplayMs < 0 ? ' ref-clk-digits--neg' : ''}`}
+                  className={`ref-clk-digits-row${warn}${matchDisplayMs < 0 ? ' ref-clk-digits--neg' : ''}`}
                   aria-live="polite"
+                  title={showVideoTime ? 'Match time (video time in parentheses)' : undefined}
                 >
-                  {formatClock(matchDisplayMs)}
+                  <span className="ref-clk-digits">{formatClock(matchDisplayMs)}</span>
+                  {showVideoTime ? (
+                    <span className="ref-clk-digits ref-clk-digits--video" aria-label={`Video time ${formatClock(videoDisplayMs)}`}>
+                      ({formatClock(videoDisplayMs)})
+                    </span>
+                  ) : null}
                 </span>
               </div>
               <button

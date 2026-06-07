@@ -5,7 +5,6 @@ import {
   applyClockDisplaySettings,
   bankedMatchMsBeforeCurrentPeriod,
   cumulativeMatchTimeMs,
-  currentGameElapsedDisplayMs,
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   currentPeriodElapsedDisplayMs,
@@ -98,9 +97,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   const filmOffsetPreviewMs = session
     ? parseMmSsToMs(filmOffsetStr) ?? filmTimeOffsetMs(session)
     : 0;
-  const videoNowMs = session
-    ? currentGameElapsedDisplayMs(session, nowMs) + filmOffsetPreviewMs
-    : 0;
+  const videoNowMs = session ? cumulativeMatchTimeMs(session, nowMs) + filmOffsetPreviewMs : 0;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -310,7 +307,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
           <legend className="ref-clock-settings-legend">Film / video sync</legend>
           <p className="muted ref-clock-settings-hint">
             When match time is <strong>0:00</strong>, where does kickoff sit on your video file? Starred moments and
-            film bookmarks show <strong>video time</strong> (match film clock + this offset).
+            film bookmarks, and the live match clock show <strong>video time</strong> (match elapsed + this offset).
           </p>
           <div className="field ref-clock-settings-field">
             <span>Video time at match 0:00</span>
