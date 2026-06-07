@@ -8,6 +8,11 @@ type Props = {
   countOnField: number;
   /** When false, status is changed via drag board only. */
   showStatusTags?: boolean;
+  showSortControls?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onDragHandlePointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void;
   isDragging?: boolean;
 };
@@ -21,6 +26,11 @@ export function RosterPlayerCard({
   onRemove,
   countOnField,
   showStatusTags = true,
+  showSortControls = false,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
   onDragHandlePointerDown,
   isDragging = false,
 }: Props) {
@@ -63,6 +73,28 @@ export function RosterPlayerCard({
               {s === 'on' ? 'On' : s === 'bench' ? 'Bench' : 'Off'}
             </button>
           ))}
+        </div>
+      ) : null}
+      {showSortControls ? (
+        <div className="roster-row-sort" role="group" aria-label={`Reorder #${player.number}`}>
+          <button
+            type="button"
+            className="roster-row-sort-btn"
+            disabled={!canMoveUp}
+            aria-label={`Move #${player.number} up`}
+            onClick={onMoveUp}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className="roster-row-sort-btn"
+            disabled={!canMoveDown}
+            aria-label={`Move #${player.number} down`}
+            onClick={onMoveDown}
+          >
+            ↓
+          </button>
         </div>
       ) : null}
       <button

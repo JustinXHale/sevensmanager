@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import type { PlayerRecord, PlayerStatus } from '@/domain/player';
 import { ON_FIELD_MAX } from '@/domain/player';
+import type { RosterDisplayOrders } from '@/domain/rosterDisplay';
+import { orderPlayersInStatus } from '@/domain/rosterDisplay';
 import { RosterPlayerCard } from './RosterPlayerCard';
 
 const ZONES: { status: PlayerStatus; title: string; hint: string }[] = [
@@ -9,48 +11,90 @@ const ZONES: { status: PlayerStatus; title: string; hint: string }[] = [
   { status: 'off', title: 'Off', hint: 'Not in squad' },
 ];
 
+type DropTarget = { zone: PlayerStatus; beforeId: string | null };
+
 type Props = {
   players: PlayerRecord[];
+  displayOrders: RosterDisplayOrders;
   countOnField: number;
-  onMove: (playerId: string, status: PlayerStatus) => void;
+  onMoveToZone: (playerId: string, zone: PlayerStatus, beforeId: string | null) => void;
+  onReorder: (zone: PlayerStatus, order: string[]) => void;
+  onMoveInZone: (zone: PlayerStatus, playerId: string, direction: 'up' | 'down') => void;
   onNameCommit: (playerId: string, name: string) => void;
   onRemove: (playerId: string) => void;
 };
 
-function sortInZone(a: PlayerRecord, b: PlayerRecord): number {
-  const an = a.number ?? 999;
-  const bn = b.number ?? 999;
-  if (an !== bn) return an - bn;
-  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+function orderKey(status: PlayerStatus): keyof RosterDisplayOrders {
+  return status;
 }
 
 export function RosterDragBoard({
   players,
+  displayOrders,
   countOnField,
-  onMove,
+  onMoveToZone,
+  onReorder,
+  onMoveInZone,
   onNameCommit,
   onRemove,
 }: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverZone, setHoverZone] = useState<PlayerStatus | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const byZone = (status: PlayerStatus) =>
-    players.filter((p) => p.status === status).sort(sortInZone);
+  const listForZone = (status: PlayerStatus) =>
+    orderPlayersInStatus(
+      players,
+      status,
+      displayOrders[orderKey(status)],
+      status === 'on' ? ON_FIELD_MAX : undefined,
+    );
 
-  const resolveZoneAt = useCallback((clientX: number, clientY: number): PlayerStatus | null => {
+  const resolveDropTarget = useCallback((clientX: number, clientY: number): DropTarget | null => {
     const el = document.elementFromPoint(clientX, clientY);
-    const zone = el?.closest<HTMLElement>('[data-roster-zone]');
-    const v = zone?.dataset.rosterZone;
-    if (v === 'on' || v === 'bench' || v === 'off') return v;
+    const item = el?.closest<HTMLElement>('[data-roster-drop-target]');
+    if (item) {
+      const zoneEl = item.closest<HTMLElement>('[data-roster-zone]');
+      const zone = zoneEl?.dataset.rosterZone;
+      if (zone === 'on' || zone === 'bench' || zone === 'off') {
+        const beforeId = item.dataset.rosterDropTarget || null;
+        return { zone, beforeId: beforeId || null };
+      }
+    }
+    const zoneEl = el?.closest<HTMLElement>('[data-roster-zone]');
+    const zone = zoneEl?.dataset.rosterZone;
+    if (zone === 'on' || zone === 'bench' || zone === 'off') {
+      return { zone, beforeId: null };
+    }
     return null;
   }, []);
 
+  function applyDrop(playerId: string, target: DropTarget) {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+    if (player.status === target.zone) {
+      const order = displayOrders[orderKey(target.zone)];
+      const next = [...order.filter((id) => id !== playerId)];
+      if (target.beforeId === null) {
+        next.push(playerId);
+      } else {
+        const idx = next.indexOf(target.beforeId);
+        if (idx === -1) next.push(playerId);
+        else next.splice(idx, 0, playerId);
+      }
+      onReorder(target.zone, next);
+      return;
+    }
+    onMoveToZone(playerId, target.zone, target.beforeId);
+  }
+
   function finishDrag(playerId: string, clientX: number, clientY: number) {
-    const zone = resolveZoneAt(clientX, clientY);
-    if (zone) onMove(playerId, zone);
+    const target = resolveDropTarget(clientX, clientY);
+    if (target) applyDrop(playerId, target);
     setDraggingId(null);
     setHoverZone(null);
+    setDropTarget(null);
   }
 
   function onDragStart(playerId: string, e: React.DragEvent) {
@@ -62,20 +106,33 @@ export function RosterDragBoard({
   function onDragEnd() {
     setDraggingId(null);
     setHoverZone(null);
+    setDropTarget(null);
   }
 
-  function onZoneDragOver(status: PlayerStatus, e: React.DragEvent) {
+  function onItemDragOver(playerId: string, zone: PlayerStatus, e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setHoverZone(zone);
+    setDropTarget({ zone, beforeId: playerId });
+  }
+
+  function onZoneDragOver(zone: PlayerStatus, e: React.DragEvent) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setHoverZone(status);
+    setHoverZone(zone);
+    if (!dropTarget || dropTarget.zone !== zone) {
+      setDropTarget({ zone, beforeId: null });
+    }
   }
 
-  function onZoneDrop(status: PlayerStatus, e: React.DragEvent) {
+  function onZoneDrop(zone: PlayerStatus, e: React.DragEvent) {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain') || draggingId;
-    if (id) onMove(id, status);
-    setDraggingId(null);
-    setHoverZone(null);
+    if (!id) return;
+    const target = dropTarget ?? { zone, beforeId: null };
+    applyDrop(id, target);
+    onDragEnd();
   }
 
   function onHandlePointerDown(playerId: string, e: React.PointerEvent<HTMLButtonElement>) {
@@ -87,7 +144,11 @@ export function RosterDragBoard({
 
   function onBoardPointerMove(e: React.PointerEvent) {
     if (!draggingId) return;
-    setHoverZone(resolveZoneAt(e.clientX, e.clientY));
+    const target = resolveDropTarget(e.clientX, e.clientY);
+    if (target) {
+      setHoverZone(target.zone);
+      setDropTarget(target);
+    }
   }
 
   function onBoardPointerUp(e: React.PointerEvent) {
@@ -98,6 +159,7 @@ export function RosterDragBoard({
   function onBoardPointerCancel() {
     setDraggingId(null);
     setHoverZone(null);
+    setDropTarget(null);
   }
 
   return (
@@ -108,9 +170,11 @@ export function RosterDragBoard({
       onPointerUp={onBoardPointerUp}
       onPointerCancel={onBoardPointerCancel}
     >
-      <p className="muted roster-drag-hint">Drag players between groups using the handle (⠿).</p>
+      <p className="muted roster-drag-hint">
+        Drag between groups or drop on a row to set position. Use ↑↓ to nudge order (e.g. 8, 2, 5, 7).
+      </p>
       {ZONES.map(({ status, title, hint }) => {
-        const list = byZone(status);
+        const list = listForZone(status);
         const full = status === 'on' && countOnField >= ON_FIELD_MAX;
         return (
           <section
@@ -121,7 +185,10 @@ export function RosterDragBoard({
             data-roster-zone={status}
             aria-label={`${title}: ${list.length} players`}
             onDragOver={(e) => onZoneDragOver(status, e)}
-            onDragLeave={() => setHoverZone((z) => (z === status ? null : z))}
+            onDragLeave={() => {
+              setHoverZone((z) => (z === status ? null : z));
+              setDropTarget((t) => (t?.zone === status ? null : t));
+            }}
             onDrop={(e) => onZoneDrop(status, e)}
           >
             <header className="roster-drag-zone-head">
@@ -135,29 +202,59 @@ export function RosterDragBoard({
             </header>
             <ul className="roster-drag-zone-list">
               {list.length === 0 ? (
-                <li className="roster-drag-zone-empty muted">Drop players here</li>
+                <li
+                  className="roster-drag-zone-empty muted"
+                  data-roster-drop-target=""
+                  onDragOver={(e) => onZoneDragOver(status, e)}
+                  onDrop={(e) => onZoneDrop(status, e)}
+                >
+                  Drop players here
+                </li>
               ) : (
-                list.map((p) => (
-                  <li
-                    key={p.id}
-                    className={`roster-drag-zone-item${draggingId === p.id ? ' roster-drag-zone-item--dragging' : ''}`}
-                    draggable
-                    onDragStart={(e) => onDragStart(p.id, e)}
-                    onDragEnd={onDragEnd}
-                  >
-                    <RosterPlayerCard
-                      player={p}
-                      countOnField={countOnField}
-                      showStatusTags={false}
-                      onNameCommit={(name) => onNameCommit(p.id, name)}
-                      onStatusChange={() => {}}
-                      onRemove={() => onRemove(p.id)}
-                      onDragHandlePointerDown={(e) => onHandlePointerDown(p.id, e)}
-                      isDragging={draggingId === p.id}
-                    />
-                  </li>
-                ))
+                list.map((p, index) => {
+                  const isInsertBefore =
+                    dropTarget?.zone === status && dropTarget.beforeId === p.id && draggingId !== p.id;
+                  return (
+                    <li
+                      key={p.id}
+                      className={`roster-drag-zone-item${
+                        draggingId === p.id ? ' roster-drag-zone-item--dragging' : ''
+                      }${isInsertBefore ? ' roster-drag-zone-item--insert-before' : ''}`}
+                      data-roster-drop-target={p.id}
+                      draggable
+                      onDragStart={(e) => onDragStart(p.id, e)}
+                      onDragEnd={onDragEnd}
+                      onDragOver={(e) => onItemDragOver(p.id, status, e)}
+                      onDrop={(e) => onZoneDrop(status, e)}
+                    >
+                      <RosterPlayerCard
+                        player={p}
+                        countOnField={countOnField}
+                        showStatusTags={false}
+                        showSortControls
+                        canMoveUp={index > 0}
+                        canMoveDown={index < list.length - 1}
+                        onMoveUp={() => onMoveInZone(status, p.id, 'up')}
+                        onMoveDown={() => onMoveInZone(status, p.id, 'down')}
+                        onNameCommit={(name) => onNameCommit(p.id, name)}
+                        onStatusChange={() => {}}
+                        onRemove={() => onRemove(p.id)}
+                        onDragHandlePointerDown={(e) => onHandlePointerDown(p.id, e)}
+                        isDragging={draggingId === p.id}
+                      />
+                    </li>
+                  );
+                })
               )}
+              {list.length > 0 ? (
+                <li
+                  className="roster-drag-zone-append"
+                  data-roster-drop-target=""
+                  onDragOver={(e) => onZoneDragOver(status, e)}
+                  onDrop={(e) => onZoneDrop(status, e)}
+                  aria-hidden
+                />
+              ) : null}
             </ul>
           </section>
         );

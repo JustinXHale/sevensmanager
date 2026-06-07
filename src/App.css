@@ -1802,6 +1802,46 @@
   opacity: 0.55;
 }
 
+.roster-drag-zone-item--insert-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.roster-drag-zone-append {
+  min-height: 0.35rem;
+  list-style: none;
+}
+
+.roster-row-sort {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.roster-row-sort-btn {
+  width: 1.35rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.roster-row-sort-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: #1a222d;
+}
+
+.roster-row-sort-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
 .roster-row-compact--dragging {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   border-color: var(--accent);

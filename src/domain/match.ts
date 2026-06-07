@@ -77,6 +77,12 @@ export interface MatchSessionRecord {
   matchComplete?: boolean;
   /** Wall time when match was ended (optional display). */
   matchCompleteWallMs?: number;
+  /** Custom row order for on-field players in live tracking (player ids). */
+  onFieldDisplayOrder?: string[];
+  /** Custom row order for bench players in the roster tab (player ids). */
+  benchDisplayOrder?: string[];
+  /** Custom row order for off-squad players in the roster tab (player ids). */
+  offDisplayOrder?: string[];
 }
 
 /** Max period segment index (advance wraps to 1). */

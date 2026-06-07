@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { defaultSessionForMatch, type MatchRecord, type MatchSessionRecord } from '@/domain/match';
 import { cumulativeMatchTimeMs, formatClock } from '@/domain/matchClock';
-import { countByStatus, dedupeSquadPlayers, sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
+import {
+  countByStatus,
+  dedupeSquadPlayers,
+  insertIdInOrder,
+  moveIdInOrder,
+  orderPlayersInStatus,
+  ordersEqual,
+  reconcileAllRosterOrders,
+  sortPlayersRefLogStyle,
+  type RosterDisplayOrders,
+} from '@/domain/rosterDisplay';
 import type { PlayerRecord, PlayerStatus } from '@/domain/player';
 import { ON_FIELD_MAX } from '@/domain/player';
 import { derivedFixtureLabel } from '@/domain/matchDisplay';
@@ -28,10 +38,23 @@ type Props = {
   embedded?: boolean;
 };
 
+function orderKey(status: PlayerStatus): keyof RosterDisplayOrders {
+  return status;
+}
+
+function sessionOrders(sess: MatchSessionRecord | null | undefined): Partial<RosterDisplayOrders> {
+  return {
+    on: sess?.onFieldDisplayOrder,
+    bench: sess?.benchDisplayOrder,
+    off: sess?.offDisplayOrder,
+  };
+}
+
 export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }: Props) {
   const [match, setMatch] = useState<MatchRecord | null | undefined>(undefined);
   const [session, setSession] = useState<MatchSessionRecord | null | undefined>(undefined);
   const [players, setPlayers] = useState<PlayerRecord[]>([]);
+  const [displayOrders, setDisplayOrders] = useState<RosterDisplayOrders>({ on: [], bench: [], off: [] });
   const [subs, setSubs] = useState<Awaited<ReturnType<typeof listSubstitutions>>>([]);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const sortByStatus = true;
@@ -45,6 +68,21 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
   const notify = useCallback(() => {
     onRosterUpdated?.();
   }, [onRosterUpdated]);
+
+  const persistOrders = useCallback(
+    async (sess: MatchSessionRecord, orders: RosterDisplayOrders) => {
+      const next: MatchSessionRecord = {
+        ...sess,
+        onFieldDisplayOrder: orders.on,
+        benchDisplayOrder: orders.bench,
+        offDisplayOrder: orders.off,
+      };
+      await saveSession(next);
+      setSession(next);
+      setDisplayOrders(orders);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
     const [m, s] = await Promise.all([getMatch(matchId), getSession(matchId)]);
@@ -68,7 +106,19 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
     const pl = sortPlayersRefLogStyle(dedupeSquadPlayers(plRaw), sortByStatus);
     setPlayers(pl);
     setSubs(sb);
-  }, [matchId, sortByStatus]);
+
+    if (sess) {
+      const reconciled = reconcileAllRosterOrders(pl, sessionOrders(sess));
+      setDisplayOrders(reconciled);
+      const stale =
+        !ordersEqual(reconciled.on, sess.onFieldDisplayOrder) ||
+        !ordersEqual(reconciled.bench, sess.benchDisplayOrder) ||
+        !ordersEqual(reconciled.off, sess.offDisplayOrder);
+      if (stale) {
+        await persistOrders(sess, reconciled);
+      }
+    }
+  }, [matchId, sortByStatus, persistOrders]);
 
   useEffect(() => {
     void load();
@@ -80,10 +130,16 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
     return () => window.clearInterval(id);
   }, [session?.clockRunning]);
 
-  const onField = useMemo(() => players.filter((p) => p.status === 'on'), [players]);
+  const onField = useMemo(
+    () => orderPlayersInStatus(players, 'on', displayOrders.on, ON_FIELD_MAX),
+    [players, displayOrders.on],
+  );
   const benchOrOff = useMemo(
-    () => players.filter((p) => p.status === 'bench' || p.status === 'off'),
-    [players],
+    () => [
+      ...orderPlayersInStatus(players, 'bench', displayOrders.bench),
+      ...orderPlayersInStatus(players, 'off', displayOrders.off),
+    ],
+    [players, displayOrders.bench, displayOrders.off],
   );
 
   const playerById = useMemo(() => {
@@ -101,14 +157,48 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
     notify();
   }
 
-  async function onStatusChange(playerId: string, next: PlayerStatus) {
+  async function saveReordered(zone: PlayerStatus, order: string[]) {
+    if (!session) return;
+    const reconciled = reconcileAllRosterOrders(players, {
+      ...displayOrders,
+      [orderKey(zone)]: order,
+    });
+    await persistOrders(session, reconciled);
+    notify();
+  }
+
+  async function onMoveInZone(zone: PlayerStatus, playerId: string, direction: 'up' | 'down') {
+    const key = orderKey(zone);
+    const next = moveIdInOrder(displayOrders[key], playerId, direction);
+    if (!next) return;
+    await saveReordered(zone, next);
+  }
+
+  async function onMoveToZone(playerId: string, zone: PlayerStatus, beforeId: string | null) {
+    if (!session) return;
     setBanner(null);
-    const r = await updatePlayerStatus(playerId, next);
-    if (r === 'toomanyon') {
-      setBanner(`At most ${ON_FIELD_MAX} players can be on field.`);
-      return;
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+
+    if (player.status !== zone) {
+      const r = await updatePlayerStatus(playerId, zone);
+      if (r === 'toomanyon') {
+        setBanner(`At most ${ON_FIELD_MAX} players can be on field.`);
+        return;
+      }
     }
-    await load();
+
+    const updatedPlayers = players.map((p) => (p.id === playerId ? { ...p, status: zone } : p));
+    const stripped: RosterDisplayOrders = {
+      on: displayOrders.on.filter((id) => id !== playerId),
+      bench: displayOrders.bench.filter((id) => id !== playerId),
+      off: displayOrders.off.filter((id) => id !== playerId),
+    };
+    const key = orderKey(zone);
+    stripped[key] = insertIdInOrder(stripped[key], playerId, beforeId);
+    const reconciled = reconcileAllRosterOrders(updatedPlayers, stripped);
+    await persistOrders(session, reconciled);
+    setPlayers(updatedPlayers);
     notify();
   }
 
@@ -136,7 +226,19 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
       return;
     }
     setSubOpen(false);
-    await load();
+
+    const plRaw = await listPlayers(matchId, sortByStatus);
+    const pl = sortPlayersRefLogStyle(dedupeSquadPlayers(plRaw), sortByStatus);
+    setPlayers(pl);
+
+    let onOrder = displayOrders.on;
+    const idx = onOrder.indexOf(subOffId);
+    if (idx !== -1) {
+      onOrder = [...onOrder];
+      onOrder[idx] = subOnId;
+    }
+    const reconciled = reconcileAllRosterOrders(pl, { ...displayOrders, on: onOrder });
+    await persistOrders(session, reconciled);
     notify();
   }
 
@@ -180,8 +282,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
           </>
         )}
         <p className="muted roster-seed-note">
-          Drag players between On field, Bench, and Off. Up to {ON_FIELD_MAX} on field. Names sync from admin when
-          linked to a team.
+          Drag or use ↑↓ to set order in each group (e.g. on-field 8, 2, 5, 7). Up to {ON_FIELD_MAX} on field.
         </p>
 
         {banner ? <p className="error-text">{banner}</p> : null}
@@ -215,8 +316,11 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
 
               <RosterDragBoard
                 players={players}
+                displayOrders={displayOrders}
                 countOnField={countOnField}
-                onMove={(id, status) => void onStatusChange(id, status)}
+                onMoveToZone={(id, zone, beforeId) => void onMoveToZone(id, zone, beforeId)}
+                onReorder={(zone, order) => void saveReordered(zone, order)}
+                onMoveInZone={(zone, id, dir) => void onMoveInZone(zone, id, dir)}
                 onNameCommit={(id, name) => void onNameCommit(id, name)}
                 onRemove={(id) => void onRemovePlayer(id)}
               />

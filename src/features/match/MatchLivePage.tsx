@@ -58,6 +58,7 @@ import { derivedFixtureLabel } from '@/domain/matchDisplay';
 import {
   dedupeSquadPlayers,
   orderOnFieldPlayers,
+  ordersEqual,
   reconcileOnFieldOrder,
   sortPlayersRefLogStyle,
 } from '@/domain/rosterDisplay';
@@ -198,28 +199,28 @@ export function MatchLivePage() {
     setEvents(ev);
     setPlayers(pl);
     setSubstitutions(sub);
-    setOnFieldDisplayOrder((prev) => {
-      if (swap) {
-        const base = prev ?? reconcileOnFieldOrder(null, pl);
-        const idx = base.indexOf(swap.playerOffId);
-        if (idx !== -1) {
-          const swapped = [...base];
-          swapped[idx] = swap.playerOnId;
-          return reconcileOnFieldOrder(swapped, pl);
-        }
+    let onOrder = sess?.onFieldDisplayOrder ?? null;
+    if (swap) {
+      const base = onOrder ?? reconcileOnFieldOrder(null, pl);
+      const idx = base.indexOf(swap.playerOffId);
+      if (idx !== -1) {
+        const swapped = [...base];
+        swapped[idx] = swap.playerOnId;
+        onOrder = swapped;
       }
-      return reconcileOnFieldOrder(prev, pl);
-    });
+    }
+    const reconciledOn = reconcileOnFieldOrder(onOrder, pl);
+    setOnFieldDisplayOrder(reconciledOn);
+    if (sess && !ordersEqual(reconciledOn, sess.onFieldDisplayOrder)) {
+      await saveSession({ ...sess, onFieldDisplayOrder: reconciledOn });
+      setSession({ ...sess, onFieldDisplayOrder: reconciledOn });
+    }
     return pl;
   }, [matchId]);
 
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    setOnFieldDisplayOrder(null);
-  }, [matchId]);
 
   useEffect(() => {
     setTeamHeader({
