@@ -15,6 +15,7 @@ import {
   footageGapBeforeMatchMs,
   formatClock,
   formatFilmClock,
+  normalizeMmSsInput,
   parseMmSsToMs,
   syncSessionVideoTimeNow,
   videoTimeDisplayMs,
@@ -159,6 +160,19 @@ describe('matchClock', () => {
     expect(parseMmSsToMs('0:05')).toBe(5000);
     expect(parseMmSsToMs('-1:30')).toBe(-90_000);
     expect(parseMmSsToMs('bad')).toBeNull();
+  });
+
+  it('parseMmSsToMs accepts digits-only for numeric keyboards', () => {
+    expect(parseMmSsToMs('48')).toBe(48_000);
+    expect(parseMmSsToMs('1048')).toBe(10 * 60 * 1000 + 48_000);
+    expect(parseMmSsToMs('-130')).toBe(-90_000);
+  });
+
+  it('normalizeMmSsInput formats digits as m:ss', () => {
+    expect(normalizeMmSsInput('48')).toBe('0:48');
+    expect(normalizeMmSsInput('1048')).toBe('10:48');
+    expect(normalizeMmSsInput('12:34')).toBe('12:34');
+    expect(normalizeMmSsInput('-130')).toBe('-1:30');
   });
 
   it('currentPeriodDisplayForUi shows remaining when countdown', () => {

@@ -11,6 +11,7 @@ import {
   DEFAULT_MATCH_COUNTDOWN_MS,
   filmTimeOffsetMs,
   formatClock,
+  normalizeMmSsInput,
   parseMmSsToMs,
   totalFootageGapMs,
   videoTimeDisplayMs,
@@ -81,6 +82,12 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   function previewVideoNowMs(nextOffsetMs: number): number {
     if (!session) return 0;
     return videoTimeDisplayMs({ ...session, filmTimeOffsetMs: nextOffsetMs }, nowMs);
+  }
+
+  function blurMmSs(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '-') return value;
+    return normalizeMmSsInput(trimmed);
   }
 
   function handleFilmOffsetChange(value: string) {
@@ -239,8 +246,10 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
               type="text"
               className="filter-select"
               inputMode="numeric"
+              autoComplete="off"
               value={matchLenStr}
               onChange={(e) => setMatchLenStr(e.target.value)}
+              onBlur={(e) => setMatchLenStr(blurMmSs(e.target.value))}
               placeholder="14:00"
               aria-label="Match regulation length m:ss"
             />
@@ -281,8 +290,10 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
             type="text"
             className="filter-select"
             inputMode="numeric"
+            autoComplete="off"
             value={countdownLenStr}
             onChange={(e) => setCountdownLenStr(e.target.value)}
+            onBlur={(e) => setCountdownLenStr(blurMmSs(e.target.value))}
             placeholder="7:00"
             aria-label="Period length m:ss"
           />
@@ -294,8 +305,10 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
             type="text"
             className="filter-select"
             inputMode="numeric"
+            autoComplete="off"
             value={matchStr}
             onChange={(e) => setMatchStr(e.target.value)}
+            onBlur={(e) => setMatchStr(blurMmSs(e.target.value))}
             placeholder={matchMode === 'up' ? '0:00' : '-0:30'}
             aria-label="Match time"
           />
@@ -317,8 +330,10 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
             type="text"
             className="filter-select"
             inputMode="numeric"
+            autoComplete="off"
             value={periodStr}
             onChange={(e) => setPeriodStr(e.target.value)}
+            onBlur={(e) => setPeriodStr(blurMmSs(e.target.value))}
             placeholder={periodMode === 'up' ? '0:00' : '-0:30'}
             aria-label="Period time"
           />
@@ -330,7 +345,8 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
             When match time is <strong>0:00</strong>, where does kickoff sit on your video file? Halftime on
             footage is banked when you tap <strong>Resume match</strong> after HT. To fix drift, set{' '}
             <strong>Video time right now</strong> to what your player shows — first half adjusts the kickoff
-            offset; second half adjusts the halftime gap.
+            offset; second half adjusts the halftime gap. On the number pad, type digits only (e.g.{' '}
+            <strong>1048</strong> → <strong>10:48</strong>) — no colon needed.
           </p>
           <div className="field ref-clock-settings-field">
             <span>Video time at match 0:00</span>
@@ -338,10 +354,15 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
               type="text"
               className="filter-select"
               inputMode="numeric"
+              autoComplete="off"
               value={filmOffsetStr}
               onChange={(e) => handleFilmOffsetChange(e.target.value)}
-              placeholder="0:48"
-              aria-label="Video time at match zero m:ss"
+              onBlur={(e) => {
+                const next = blurMmSs(e.target.value);
+                handleFilmOffsetChange(next);
+              }}
+              placeholder="48"
+              aria-label="Video time at match zero — digits only, e.g. 48 for 0:48"
             />
           </div>
           <div className="field ref-clock-settings-field">
@@ -350,10 +371,12 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
               type="text"
               className="filter-select"
               inputMode="numeric"
+              autoComplete="off"
               value={videoNowStr}
               onChange={(e) => setVideoNowStr(e.target.value)}
-              placeholder="12:34"
-              aria-label="Video player position right now m:ss"
+              onBlur={(e) => setVideoNowStr(blurMmSs(e.target.value))}
+              placeholder="1234"
+              aria-label="Video player position right now — digits only, e.g. 1234 for 12:34"
             />
           </div>
           {session && bankedGapMs > 0 ? (

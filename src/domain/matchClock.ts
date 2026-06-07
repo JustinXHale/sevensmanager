@@ -142,12 +142,33 @@ export function currentPeriodDisplayForUi(session: MatchSessionRecord, nowMs: nu
   return len - elapsed;
 }
 
-/** Parse `m:ss` or `mm:ss` (e.g. 7:00, 12:34). Leading `-` for negative (e.g. -1:30). */
+/**
+ * Format typed digits as m:ss (last two digits = seconds). Keeps manual colons as-is.
+ * e.g. 48 → 0:48, 1048 → 10:48. For mobile numeric keyboards that omit ":".
+ */
+export function normalizeMmSsInput(input: string): string {
+  const t = input.trim();
+  const neg = t.startsWith('-');
+  const body = neg ? t.slice(1).trim() : t;
+  if (body.includes(':')) {
+    return neg ? `-${body}` : body;
+  }
+  const digits = body.replace(/\D/g, '').slice(0, 6);
+  if (!digits) return neg ? '-' : '';
+  const formatted =
+    digits.length <= 2
+      ? `0:${digits.padStart(2, '0')}`
+      : `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+  return neg ? `-${formatted}` : formatted;
+}
+
+/** Parse `m:ss` or `mm:ss` (e.g. 7:00, 12:34). Digits-only (e.g. 1048) also accepted. Leading `-` for negative. */
 export function parseMmSsToMs(input: string): number | null {
   const t = input.trim();
   const neg = t.startsWith('-');
   const rest = neg ? t.slice(1).trim() : t;
-  const m = /^(\d+):(\d{2})$/.exec(rest);
+  const normalized = rest.includes(':') ? rest : normalizeMmSsInput(rest);
+  const m = /^(\d+):(\d{2})$/.exec(normalized);
   if (!m) return null;
   const min = parseInt(m[1], 10);
   const sec = parseInt(m[2], 10);
