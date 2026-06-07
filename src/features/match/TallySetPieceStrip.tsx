@@ -1,4 +1,5 @@
-import type { MatchEventKind, PlayPhaseContext } from '@/domain/matchEvent';
+import { useEffect, useState } from 'react';
+import type { MatchEventKind, PlayPhaseContext, RuckContest } from '@/domain/matchEvent';
 
 export type TallySetPieceChoice =
   | 'won'
@@ -37,9 +38,21 @@ const OUTCOME_BUTTONS: {
   },
 ];
 
+const RUCK_CONTEST_BUTTONS: { contest: RuckContest; label: string; title: string }[] = [
+  { contest: 'contested', label: 'Con', title: 'Contested' },
+  { contest: 'uncontested', label: 'Unc', title: 'Uncontested' },
+];
+
+type PendingRuck = { choice: 'won' | 'lost'; phase: PlayPhaseContext };
+
 type Props = {
   phase: PlayPhaseContext;
-  onChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
+  onChoice: (
+    kind: MatchEventKind,
+    choice: TallySetPieceChoice,
+    phase: PlayPhaseContext,
+    ruckContest?: RuckContest,
+  ) => void;
 };
 
 function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
@@ -55,30 +68,89 @@ function setPieceKindLabel(kind: MatchEventKind, phase: PlayPhaseContext, baseLa
 }
 
 export function TallySetPieceStrip({ phase, onChoice }: Props) {
+  const [pendingRuck, setPendingRuck] = useState<PendingRuck | null>(null);
+
+  useEffect(() => {
+    setPendingRuck(null);
+  }, [phase]);
+
+  function completeRuck(contest: RuckContest) {
+    if (!pendingRuck) return;
+    onChoice('ruck', pendingRuck.choice, pendingRuck.phase, contest);
+    setPendingRuck(null);
+  }
+
   return (
     <div className="tally-setpiece-strip" aria-label={`Set pieces (${phase})`}>
       {SET_PIECE_KINDS.map(({ kind, label }) => {
         const displayLabel = setPieceKindLabel(kind, phase, label);
+        const ruckPending = kind === 'ruck' && pendingRuck != null;
+        const ruckPrompt =
+          ruckPending && pendingRuck.choice === 'won'
+            ? 'Won — contested?'
+            : ruckPending
+              ? 'Lost — contested?'
+              : null;
+
         return (
-        <div key={kind} className="tally-setpiece-group">
-          <span className={`tally-setpiece-kind${kind === 'restart' ? ' tally-setpiece-kind--restart' : ''}`}>
-            {displayLabel}
-          </span>
-          <div className="tally-setpiece-btns" role="group" aria-label={displayLabel}>
-            {OUTCOME_BUTTONS.map(({ choice, label: btnLabel, title, className }) => (
-              <button
-                key={choice}
-                type="button"
-                className={`tally-setpiece-btn${className ? ` ${className}` : ''}`}
-                title={title}
-                aria-label={`${displayLabel} · ${title}`}
-                onClick={(e) => tapThenBlur(e, () => onChoice(kind, choice, phase))}
-              >
-                {btnLabel}
-              </button>
-            ))}
+          <div
+            key={kind}
+            className={`tally-setpiece-group${ruckPending ? ' tally-setpiece-group--ruck-pending' : ''}`}
+          >
+            <span className={`tally-setpiece-kind${kind === 'restart' ? ' tally-setpiece-kind--restart' : ''}`}>
+              {displayLabel}
+            </span>
+            {ruckPrompt ? <span className="tally-setpiece-ruck-prompt">{ruckPrompt}</span> : null}
+            <div className="tally-setpiece-btns" role="group" aria-label={displayLabel}>
+              {ruckPending ? (
+                <>
+                  {RUCK_CONTEST_BUTTONS.map(({ contest, label: btnLabel, title }) => (
+                    <button
+                      key={contest}
+                      type="button"
+                      className="tally-setpiece-btn tally-setpiece-btn--ruck-contest"
+                      title={title}
+                      aria-label={`Ruck · ${pendingRuck.choice === 'won' ? 'Won' : 'Lost'} · ${title}`}
+                      onClick={(e) => tapThenBlur(e, () => completeRuck(contest))}
+                    >
+                      {btnLabel}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="tally-setpiece-btn tally-setpiece-btn--ruck-cancel"
+                    title="Cancel"
+                    aria-label="Cancel ruck selection"
+                    onClick={(e) => tapThenBlur(e, () => setPendingRuck(null))}
+                  >
+                    ×
+                  </button>
+                </>
+              ) : (
+                OUTCOME_BUTTONS.map(({ choice, label: btnLabel, title, className }) => (
+                  <button
+                    key={choice}
+                    type="button"
+                    className={`tally-setpiece-btn${className ? ` ${className}` : ''}`}
+                    title={title}
+                    aria-label={`${displayLabel} · ${title}`}
+                    onClick={(e) =>
+                      tapThenBlur(e, () => {
+                        if (kind === 'ruck' && (choice === 'won' || choice === 'lost')) {
+                          setPendingRuck({ choice, phase });
+                          return;
+                        }
+                        setPendingRuck(null);
+                        onChoice(kind, choice, phase);
+                      })
+                    }
+                  >
+                    {btnLabel}
+                  </button>
+                ))
+              )}
+            </div>
           </div>
-        </div>
         );
       })}
     </div>

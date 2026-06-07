@@ -6,6 +6,7 @@ import {
   type PenaltyDirection,
   type PenaltyTypeId,
   type PlayPhaseContext,
+  type RuckContest,
   penaltyDirectionLabel,
   penaltyTypesForPicker,
   type TackleOutcome,
@@ -71,7 +72,14 @@ type Props = {
   /** Single-tap tackle: made or missed (no zone/quality). */
   onSimpleTackle: (playerId: string, outcome: TackleOutcome) => void;
   /** Set pieces: W / L / FK / Pen+ / Pen− (no area picker). */
-  onSetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
+  onSetPieceChoice: (
+    kind: MatchEventKind,
+    choice: TallySetPieceChoice,
+    phase: PlayPhaseContext,
+    ruckContest?: RuckContest,
+  ) => void;
+  defensePassCount: number;
+  onDefensePass: () => void;
 };
 
 function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
@@ -189,6 +197,8 @@ export function SimplePlayerActions({
   onSimpleAction,
   onSimpleTackle,
   onSetPieceChoice,
+  defensePassCount,
+  onDefensePass,
 }: Props) {
   const [mode, setMode] = useState<PlayerActionMode>('attack');
   const [penaltyMenuFor, setPenaltyMenuFor] = useState<PenaltyMenuState | null>(null);
@@ -310,6 +320,20 @@ export function SimplePlayerActions({
         </div>
       ) : (
         <>
+          {mode === 'defense' ? (
+            <div className="simple-defense-pass-row">
+              <button
+                type="button"
+                className="tally-counter-btn simple-defense-pass-btn"
+                title="Opponent pass while we defend"
+                aria-label="Opponent pass against us"
+                onClick={(e) => tapThenBlur(e, () => onDefensePass())}
+              >
+                <span className="tally-counter-label">Pass</span>
+                <span className="tally-counter-badge">{defensePassCount}</span>
+              </button>
+            </div>
+          ) : null}
           {mode === 'defense' ? (
             <div className="live-defense-scoring" aria-label="Try conceded">
               <div className="live-opp-score-stat muted" aria-label="Opponent tries and conversions logged">

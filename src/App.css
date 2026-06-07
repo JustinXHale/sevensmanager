@@ -2852,6 +2852,49 @@ a.live-tab:focus-visible {
   letter-spacing: 0.01em;
 }
 
+.tally-setpiece-group--ruck-pending {
+  padding: 0.2rem 0.25rem 0.35rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.tally-setpiece-ruck-prompt {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+}
+
+.tally-setpiece-btn--ruck-contest {
+  border-color: #5e9ed6;
+  color: #b8d4f0;
+}
+
+.tally-setpiece-btn--ruck-contest:active {
+  background: rgba(94, 158, 214, 0.18);
+}
+
+.tally-setpiece-btn--ruck-cancel {
+  border-color: var(--border-strong);
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.simple-defense-pass-row {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem 0 0.35rem;
+}
+
+.simple-defense-pass-btn {
+  width: 4.5rem;
+  height: 4.5rem;
+  max-width: none;
+  aspect-ratio: 1 / 1;
+}
+
 .tally-setpiece-btns {
   display: flex;
   flex-wrap: wrap;

@@ -99,6 +99,13 @@ export type OffloadOutcome = 'won' | 'lost';
 /** For scrum / lineout / ruck / restart: result (incl. penalty against or free kick). */
 export type SetPieceOutcome = 'won' | 'lost' | 'penalized' | 'free_kick';
 
+/** For `kind === 'ruck'` when won/lost: whether the breakdown was contested. */
+export type RuckContest = 'contested' | 'uncontested';
+
+export function ruckContestLabel(c: RuckContest): string {
+  return c === 'contested' ? 'Contested' : 'Uncontested';
+}
+
 /** Kick depth after a restart (22m / 10m / dead-ball line). */
 export const RESTART_KICK_DEPTH_IDS = ['10m', '22m', 'dead'] as const;
 export type RestartKickDepth = (typeof RESTART_KICK_DEPTH_IDS)[number];
@@ -307,6 +314,8 @@ export interface MatchEventRecord {
   filmTimeMs?: number;
   /** For `kind === 'film_star'`: optional sideline note. */
   markerNote?: string;
+  /** For `kind === 'ruck'` with won/lost outcome (Tally / One Tap). */
+  ruckContest?: RuckContest;
 }
 
 /** Resolve direction for analytics; missing field means conceded (full-mode infraction pickers). */

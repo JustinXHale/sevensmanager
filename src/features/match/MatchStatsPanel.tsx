@@ -37,6 +37,7 @@ import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
 import {
   countConversionsMadeMissed,
+  countDefensePasses,
   countPassesAndOffloads,
   countPenaltiesByDirection,
   filmBookmarkEvents,
@@ -139,7 +140,13 @@ function getPanelPayload(
     return {
       type: 'events',
       items: sortMatchEventsByTime(
-        events.filter((e) => e.deletedAt == null && e.kind === 'pass' && e.passVariant === 'offload'),
+        events.filter(
+          (e) =>
+            e.deletedAt == null &&
+            e.kind === 'pass' &&
+            e.playPhaseContext !== 'defense' &&
+            e.passVariant === 'offload',
+        ),
       ),
     };
   }
@@ -147,7 +154,21 @@ function getPanelPayload(
     return {
       type: 'events',
       items: sortMatchEventsByTime(
-        events.filter((e) => e.deletedAt == null && e.kind === 'pass' && e.passVariant !== 'offload'),
+        events.filter(
+          (e) =>
+            e.deletedAt == null &&
+            e.kind === 'pass' &&
+            e.playPhaseContext !== 'defense' &&
+            e.passVariant !== 'offload',
+        ),
+      ),
+    };
+  }
+  if (key === 'pass:defense') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter((e) => e.deletedAt == null && e.kind === 'pass' && e.playPhaseContext === 'defense'),
       ),
     };
   }
@@ -347,6 +368,7 @@ function expandPanelTitle(key: string): string {
   if (key === 'tackle:missed') return 'Tackles missed';
   if (key === 'pass:offload') return 'Offloads';
   if (key === 'pass:standard') return 'Passes';
+  if (key === 'pass:defense') return 'Opp passes';
   if (key === 'neg:knock_on') return 'Knock-ons';
   if (key === 'neg:other') return 'Other negatives';
   if (key.startsWith('pen:')) return 'Penalties';
@@ -868,6 +890,7 @@ export function MatchStatsPanel({
       {/* Tally / Simple mode: separate cards per group */}
       {show('numbers') && statsDetail === 'tally' && (() => {
         const { pass, offload } = countPassesAndOffloads(events);
+        const defensePasses = countDefensePasses(events);
         const conv = countConversionsMadeMissed(events);
         const penAtk = countPenaltiesByDirection(events, 'attack');
         const penDef = countPenaltiesByDirection(events, 'defense');
@@ -931,6 +954,7 @@ export function MatchStatsPanel({
               <div className="live-stats-grid">
                 <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pass:defense" value={defensePasses} label="Opp passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="kind:opponent_try" value={byKind.opponent_try ?? 0} label="Tries conceded" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="kind:opponent_conversion" value={byKind.opponent_conversion ?? 0} label="Opp conv." expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:conceded:defense" value={penDef.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />

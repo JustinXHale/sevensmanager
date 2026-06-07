@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchEventRecord } from '@/domain/matchEvent';
 import {
+  countDefensePasses,
   countPassesAndOffloads,
   countPenaltiesByDirection,
   filmBookmarkEvents,
@@ -24,8 +25,10 @@ describe('countPassesAndOffloads', () => {
       ev({ id: '1', kind: 'pass', passVariant: 'standard' }),
       ev({ id: '2', kind: 'pass', passVariant: 'offload' }),
       ev({ id: '3', kind: 'pass' }),
+      ev({ id: '4', kind: 'pass', playPhaseContext: 'defense' }),
     ];
     expect(countPassesAndOffloads(events)).toEqual({ pass: 2, offload: 1 });
+    expect(countDefensePasses(events)).toBe(1);
   });
 });
 

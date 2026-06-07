@@ -11,6 +11,7 @@ import type {
   PenaltyTypeId,
   PlayPhaseContext,
   RestartKickDepth,
+  RuckContest,
   SetPieceOutcome,
   TackleOutcome,
   TackleQuality,
@@ -42,6 +43,7 @@ export async function addMatchEvent(input: {
   conversionOutcome?: ConversionOutcome;
   filmTimeMs?: number;
   markerNote?: string;
+  ruckContest?: RuckContest;
 }): Promise<MatchEventRecord> {
   const row: MatchEventRecord = {
     id: crypto.randomUUID(),
@@ -77,6 +79,9 @@ export async function addMatchEvent(input: {
   }
   if (input.markerNote !== undefined) {
     row.markerNote = input.markerNote;
+  }
+  if (input.ruckContest !== undefined) {
+    row.ruckContest = input.ruckContest;
   }
   await db.matchEvents.put(row);
   return row;

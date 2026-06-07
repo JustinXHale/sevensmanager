@@ -9,6 +9,7 @@ import {
   penaltyTypeLabel,
   resolvePenaltyDirection,
   restartKickDepthLabel,
+  ruckContestLabel,
 } from '@/domain/matchEvent';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
 
@@ -86,7 +87,8 @@ export function formatMatchEventSummary(
   }
   if (e.kind === 'ruck') {
     const link = e.precedingPassEventId ? ' (after pass)' : '';
-    return setPieceLineParts(e, 'Ruck') + link;
+    const contest = e.ruckContest ? ` · ${ruckContestLabel(e.ruckContest)}` : '';
+    return setPieceLineParts(e, 'Ruck') + contest + link;
   }
   if (e.kind === 'restart') {
     const parts: string[] = ['Restart'];
@@ -113,6 +115,9 @@ export function formatMatchEventSummary(
             : ' · Neu'
         : '';
     return `${out}${q} · ${who}${zoneSuffix(e.zoneId)}${lengthBandSuffix(e)}`;
+  }
+  if (e.kind === 'pass' && e.playPhaseContext === 'defense' && !e.playerId) {
+    return 'Opp pass · Defense';
   }
   if (e.kind === 'pass') {
     if (e.passVariant === 'standard') {

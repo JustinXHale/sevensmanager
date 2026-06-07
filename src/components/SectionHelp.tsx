@@ -238,6 +238,8 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'Try −', full: 'Try conceded', desc: 'Opponent try scored against you — logged on the Defense tab.', group: 'Defense' },
   { abbr: 'C', full: 'Conversion', desc: 'Kick at goal after a try (2 pts).', group: 'Attack' },
   { abbr: 'Forced Turnover', full: 'Forced turnover', desc: 'Gold circle on Tally Defense — marks a positive turnover you forced.', group: 'Defense' },
+  { abbr: 'Pass', full: 'Opponent pass', desc: 'Defense circle — counts passes the opposition makes against you while you defend.', group: 'Defense' },
+  { abbr: 'Con / Unc', full: 'Ruck contested', desc: 'After Ruck W or L, pick Contested or Uncontested before the ruck is logged.', group: 'Set pieces' },
   { abbr: 'M', full: 'Tackle made', desc: 'Successful tackle — ball carrier brought down or held.', group: 'Defense' },
   { abbr: 'X', full: 'Tackle missed', desc: 'Attempted tackle where the ball carrier broke free.', group: 'Defense' },
   { abbr: 'Neg', full: 'Negative action', desc: 'Red circle on Tally Attack — generic handling error (not knock-on).', group: 'Attack' },

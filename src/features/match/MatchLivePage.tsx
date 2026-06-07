@@ -43,6 +43,7 @@ import {
   type PenaltyCard,
   type PenaltyDirection,
   type PlayPhaseContext,
+  type RuckContest,
   resolvePenaltyDirection,
   restartKickDepthLabel,
   type RestartKickDepth,
@@ -537,12 +538,17 @@ export function MatchLivePage() {
       try_conceded: 0,
       system_moment: 0,
       forced_turnover: 0,
+      defense_pass: 0,
     };
     for (const e of events) {
       if (e.deletedAt != null) continue;
       if (e.kind === 'forced_turnover') c.forced_turnover++;
       else if (e.kind === 'system_moment') c.system_moment++;
-      else if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
+      else if (e.kind === 'pass') {
+        if (e.playPhaseContext === 'defense') c.defense_pass++;
+        else if (e.passVariant === 'offload') c.offload++;
+        else c.pass++;
+      }
       else if (e.kind === 'line_break') c.line_break++;
       else if (e.kind === 'try') c.try++;
       else if (e.kind === 'opponent_try') c.try_conceded++;
@@ -988,10 +994,31 @@ export function MatchLivePage() {
     });
   }
 
+  const defensePassCount = useMemo(
+    () => tallyCounts.defense_pass,
+    [tallyCounts.defense_pass],
+  );
+
+  async function logDefensePass() {
+    if (!matchId || !session || session.matchComplete) return;
+    setBanner(null);
+    await addMatchEvent({
+      matchId,
+      kind: 'pass',
+      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
+      period: session.period,
+      playPhaseContext: 'defense',
+      passVariant: 'standard',
+    });
+    await load();
+    setActionToast({ text: 'Opponent pass logged', key: Date.now() });
+  }
+
   async function logTallySetPieceChoice(
     kind: MatchEventKind,
     choice: TallySetPieceChoice,
     phase: PlayPhaseContext,
+    ruckContest?: RuckContest,
   ) {
     if (!matchId || !session) return;
     setBanner(null);
@@ -1000,10 +1027,12 @@ export function MatchLivePage() {
     const label =
       kind === 'scrum' ? 'Scrum' : kind === 'lineout' ? 'Lineout' : kind === 'ruck' ? 'Ruck' : 'Restart';
 
+    const ruckFields = kind === 'ruck' && ruckContest ? { ruckContest } : {};
+
     if (choice === 'won') {
-      await addMatchEvent({ ...base, kind, setPieceOutcome: 'won' });
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'won', ...ruckFields });
     } else if (choice === 'lost') {
-      await addMatchEvent({ ...base, kind, setPieceOutcome: 'lost' });
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'lost', ...ruckFields });
     } else if (choice === 'free_kick') {
       await addMatchEvent({ ...base, kind, setPieceOutcome: 'free_kick' });
     } else if (choice === 'penalty_awarded') {
@@ -1307,10 +1336,13 @@ export function MatchLivePage() {
                 onTallyTry={(playerId) => void logTallyTry(playerId)}
                 onTallyTackle={(outcome) => void logTallyTackle(outcome)}
                 onTallyConversion={(outcome, playerId) => void logTallyConversion(outcome, playerId)}
-                onTallySetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
+                onTallySetPieceChoice={(kind, choice, phase, ruckContest) =>
+                  void logTallySetPieceChoice(kind, choice, phase, ruckContest)
+                }
                 onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
                 onTallySystemMoment={() => void logTallySystemMoment()}
                 onTallyForcedTurnover={() => void logTallyForcedTurnover()}
+                onTallyDefensePass={() => void logDefensePass()}
                 onTallyTryConceded={() => void logTallyTryConceded()}
                 onTallyOpponentConversion={(outcome) => void logTallyOpponentConversion(outcome)}
                 opponentStatBoard={opponentStatBoard}
@@ -1345,7 +1377,11 @@ export function MatchLivePage() {
                 onTeamPenalty={(pid, payload) => void logTeamPenalty(pid, payload)}
                 onSimpleAction={(kind, pid) => void logSimpleAction(kind, pid)}
                 onSimpleTackle={(pid, outcome) => void logSimpleTackle(pid, outcome)}
-                onSetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
+                onSetPieceChoice={(kind, choice, phase, ruckContest) =>
+                  void logTallySetPieceChoice(kind, choice, phase, ruckContest)
+                }
+                defensePassCount={defensePassCount}
+                onDefensePass={() => void logDefensePass()}
               />
             ) : (
               <OnFieldPlayerActions

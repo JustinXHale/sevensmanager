@@ -21,11 +21,20 @@ export function countPassesAndOffloads(events: MatchEventRecord[]): { pass: numb
   let pass = 0;
   let offload = 0;
   for (const e of events) {
-    if (e.deletedAt != null || e.kind !== 'pass') continue;
+    if (e.deletedAt != null || e.kind !== 'pass' || e.playPhaseContext === 'defense') continue;
     if (e.passVariant === 'offload') offload += 1;
     else pass += 1;
   }
   return { pass, offload };
+}
+
+export function countDefensePasses(events: MatchEventRecord[]): number {
+  let n = 0;
+  for (const e of events) {
+    if (e.deletedAt != null || e.kind !== 'pass' || e.playPhaseContext !== 'defense') continue;
+    n += 1;
+  }
+  return n;
 }
 
 export function countConversionsMadeMissed(events: MatchEventRecord[]): { made: number; missed: number } {

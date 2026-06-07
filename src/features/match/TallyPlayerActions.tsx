@@ -4,6 +4,7 @@ import {
   type MatchEventKind,
   type PenaltyDirection,
   type PlayPhaseContext,
+  type RuckContest,
   type TackleOutcome,
 } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
@@ -26,6 +27,7 @@ type TallyCounts = {
   try_conceded: number;
   system_moment: number;
   forced_turnover: number;
+  defense_pass: number;
 };
 
 type ScorerPick =
@@ -41,10 +43,16 @@ type Props = {
   onTallyTry: (playerId: string) => void;
   onTallyTackle: (outcome: TackleOutcome) => void;
   onTallyConversion: (outcome: ConversionOutcome, playerId: string) => void;
-  onTallySetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
+  onTallySetPieceChoice: (
+    kind: MatchEventKind,
+    choice: TallySetPieceChoice,
+    phase: PlayPhaseContext,
+    ruckContest?: RuckContest,
+  ) => void;
   onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
   onTallySystemMoment: () => void;
   onTallyForcedTurnover: () => void;
+  onTallyDefensePass: () => void;
   onTallyTryConceded: () => void;
   onTallyOpponentConversion: (outcome: ConversionOutcome) => void;
   opponentStatBoard: {
@@ -98,6 +106,7 @@ export function TallyPlayerActions({
   onTallyPenalty,
   onTallySystemMoment,
   onTallyForcedTurnover,
+  onTallyDefensePass,
   onTallyTryConceded,
   onTallyOpponentConversion,
   opponentStatBoard,
@@ -266,6 +275,16 @@ export function TallyPlayerActions({
                     <span className="tally-counter-badge">{counts[b.countKey]}</span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className="tally-counter-btn"
+                  title="Opponent pass while we defend"
+                  aria-label="Opponent pass against us"
+                  onClick={(e) => tapThenBlur(e, () => onTallyDefensePass())}
+                >
+                  <span className="tally-counter-label">Pass</span>
+                  <span className="tally-counter-badge">{counts.defense_pass}</span>
+                </button>
                 {!owesOpponentConversion ? (
                   <button
                     type="button"
