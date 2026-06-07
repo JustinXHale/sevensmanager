@@ -1705,6 +1705,133 @@
   gap: 0.25rem;
 }
 
+.roster-drag-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+}
+
+.roster-drag-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.roster-drag-zone {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.5rem;
+  background: rgba(18, 24, 32, 0.5);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.roster-drag-zone--on {
+  border-color: rgba(124, 179, 66, 0.35);
+}
+
+.roster-drag-zone--bench {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.roster-drag-zone--off {
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.roster-drag-zone--hover {
+  border-style: solid;
+  background: rgba(124, 179, 66, 0.08);
+}
+
+.roster-drag-zone--on.roster-drag-zone--hover {
+  border-color: var(--accent);
+  background: rgba(124, 179, 66, 0.12);
+}
+
+.roster-drag-zone--bench.roster-drag-zone--hover {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.roster-drag-zone--off.roster-drag-zone--hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.roster-drag-zone--full.roster-drag-zone--hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.roster-drag-zone-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.roster-drag-zone-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.roster-drag-zone-meta {
+  font-size: 0.6875rem;
+}
+
+.roster-drag-zone-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 2.5rem;
+}
+
+.roster-drag-zone-empty {
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  opacity: 0.7;
+}
+
+.roster-drag-zone-item--dragging {
+  opacity: 0.55;
+}
+
+.roster-row-compact--dragging {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  border-color: var(--accent);
+}
+
+.roster-row-drag-handle {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  font-family: inherit;
+}
+
+.roster-row-drag-handle:active {
+  cursor: grabbing;
+}
+
+.roster-row-drag-handle:hover {
+  color: var(--text);
+  background: #1a222d;
+}
+
 /* — Compact single-row player card (tracking-page style) — */
 .roster-row-compact {
   display: flex;

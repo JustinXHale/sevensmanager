@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Match roster now syncs from the team admin **master roster** (`syncMatchRosterFromTeam`): all squad members appear with names and jerseys; empty default #1–#13 seed rows are removed; jerseys 1–7 on field / 8–13 bench on first sync; updates when opening match live or roster tab
 
 ### Changed
+- Match **Roster** tab: drag-and-drop board with On field / Bench / Off zones (replaces On/Bench/Off tag buttons)
 - Tally mode penalties replaced infraction picker with awarded/conceded counters; One Tap set pieces use the same circle strip as Tally
 - Tracking and stats mode switchers reordered **Tally → One Tap → Full**; **Tally** is the default for new matches
 - Team admin **Squad** tab: **×** remove button on each player row (no need to open Player details)

@@ -3,7 +3,7 @@ import { defaultSessionForMatch, type MatchRecord, type MatchSessionRecord } fro
 import { cumulativeMatchTimeMs, formatClock } from '@/domain/matchClock';
 import { countByStatus, dedupeSquadPlayers, sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
 import type { PlayerRecord, PlayerStatus } from '@/domain/player';
-import { ON_FIELD_MAX, SQUAD_MAX } from '@/domain/player';
+import { ON_FIELD_MAX } from '@/domain/player';
 import { derivedFixtureLabel } from '@/domain/matchDisplay';
 import { getMatch, getSession, saveSession } from '@/repos/matchesRepo';
 import {
@@ -16,7 +16,7 @@ import {
   updatePlayerName,
   updatePlayerStatus,
 } from '@/repos/rosterRepo';
-import { RosterPlayerCard } from './RosterPlayerCard';
+import { RosterDragBoard } from './RosterDragBoard';
 import { SubstitutionHistoryCard } from './SubstitutionHistoryCard';
 import { SubstitutionSheet } from './SubstitutionSheet';
 
@@ -34,7 +34,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
   const [players, setPlayers] = useState<PlayerRecord[]>([]);
   const [subs, setSubs] = useState<Awaited<ReturnType<typeof listSubstitutions>>>([]);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const [sortByStatus, setSortByStatus] = useState(true);
+  const sortByStatus = true;
   const [subsExpanded, setSubsExpanded] = useState(false);
   const [squadExpanded, setSquadExpanded] = useState(true);
   const [subOpen, setSubOpen] = useState(false);
@@ -180,8 +180,8 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
           </>
         )}
         <p className="muted roster-seed-note">
-          Sevens roster: numbers 1–{ON_FIELD_MAX} start on field; {SQUAD_MAX - ON_FIELD_MAX} bench. Names are
-          optional.
+          Drag players between On field, Bench, and Off. Up to {ON_FIELD_MAX} on field. Names sync from admin when
+          linked to a team.
         </p>
 
         {banner ? <p className="error-text">{banner}</p> : null}
@@ -203,17 +203,6 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
 
           {squadExpanded ? (
             <div className="roster-expand-body">
-              <div className="roster-sort-row">
-                <label className="roster-sort-toggle">
-                  <input
-                    type="checkbox"
-                    checked={sortByStatus}
-                    onChange={(e) => setSortByStatus(e.target.checked)}
-                  />
-                  <span>{sortByStatus ? 'Sorted by status' : 'Sorted by number'}</span>
-                </label>
-              </div>
-
               <div className="roster-sub-inline">
                 <p className="muted roster-sub-meta">
                   Current match clock: <strong>{matchTimeLabel}</strong> ·{' '}
@@ -224,18 +213,13 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
                 </button>
               </div>
 
-              <div className="roster-player-list">
-                {players.map((p) => (
-                  <RosterPlayerCard
-                    key={p.id}
-                    player={p}
-                    countOnField={countOnField}
-                    onNameCommit={(name) => void onNameCommit(p.id, name)}
-                    onStatusChange={(s) => void onStatusChange(p.id, s)}
-                    onRemove={() => void onRemovePlayer(p.id)}
-                  />
-                ))}
-              </div>
+              <RosterDragBoard
+                players={players}
+                countOnField={countOnField}
+                onMove={(id, status) => void onStatusChange(id, status)}
+                onNameCommit={(id, name) => void onNameCommit(id, name)}
+                onRemove={(id) => void onRemovePlayer(id)}
+              />
             </div>
           ) : null}
         </section>

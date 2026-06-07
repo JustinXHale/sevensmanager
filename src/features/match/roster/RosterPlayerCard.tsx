@@ -6,6 +6,10 @@ type Props = {
   onStatusChange: (status: PlayerStatus) => void;
   onRemove: () => void;
   countOnField: number;
+  /** When false, status is changed via drag board only. */
+  showStatusTags?: boolean;
+  onDragHandlePointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  isDragging?: boolean;
 };
 
 const STATUS_ORDER: PlayerStatus[] = ['on', 'bench', 'off'];
@@ -16,11 +20,24 @@ export function RosterPlayerCard({
   onStatusChange,
   onRemove,
   countOnField,
+  showStatusTags = true,
+  onDragHandlePointerDown,
+  isDragging = false,
 }: Props) {
   const atCap = countOnField >= 7 && player.status !== 'on';
 
   return (
-    <div className="roster-row-compact">
+    <div className={`roster-row-compact${isDragging ? ' roster-row-compact--dragging' : ''}`}>
+      {onDragHandlePointerDown ? (
+        <button
+          type="button"
+          className="roster-row-drag-handle"
+          aria-label={`Drag ${player.name || `player #${player.number ?? ''}`}`}
+          onPointerDown={onDragHandlePointerDown}
+        >
+          ⠿
+        </button>
+      ) : null}
       <span className="roster-row-jersey">{player.number ?? '—'}</span>
       <label className="roster-row-name-wrap">
         <span className="visually-hidden">Name for #{player.number}</span>
@@ -33,19 +50,21 @@ export function RosterPlayerCard({
           onBlur={(e) => onNameCommit(e.target.value)}
         />
       </label>
-      <div className="roster-row-tags" role="group" aria-label={`Status for #${player.number}`}>
-        {STATUS_ORDER.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className={`roster-tag roster-tag--${s}${player.status === s ? ' roster-tag--active' : ''}`}
-            disabled={s === 'on' && atCap}
-            onClick={() => onStatusChange(s)}
-          >
-            {s === 'on' ? 'On' : s === 'bench' ? 'Bench' : 'Off'}
-          </button>
-        ))}
-      </div>
+      {showStatusTags ? (
+        <div className="roster-row-tags" role="group" aria-label={`Status for #${player.number}`}>
+          {STATUS_ORDER.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`roster-tag roster-tag--${s}${player.status === s ? ' roster-tag--active' : ''}`}
+              disabled={s === 'on' && atCap}
+              onClick={() => onStatusChange(s)}
+            >
+              {s === 'on' ? 'On' : s === 'bench' ? 'Bench' : 'Off'}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <button
         type="button"
         className="roster-row-remove"
