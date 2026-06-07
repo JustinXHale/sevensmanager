@@ -5,10 +5,12 @@ import {
   applyClockDisplaySettings,
   bankedMatchMsBeforeCurrentPeriod,
   cumulativeMatchTimeMs,
+  currentGameElapsedDisplayMs,
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   currentPeriodElapsedDisplayMs,
   DEFAULT_MATCH_COUNTDOWN_MS,
+  filmTimeOffsetMs,
   formatClock,
   parseMmSsToMs,
 } from '@/domain/matchClock';
@@ -21,6 +23,7 @@ export type ClockSettingsApplyPayload = {
   periodCountdownLengthMs: number;
   matchDisplayedMs: number;
   periodDisplayedMs: number;
+  filmTimeOffsetMs: number;
 };
 
 type Props = {
@@ -32,6 +35,8 @@ type Props = {
   onReset: () => Promise<void>;
 };
 
+const PERIOD_OPTIONS = Array.from({ length: SESSION_PERIOD_MAX }, (_, i) => i + 1);
+
 export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply, onReset }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [matchMode, setMatchMode] = useState<MatchClockDisplayMode>('up');
@@ -41,6 +46,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   const [matchStr, setMatchStr] = useState('0:00');
   const [periodStr, setPeriodStr] = useState('0:00');
   const [periodSegment, setPeriodSegment] = useState(1);
+  const [filmOffsetStr, setFilmOffsetStr] = useState('0:00');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,6 +70,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
     setMatchStr(formatClock(currentMatchDisplayForUi(session, nowMs)));
     setPeriodStr(formatClock(currentPeriodDisplayForUi(session, nowMs)));
     setPeriodSegment(session.period);
+    setFilmOffsetStr(formatClock(filmTimeOffsetMs(session)));
     setFormError(null);
   }, [open, session, nowMs]);
 
@@ -88,6 +95,12 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
   }
 
   const bankedMs = session ? bankedMatchMsBeforeCurrentPeriod(session) : 0;
+  const filmOffsetPreviewMs = session
+    ? parseMmSsToMs(filmOffsetStr) ?? filmTimeOffsetMs(session)
+    : 0;
+  const videoNowMs = session
+    ? currentGameElapsedDisplayMs(session, nowMs) + filmOffsetPreviewMs
+    : 0;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -118,6 +131,11 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
       setFormError('Period time must look like 5:00 or -1:30 (minutes:seconds).');
       return;
     }
+    const filmOffsetParsed = parseMmSsToMs(filmOffsetStr);
+    if (filmOffsetParsed === null || filmOffsetParsed < 0) {
+      setFormError('Video offset must be zero or positive (e.g. 0:48).');
+      return;
+    }
     const pSeg = Math.round(periodSegment);
     if (!Number.isFinite(pSeg) || pSeg < 1 || pSeg > SESSION_PERIOD_MAX) {
       setFormError(`Period must be from 1 to ${SESSION_PERIOD_MAX}.`);
@@ -136,6 +154,7 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
       periodCountdownLengthMs: lenMs,
       matchDisplayedMs: matchMs,
       periodDisplayedMs: periodMs,
+      filmTimeOffsetMs: filmOffsetParsed,
     };
     setSaving(true);
     try {
@@ -166,20 +185,6 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
           Choose which side counts <strong>up</strong> (elapsed) or <strong>down</strong> (remaining). Match and period
           are independent. After full time, countdown can show negative (overtime).
         </p>
-
-        <div className="field ref-clock-settings-field">
-          <span>Period (1–{SESSION_PERIOD_MAX})</span>
-          <input
-            type="number"
-            className="filter-select"
-            min={1}
-            max={SESSION_PERIOD_MAX}
-            step={1}
-            value={periodSegment}
-            onChange={(e) => setPeriodSegment(Number(e.target.value))}
-            aria-label="Period number"
-          />
-        </div>
 
         <fieldset className="ref-clock-settings-fieldset">
           <legend className="ref-clock-settings-legend">Match timer</legend>
@@ -299,6 +304,47 @@ export function RefClockSettingsDialog({ open, onClose, session, nowMs, onApply,
             placeholder={periodMode === 'up' ? '0:00' : '-0:30'}
             aria-label="Period time"
           />
+        </div>
+
+        <fieldset className="ref-clock-settings-fieldset">
+          <legend className="ref-clock-settings-legend">Film / video sync</legend>
+          <p className="muted ref-clock-settings-hint">
+            When match time is <strong>0:00</strong>, where does kickoff sit on your video file? Starred moments and
+            film bookmarks show <strong>video time</strong> (match film clock + this offset).
+          </p>
+          <div className="field ref-clock-settings-field">
+            <span>Video time at match 0:00</span>
+            <input
+              type="text"
+              className="filter-select"
+              inputMode="numeric"
+              value={filmOffsetStr}
+              onChange={(e) => setFilmOffsetStr(e.target.value)}
+              placeholder="0:48"
+              aria-label="Video time at match zero m:ss"
+            />
+          </div>
+          {session ? (
+            <p className="muted ref-clock-settings-hint" aria-live="polite">
+              Video position now: <strong>{formatClock(videoNowMs)}</strong>
+            </p>
+          ) : null}
+        </fieldset>
+
+        <div className="field ref-clock-settings-field">
+          <span>Period (1–{SESSION_PERIOD_MAX})</span>
+          <select
+            className="filter-select"
+            value={periodSegment}
+            onChange={(e) => setPeriodSegment(Number(e.target.value))}
+            aria-label="Period number"
+          >
+            {PERIOD_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                Period {n}
+              </option>
+            ))}
+          </select>
         </div>
 
         {formError ? <p className="error-text ref-clock-settings-error" role="alert">{formError}</p> : null}

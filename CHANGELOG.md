@@ -22,7 +22,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Tally penalty picker types: `TallyPenaltyInfractionPick` and set-piece strip `SetPiecePenaltyContext` typing so production `tsc` build passes
 
+### Added
+- Clock settings **Film / video sync**: set video time at match 0:00 (e.g. 0:48) so starred moments and film bookmarks match your player timeline
+
 ### Changed
+- Clock settings: **Period** moved below time fields and uses a dropdown (avoids mobile keyboard opening on dialog open)
 - Live match layout: fixture title and event count moved into the app header; **★** star button inline with tracking mode switch; tighter tab strip — more tally controls visible without scrolling
 - Tally set-piece strip: each row is label left + W/L/FK/P+/P− circles right (one line per restart/ruck/scrum/lineout) instead of stacked title and button rows
 - Tally **Pen −** / **Pen +**, set-piece **P−** / **P+**, and One Tap awarded **!**: red for conceded, gold for awarded (fixed Pen − inheriting green accent border)

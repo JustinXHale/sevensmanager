@@ -59,6 +59,10 @@ export interface MatchSessionRecord {
   gameAnchorWallMs: number;
   gameElapsedMs: number;
   /**
+   * Added to logged film times for display / video scrubbing (e.g. kickoff is at 0:48 on your file).
+   */
+  filmTimeOffsetMs?: number;
+  /**
    * Cumulative match-time ms while each player was on field (match clock running).
    * Updated on flush (pause, periodic save, sub, etc.).
    */
@@ -111,6 +115,7 @@ export function normalizeSession(raw: MatchSessionRecord | undefined): MatchSess
     gameClockRunning: raw.gameClockRunning ?? false,
     gameAnchorWallMs: raw.gameAnchorWallMs ?? 0,
     gameElapsedMs: raw.gameElapsedMs ?? 0,
+    filmTimeOffsetMs: raw.filmTimeOffsetMs ?? 0,
     playerMinutesMs: raw.playerMinutesMs ?? {},
     halfTimeActive: raw.halfTimeActive ?? false,
     matchComplete: raw.matchComplete ?? false,
@@ -134,6 +139,7 @@ export function defaultSessionForMatch(matchId: string): MatchSessionRecord {
     gameClockRunning: false,
     gameAnchorWallMs: 0,
     gameElapsedMs: 0,
+    filmTimeOffsetMs: 0,
     halfTimeActive: false,
     matchClockDisplayMode: 'up',
     matchCountdownLengthMs: 14 * 60 * 1000,
@@ -150,6 +156,7 @@ export function resetMatchClockSession(session: MatchSessionRecord): MatchSessio
     gameClockRunning: session.gameClockRunning,
     gameAnchorWallMs: session.gameAnchorWallMs,
     gameElapsedMs: session.gameElapsedMs,
+    filmTimeOffsetMs: session.filmTimeOffsetMs ?? 0,
     playerMinutesMs: {},
     minutesLedgerMatchMs: undefined,
     matchComplete: false,

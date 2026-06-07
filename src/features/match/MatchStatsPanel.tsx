@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { computeMatchAnalyticsSnapshot } from '@/domain/matchAnalytics';
 import { kickDecidedSuccessPct, type SetPieceSplit } from '@/domain/matchAnalytics';
-import { formatClock } from '@/domain/matchClock';
+import { formatClock, formatFilmClock } from '@/domain/matchClock';
 import type { MatchEventKind, MatchEventRecord, PlayPhaseContext } from '@/domain/matchEvent';
 import { resolvePenaltyDirection } from '@/domain/matchEvent';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
@@ -59,6 +59,7 @@ type Props = {
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
+  filmTimeOffsetMs?: number;
   statsDetail?: StatsDetail;
   onStatsDetailChange?: (mode: StatsDetail) => void;
   onCopySummary?: () => void;
@@ -241,10 +242,12 @@ function formatSubLine(s: SubstitutionRecord, playersById: Map<string, PlayerRec
 function StatExpandContent({
   payload,
   playersById,
+  filmTimeOffsetMs,
   empty,
 }: {
   payload: PanelPayload;
   playersById: Map<string, PlayerRecord>;
+  filmTimeOffsetMs: number;
   empty: string;
 }) {
   if (payload.type === 'events') {
@@ -255,11 +258,17 @@ function StatExpandContent({
           <li key={e.id} className="live-stats-expand-row">
             <span className="live-stats-expand-time">
               P{e.period} {formatClock(e.matchTimeMs)}
-              {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') && e.filmTimeMs != null ? (
-                <span className="live-stats-expand-film"> · Film {formatClock(e.filmTimeMs)}</span>
+              {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') &&
+              formatFilmClock(e.filmTimeMs, filmTimeOffsetMs) != null ? (
+                <span className="live-stats-expand-film">
+                  {' '}
+                  · Film {formatFilmClock(e.filmTimeMs, filmTimeOffsetMs)}
+                </span>
               ) : null}
             </span>
-            <span className="live-stats-expand-text">{formatMatchEventSummary(e, playersById)}</span>
+            <span className="live-stats-expand-text">
+              {formatMatchEventSummary(e, playersById, filmTimeOffsetMs)}
+            </span>
           </li>
         ))}
       </ul>
@@ -280,9 +289,11 @@ function StatExpandContent({
 function FilmBookmarksQuickList({
   events,
   playersById,
+  filmTimeOffsetMs,
 }: {
   events: MatchEventRecord[];
   playersById: Map<string, PlayerRecord>;
+  filmTimeOffsetMs: number;
 }) {
   const bookmarks = sortFilmBookmarksByFilmTime(events);
   if (bookmarks.length === 0) {
@@ -293,13 +304,15 @@ function FilmBookmarksQuickList({
       {bookmarks.map((e) => (
         <li key={e.id} className="live-stats-film-row">
           <span className="live-stats-film-time tabular-nums">
-            {e.filmTimeMs != null ? formatClock(e.filmTimeMs) : '—'}
+            {formatFilmClock(e.filmTimeMs, filmTimeOffsetMs) ?? '—'}
           </span>
           <span className="live-stats-film-meta">
             <span className="live-stats-film-match tabular-nums">
               P{e.period} {formatClock(e.matchTimeMs)}
             </span>
-            <span className="live-stats-film-label">{formatMatchEventSummary(e, playersById)}</span>
+            <span className="live-stats-film-label">
+              {formatMatchEventSummary(e, playersById, filmTimeOffsetMs)}
+            </span>
           </span>
         </li>
       ))}
@@ -311,6 +324,7 @@ function FilmBookmarksSection({
   events,
   substitutions,
   playersById,
+  filmTimeOffsetMs,
   expandedKey,
   onToggle,
   idPrefix,
@@ -318,6 +332,7 @@ function FilmBookmarksSection({
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
+  filmTimeOffsetMs: number;
   expandedKey: string | null;
   onToggle: (key: string) => void;
   idPrefix: string;
@@ -357,7 +372,11 @@ function FilmBookmarksSection({
         />
       </div>
       <h4 className="tgs-card-subtitle">Scrub list (film time)</h4>
-      <FilmBookmarksQuickList events={events} playersById={playersById} />
+      <FilmBookmarksQuickList
+        events={events}
+        playersById={playersById}
+        filmTimeOffsetMs={filmTimeOffsetMs}
+      />
     </section>
   );
 }
@@ -388,6 +407,7 @@ function StatCard({
   events,
   substitutions,
   playersById,
+  filmTimeOffsetMs = 0,
 }: {
   statKey: string;
   value: number;
@@ -399,6 +419,7 @@ function StatCard({
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
+  filmTimeOffsetMs?: number;
 }) {
   const open = expandedKey === statKey;
   const panelId = `${idPrefix}-${statKey.replace(/:/g, '-')}`;
@@ -418,7 +439,12 @@ function StatCard({
       </button>
       {open && payload ? (
         <div id={panelId} className="live-stats-cell-body" role="region" aria-label={expandPanelTitle(statKey)}>
-          <StatExpandContent payload={payload} playersById={playersById} empty="No matching log entries." />
+          <StatExpandContent
+            payload={payload}
+            playersById={playersById}
+            filmTimeOffsetMs={filmTimeOffsetMs}
+            empty="No matching log entries."
+          />
         </div>
       ) : null}
     </div>
@@ -483,6 +509,7 @@ export function MatchStatsPanel({
   events,
   substitutions,
   playersById,
+  filmTimeOffsetMs = 0,
   statsDetail = 'full',
   onStatsDetailChange,
   onCopySummary,
@@ -932,17 +959,17 @@ export function MatchStatsPanel({
             <section className="card tgs-card">
               <h3 className="tgs-card-title">Attack</h3>
               <div className="live-stats-grid">
-                <StatCard statKey="pass:standard" value={pass} label="Passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="pass:offload" value={offload} label="Offloads" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:line_break" value={byKind.line_break ?? 0} label="Line breaks" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:try" value={byKind.try ?? 0} label="Tries" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="conv:made" value={conv.made} label="Conv. made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="conv:missed" value={conv.missed} label="Conv. missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="neg:other" value={otherNegCount} label="Neg" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="neg:knock_on" value={knockOnCount} label="Knock-ons" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="pen:conceded:attack" value={penAtk.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="pen:awarded:attack" value={penAtk.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:system_moment" value={byKind.system_moment ?? 0} label="System moments" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pass:standard" value={pass} label="Passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="pass:offload" value={offload} label="Offloads" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="kind:line_break" value={byKind.line_break ?? 0} label="Line breaks" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="kind:try" value={byKind.try ?? 0} label="Tries" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="conv:made" value={conv.made} label="Conv. made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="conv:missed" value={conv.missed} label="Conv. missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="neg:other" value={otherNegCount} label="Neg" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="neg:knock_on" value={knockOnCount} label="Knock-ons" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="pen:conceded:attack" value={penAtk.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="pen:awarded:attack" value={penAtk.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="kind:system_moment" value={byKind.system_moment ?? 0} label="System moments" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
               </div>
               <h4 className="tgs-card-subtitle">Set pieces (attack)</h4>
               {tallySetPieceKinds().map((kind) => (
@@ -952,14 +979,14 @@ export function MatchStatsPanel({
             <section className="card tgs-card">
               <h3 className="tgs-card-title">Defense</h3>
               <div className="live-stats-grid">
-                <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="pass:defense" value={defensePasses} label="Opp passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:opponent_try" value={byKind.opponent_try ?? 0} label="Tries conceded" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:opponent_conversion" value={byKind.opponent_conversion ?? 0} label="Opp conv." expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="pen:conceded:defense" value={penDef.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="pen:awarded:defense" value={penDef.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-                <StatCard statKey="kind:forced_turnover" value={byKind.forced_turnover ?? 0} label="Forced turnovers" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="pass:defense" value={defensePasses} label="Opp passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="kind:opponent_try" value={byKind.opponent_try ?? 0} label="Tries conceded" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="kind:opponent_conversion" value={byKind.opponent_conversion ?? 0} label="Opp conv." expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="pen:conceded:defense" value={penDef.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="pen:awarded:defense" value={penDef.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+                <StatCard statKey="kind:forced_turnover" value={byKind.forced_turnover ?? 0} label="Forced turnovers" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
               </div>
               <h4 className="tgs-card-subtitle">Set pieces (defense)</h4>
               {tallySetPieceKinds().map((kind) => (
@@ -970,6 +997,7 @@ export function MatchStatsPanel({
               events={events}
               substitutions={substitutions}
               playersById={playersById}
+              filmTimeOffsetMs={filmTimeOffsetMs}
               expandedKey={expandedKey}
               onToggle={toggleExpand}
               idPrefix={idPrefix}
@@ -984,17 +1012,17 @@ export function MatchStatsPanel({
             <h3 className="tgs-card-title">Attack</h3>
             <div className="live-stats-grid">
               {ONE_TAP_ATTACK_KINDS.map((kind) => (
-                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
               ))}
             </div>
           </section>
           <section className="card tgs-card">
             <h3 className="tgs-card-title">Defense</h3>
             <div className="live-stats-grid">
-              <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-              <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+              <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
               {TALLY_DEFENSE_KINDS.map((kind) => (
-                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
               ))}
             </div>
           </section>
@@ -1002,7 +1030,7 @@ export function MatchStatsPanel({
             <h3 className="tgs-card-title">Set pieces</h3>
             <div className="live-stats-grid">
               {TALLY_SET_PIECE_KINDS.map((kind) => (
-                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
               ))}
             </div>
           </section>
@@ -1027,6 +1055,7 @@ export function MatchStatsPanel({
             events={events}
             substitutions={substitutions}
             playersById={playersById}
+            filmTimeOffsetMs={filmTimeOffsetMs}
             expandedKey={expandedKey}
             onToggle={toggleExpand}
             idPrefix={idPrefix}
@@ -1040,11 +1069,11 @@ export function MatchStatsPanel({
           {sectionTitle('numbers')}
           <div className="live-stats-grid">
             {KIND_ORDER.map((kind) => (
-              <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
             ))}
-            <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-            <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
-            <StatCard statKey="subs" value={substitutions.length} label="Substitutions" wide expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+            <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+            <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
+            <StatCard statKey="subs" value={substitutions.length} label="Substitutions" wide expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
           </div>
 
           {scoringRows.length > 0 && (
@@ -1068,7 +1097,7 @@ export function MatchStatsPanel({
           <h4 className="tgs-card-title" style={{ marginTop: '0.6rem' }}>Tries by zone</h4>
           <div className="live-stats-zone-grid">
             {ZONE_IDS.map((z) => (
-              <StatCard key={z} statKey={`zone:${z}`} value={triesZ[z]} label={z} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              <StatCard key={z} statKey={`zone:${z}`} value={triesZ[z]} label={z} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmTimeOffsetMs={filmTimeOffsetMs} />
             ))}
           </div>
         </section>
@@ -1079,6 +1108,7 @@ export function MatchStatsPanel({
           events={events}
           substitutions={substitutions}
           playersById={playersById}
+          filmTimeOffsetMs={filmTimeOffsetMs}
           expandedKey={expandedKey}
           onToggle={toggleExpand}
           idPrefix={idPrefix}

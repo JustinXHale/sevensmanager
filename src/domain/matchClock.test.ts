@@ -10,7 +10,9 @@ import {
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   currentPeriodElapsedDisplayMs,
+  filmTimeForDisplay,
   formatClock,
+  formatFilmClock,
   parseMmSsToMs,
   pauseGameSession,
   pauseSession,
@@ -226,6 +228,12 @@ describe('matchClock', () => {
     const p = pauseGameSession(s, 70_000);
     expect(p.gameClockRunning).toBe(false);
     expect(p.gameElapsedMs).toBe(60_000);
+  });
+
+  it('filmTimeForDisplay adds session offset for video scrubbing', () => {
+    expect(filmTimeForDisplay(60_000, 48_000)).toBe(108_000);
+    expect(formatFilmClock(60_000, 48_000)).toBe('1:48');
+    expect(formatFilmClock(undefined, 48_000)).toBeNull();
   });
 
   it('resumeGameSession sets game anchor', () => {

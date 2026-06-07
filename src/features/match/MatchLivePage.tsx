@@ -440,6 +440,7 @@ export function MatchLivePage() {
     next = {
       ...next,
       period: clampSessionPeriod(payload.period),
+      filmTimeOffsetMs: payload.filmTimeOffsetMs,
     };
     next = applyClockDisplaySettings(next, {
       matchClockDisplayMode: payload.matchClockDisplayMode,
@@ -491,7 +492,13 @@ export function MatchLivePage() {
 
   async function onCopyMatchSummary() {
     if (!match) return;
-    const text = buildMatchSummaryText(match, events, substitutions, playersById);
+    const text = buildMatchSummaryText(
+      match,
+      events,
+      substitutions,
+      playersById,
+      session?.filmTimeOffsetMs ?? 0,
+    );
     try {
       await navigator.clipboard.writeText(text);
       setActionToast({ text: 'Summary copied', key: Date.now() });
@@ -1246,6 +1253,7 @@ export function MatchLivePage() {
             events={events}
             substitutions={substitutions}
             playersById={playersById}
+            filmTimeOffsetMs={session.filmTimeOffsetMs ?? 0}
             statsDetail={trackingMode === 'tally' ? 'tally' : trackingMode === 'one_tap' ? 'one_tap' : 'full'}
             onStatsDetailChange={(mode) => setTrackingMode(mode)}
             onCopySummary={() => void onCopyMatchSummary()}
@@ -1465,6 +1473,7 @@ export function MatchLivePage() {
           <MatchEventTimeline
             events={events}
             playersById={playersById}
+            filmTimeOffsetMs={session.filmTimeOffsetMs ?? 0}
             onDelete={(id) => void onDeleteEvent(id)}
             onEditSaved={() => void load()}
           />

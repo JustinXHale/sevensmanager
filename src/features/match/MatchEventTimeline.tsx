@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { formatClock } from '@/domain/matchClock';
+import { formatClock, formatFilmClock } from '@/domain/matchClock';
 import type { MatchEventKind, MatchEventRecord } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
@@ -9,6 +9,7 @@ import { MatchEventEditDialog } from './MatchEventEditDialog';
 type Props = {
   events: MatchEventRecord[];
   playersById: Map<string, PlayerRecord>;
+  filmTimeOffsetMs?: number;
   onDelete: (id: string) => void;
   onEditSaved: () => void;
 };
@@ -37,7 +38,13 @@ const TIMELINE_KIND_ORDER: MatchEventKind[] = [
 
 type FilterValue = 'all' | MatchEventKind;
 
-export function MatchEventTimeline({ events, playersById, onDelete, onEditSaved }: Props) {
+export function MatchEventTimeline({
+  events,
+  playersById,
+  filmTimeOffsetMs = 0,
+  onDelete,
+  onEditSaved,
+}: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterKind, setFilterKind] = useState<FilterValue>('all');
 
@@ -97,11 +104,17 @@ export function MatchEventTimeline({ events, playersById, onDelete, onEditSaved 
                   <div className="live-timeline-meta">
                     <span className="live-timeline-time">
                       P{e.period} {formatClock(e.matchTimeMs)}
-                      {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') && e.filmTimeMs != null ? (
-                        <span className="live-timeline-film-time"> · Film {formatClock(e.filmTimeMs)}</span>
+                      {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') &&
+                      formatFilmClock(e.filmTimeMs, filmTimeOffsetMs) != null ? (
+                        <span className="live-timeline-film-time">
+                          {' '}
+                          · Film {formatFilmClock(e.filmTimeMs, filmTimeOffsetMs)}
+                        </span>
                       ) : null}
                     </span>
-                    <span className="live-timeline-label">{formatMatchEventSummary(e, playersById)}</span>
+                    <span className="live-timeline-label">
+                      {formatMatchEventSummary(e, playersById, filmTimeOffsetMs)}
+                    </span>
                   </div>
                   <div className="live-timeline-actions">
                     <button

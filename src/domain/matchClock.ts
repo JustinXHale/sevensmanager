@@ -343,3 +343,20 @@ export function adjustGameElapsed(
     gameElapsedMs: Math.max(0, base.gameElapsedMs + deltaMs),
   };
 }
+
+/** Offset added when showing film times (video player position at match 0:00). */
+export function filmTimeOffsetMs(session: MatchSessionRecord): number {
+  return session.filmTimeOffsetMs ?? 0;
+}
+
+/** Raw logged film ms → position on your video file. */
+export function filmTimeForDisplay(rawMs: number | undefined, offsetMs = 0): number | undefined {
+  if (rawMs == null) return undefined;
+  return rawMs + offsetMs;
+}
+
+export function formatFilmClock(rawMs: number | undefined, offsetMs = 0): string | null {
+  const displayMs = filmTimeForDisplay(rawMs, offsetMs);
+  if (displayMs == null) return null;
+  return formatClock(displayMs);
+}
