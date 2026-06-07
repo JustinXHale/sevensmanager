@@ -39,7 +39,9 @@ import {
   countConversionsMadeMissed,
   countPassesAndOffloads,
   countPenaltiesByDirection,
+  filmBookmarkEvents,
   setPieceSplitForPhase,
+  sortFilmBookmarksByFilmTime,
   tallySetPieceKinds,
 } from '@/domain/tallyStats';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
@@ -47,7 +49,7 @@ import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/Se
 type StatsDetail = 'full' | 'one_tap' | 'tally';
 
 const STATS_MODE_HELP: GlossaryEntry[] = [
-  { abbr: 'Tally', full: 'Tally summary', desc: 'Scoreboard plus attack/defense splits: actions, set pieces (W/L/FK/Pen), penalties awarded/conceded, and tries conceded. Best when tracking in Tally mode.' },
+  { abbr: 'Tally', full: 'Tally summary', desc: 'Scoreboard plus attack/defense splits: actions, set pieces (W/L/FK/Pen), penalties awarded/conceded, tries conceded, system moments, and film bookmarks with scrub times. Best when tracking in Tally mode.' },
   { abbr: 'One Tap', full: 'One Tap summary', desc: 'Overview plus grouped event counts: attack, defense, and set pieces. Designed for One Tap tracking where zone-level data isn\u2019t captured.' },
   { abbr: 'Full', full: 'Full analytics', desc: 'All sections: phase split, zones, set pieces, ruck speed, penalties, negatives, scoring timeline, event counts, and player detail. Best when tracking in Full mode.' },
 ];
@@ -91,13 +93,14 @@ const HEAT_ROW_TONE: Record<string, 'bad' | undefined> = {
 };
 
 const KIND_ORDER: MatchEventKind[] = [
+  'film_star', 'system_moment',
   'try', 'conversion', 'opponent_try', 'opponent_conversion',
   'opponent_substitution', 'opponent_card', 'pass', 'line_break',
   'negative_action', 'scrum', 'lineout', 'restart', 'team_penalty', 'ruck',
 ];
 
-const TALLY_ATTACK_KINDS: MatchEventKind[] = [
-  'pass', 'line_break', 'try', 'conversion', 'negative_action', 'system_moment',
+const ONE_TAP_ATTACK_KINDS: MatchEventKind[] = [
+  'pass', 'line_break', 'try', 'conversion', 'negative_action',
 ];
 const TALLY_DEFENSE_KINDS: MatchEventKind[] = ['team_penalty'];
 const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['scrum', 'lineout', 'restart', 'ruck'];
@@ -209,7 +212,12 @@ function StatExpandContent({
       <ul className="live-stats-expand-list">
         {payload.items.map((e) => (
           <li key={e.id} className="live-stats-expand-row">
-            <span className="live-stats-expand-time">P{e.period} {formatClock(e.matchTimeMs)}</span>
+            <span className="live-stats-expand-time">
+              P{e.period} {formatClock(e.matchTimeMs)}
+              {(e.kind === 'film_star' || e.kind === 'system_moment') && e.filmTimeMs != null ? (
+                <span className="live-stats-expand-film"> · Film {formatClock(e.filmTimeMs)}</span>
+              ) : null}
+            </span>
             <span className="live-stats-expand-text">{formatMatchEventSummary(e, playersById)}</span>
           </li>
         ))}
@@ -225,6 +233,91 @@ function StatExpandContent({
         </li>
       ))}
     </ul>
+  );
+}
+
+function FilmBookmarksQuickList({
+  events,
+  playersById,
+}: {
+  events: MatchEventRecord[];
+  playersById: Map<string, PlayerRecord>;
+}) {
+  const bookmarks = sortFilmBookmarksByFilmTime(events);
+  if (bookmarks.length === 0) {
+    return <p className="muted live-stats-film-empty">No film bookmarks yet. Use ★ Star moment or System Moment while tracking.</p>;
+  }
+  return (
+    <ul className="live-stats-film-list" aria-label="Film bookmarks sorted by film time">
+      {bookmarks.map((e) => (
+        <li key={e.id} className="live-stats-film-row">
+          <span className="live-stats-film-time tabular-nums">
+            {e.filmTimeMs != null ? formatClock(e.filmTimeMs) : '—'}
+          </span>
+          <span className="live-stats-film-meta">
+            <span className="live-stats-film-match tabular-nums">
+              P{e.period} {formatClock(e.matchTimeMs)}
+            </span>
+            <span className="live-stats-film-label">{formatMatchEventSummary(e, playersById)}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FilmBookmarksSection({
+  events,
+  substitutions,
+  playersById,
+  expandedKey,
+  onToggle,
+  idPrefix,
+}: {
+  events: MatchEventRecord[];
+  substitutions: SubstitutionRecord[];
+  playersById: Map<string, PlayerRecord>;
+  expandedKey: string | null;
+  onToggle: (key: string) => void;
+  idPrefix: string;
+}) {
+  const byKind = countEventsByKind(events);
+  const bookmarkCount = filmBookmarkEvents(events).length;
+  return (
+    <section className="card tgs-card">
+      <h3 className="tgs-card-title">Film bookmarks</h3>
+      <p className="muted tgs-card-lead">
+        {bookmarkCount === 0
+          ? 'Jump-to times for footage review.'
+          : `${bookmarkCount} bookmark${bookmarkCount === 1 ? '' : 's'} — film time first for scrubbing.`}
+      </p>
+      <div className="live-stats-grid">
+        <StatCard
+          statKey="kind:film_star"
+          value={byKind.film_star ?? 0}
+          label="Starred moments"
+          expandedKey={expandedKey}
+          onToggle={onToggle}
+          idPrefix={idPrefix}
+          events={events}
+          substitutions={substitutions}
+          playersById={playersById}
+        />
+        <StatCard
+          statKey="kind:system_moment"
+          value={byKind.system_moment ?? 0}
+          label="System moments"
+          expandedKey={expandedKey}
+          onToggle={onToggle}
+          idPrefix={idPrefix}
+          events={events}
+          substitutions={substitutions}
+          playersById={playersById}
+        />
+      </div>
+      <h4 className="tgs-card-subtitle">Scrub list (film time)</h4>
+      <FilmBookmarksQuickList events={events} playersById={playersById} />
+    </section>
   );
 }
 
@@ -796,6 +889,7 @@ export function MatchStatsPanel({
                 <StatCard statKey="kind:negative_action" value={byKind.negative_action ?? 0} label="Negatives" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:conceded:attack" value={penAtk.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
                 <StatCard statKey="pen:awarded:attack" value={penAtk.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:system_moment" value={byKind.system_moment ?? 0} label="System moments" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
               </div>
               <h4 className="tgs-card-subtitle">Set pieces (attack)</h4>
               {tallySetPieceKinds().map((kind) => (
@@ -817,6 +911,14 @@ export function MatchStatsPanel({
                 <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'defense')} />
               ))}
             </section>
+            <FilmBookmarksSection
+              events={events}
+              substitutions={substitutions}
+              playersById={playersById}
+              expandedKey={expandedKey}
+              onToggle={toggleExpand}
+              idPrefix={idPrefix}
+            />
           </>
         );
       })()}
@@ -826,7 +928,7 @@ export function MatchStatsPanel({
           <section className="card tgs-card">
             <h3 className="tgs-card-title">Attack</h3>
             <div className="live-stats-grid">
-              {TALLY_ATTACK_KINDS.map((kind) => (
+              {ONE_TAP_ATTACK_KINDS.map((kind) => (
                 <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
               ))}
             </div>
@@ -866,6 +968,14 @@ export function MatchStatsPanel({
               </ul>
             </section>
           )}
+          <FilmBookmarksSection
+            events={events}
+            substitutions={substitutions}
+            playersById={playersById}
+            expandedKey={expandedKey}
+            onToggle={toggleExpand}
+            idPrefix={idPrefix}
+          />
         </>
       )}
 
@@ -907,6 +1017,17 @@ export function MatchStatsPanel({
             ))}
           </div>
         </section>
+      )}
+
+      {show('numbers') && statsDetail === 'full' && (
+        <FilmBookmarksSection
+          events={events}
+          substitutions={substitutions}
+          playersById={playersById}
+          expandedKey={expandedKey}
+          onToggle={toggleExpand}
+          idPrefix={idPrefix}
+        />
       )}
     </div>
   );

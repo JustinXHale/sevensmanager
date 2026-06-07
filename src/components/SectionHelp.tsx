@@ -178,6 +178,8 @@ const EVENT_COUNTS: GlossaryEntry[] = [
   { abbr: 'Tackles made', full: 'Tackles made', desc: 'Successful tackles where the ball carrier was brought to ground.' },
   { abbr: 'Tackles missed', full: 'Tackles missed', desc: 'Attempted tackles where the defender failed to stop the ball carrier.' },
   { abbr: 'Substitutions', full: 'Substitutions', desc: 'Your team\u2019s player changes during the match.' },
+  { abbr: 'Starred moments', full: 'Starred moments', desc: 'Film bookmarks from ★ Star moment — match and film clock for footage scrubbing.' },
+  { abbr: 'System moments', full: 'System moments', desc: 'Positive attack system plays logged from the gold System Moment button in Tally Attack.' },
 ];
 
 const POINTS_BY_MATCH: GlossaryEntry[] = [

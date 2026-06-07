@@ -3,7 +3,9 @@ import type { MatchEventRecord } from '@/domain/matchEvent';
 import {
   countPassesAndOffloads,
   countPenaltiesByDirection,
+  filmBookmarkEvents,
   setPieceSplitForPhase,
+  sortFilmBookmarksByFilmTime,
 } from '@/domain/tallyStats';
 
 function ev(p: Partial<MatchEventRecord> & Pick<MatchEventRecord, 'id' | 'kind'>): MatchEventRecord {
@@ -52,5 +54,17 @@ describe('setPieceSplitForPhase', () => {
       penalized: 0,
       freeKick: 1,
     });
+  });
+});
+
+describe('film bookmarks', () => {
+  it('collects starred and system moments and sorts by film time', () => {
+    const events = [
+      ev({ id: '1', kind: 'film_star', filmTimeMs: 120_000, matchTimeMs: 60_000 }),
+      ev({ id: '2', kind: 'system_moment', filmTimeMs: 45_000, matchTimeMs: 30_000 }),
+      ev({ id: '3', kind: 'try' }),
+    ];
+    expect(filmBookmarkEvents(events).map((e) => e.id)).toEqual(['1', '2']);
+    expect(sortFilmBookmarksByFilmTime(events).map((e) => e.id)).toEqual(['2', '1']);
   });
 });

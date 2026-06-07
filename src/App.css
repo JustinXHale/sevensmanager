@@ -3423,6 +3423,67 @@ button.live-stats-cell--btn.live-stats-cell--open {
   font-weight: 600;
 }
 
+.live-stats-expand-film {
+  color: #e8c547;
+  font-weight: 700;
+}
+
+.tgs-card-lead {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.live-stats-film-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.live-stats-film-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  background: #121820;
+  border: 1px solid color-mix(in srgb, #e8b84a 35%, var(--border));
+  border-radius: 8px;
+}
+
+.live-stats-film-time {
+  flex-shrink: 0;
+  min-width: 3.25rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #e8c547;
+}
+
+.live-stats-film-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.live-stats-film-match {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.live-stats-film-label {
+  font-size: 0.8125rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.live-stats-film-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
 .live-stats-expand-text {
   font-size: 0.8125rem;
   color: var(--text);

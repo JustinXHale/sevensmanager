@@ -71,3 +71,20 @@ export function setPieceSplitForPhase(
 export function tallySetPieceKinds(): readonly MatchEventKind[] {
   return SET_PIECE_KINDS;
 }
+
+/** Starred moments and system moments logged for film review. */
+export function filmBookmarkEvents(events: MatchEventRecord[]): MatchEventRecord[] {
+  return events.filter(
+    (e) => e.deletedAt == null && (e.kind === 'film_star' || e.kind === 'system_moment'),
+  );
+}
+
+/** Oldest film time first — for scrubbing footage in order. */
+export function sortFilmBookmarksByFilmTime(events: MatchEventRecord[]): MatchEventRecord[] {
+  return [...filmBookmarkEvents(events)].sort(
+    (a, b) =>
+      (a.filmTimeMs ?? 0) - (b.filmTimeMs ?? 0) ||
+      a.matchTimeMs - b.matchTimeMs ||
+      a.createdAt - b.createdAt,
+  );
+}
