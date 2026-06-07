@@ -32,9 +32,22 @@ function AppHeader() {
         >
           ← Back
         </Link>
-        <Link to="/" className="app-header-brand-mark" aria-label={`${APP_DISPLAY_NAME} home`}>
-          <img src={APP_LOGO_URL} alt="" className="app-header-logo app-header-logo--compact" width={32} height={32} />
-        </Link>
+        {teamHeader.title ? (
+          <div className="app-header-match-meta" aria-label={teamHeader.title}>
+            <span className="app-header-match-title" title={teamHeader.title}>
+              {teamHeader.title}
+            </span>
+            {teamHeader.subtitle ? (
+              <span className="app-header-match-sub" aria-live="polite">
+                {teamHeader.subtitle}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <Link to="/" className="app-header-brand-mark" aria-label={`${APP_DISPLAY_NAME} home`}>
+            <img src={APP_LOGO_URL} alt="" className="app-header-logo app-header-logo--compact" width={32} height={32} />
+          </Link>
+        )}
         <AppNavDrawer />
       </header>
     );

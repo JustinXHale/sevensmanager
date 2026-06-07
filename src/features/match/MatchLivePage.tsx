@@ -228,13 +228,23 @@ export function MatchLivePage() {
   }, [load]);
 
   useEffect(() => {
-    setTeamHeader({
+    const base = {
       backTo: matchesListBack,
-      minimalBackOnly: true,
+      minimalBackOnly: true as const,
       backAriaLabel: 'Go back',
-    });
+    };
+    if (match) {
+      const eventLabel = `${events.length} ${events.length === 1 ? 'event' : 'events'} logged`;
+      setTeamHeader({
+        ...base,
+        title: derivedFixtureLabel(match),
+        subtitle: eventLabel,
+      });
+    } else {
+      setTeamHeader(base);
+    }
     return () => setTeamHeader(null);
-  }, [setTeamHeader, matchesListBack]);
+  }, [setTeamHeader, matchesListBack, match, events.length]);
 
   useEffect(() => {
     if (match?.teamId && matchId) {
@@ -1163,13 +1173,6 @@ export function MatchLivePage() {
 
   return (
     <div className="live-match-shell">
-      <div className="live-match-head">
-        <h1 className="live-compact-title">{derivedFixtureLabel(match)}</h1>
-        <p className="muted live-match-event-count" aria-live="polite">
-          {events.length} {events.length === 1 ? 'event' : 'events'} logged
-        </p>
-      </div>
-
       {banner ? <p className="error-text live-banner" role="alert">{banner}</p> : null}
 
       <div className="live-tab-strip live-tab-strip-4" role="tablist" aria-label="Match sections">
@@ -1305,49 +1308,46 @@ export function MatchLivePage() {
                 <h2 className="live-player-pane-title">Tracking</h2>
                 <SectionHelp title="Tracking" entries={TRACKING_GLOSSARY} />
               </div>
-              <div className="tracking-mode-switch" role="radiogroup" aria-label="Tracking mode">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={trackingMode === 'tally'}
-                  className={`tracking-mode-opt${trackingMode === 'tally' ? ' tracking-mode-opt--active' : ''}`}
-                  onClick={() => setTrackingMode('tally')}
-                >
-                  Tally
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={trackingMode === 'one_tap'}
-                  className={`tracking-mode-opt${trackingMode === 'one_tap' ? ' tracking-mode-opt--active' : ''}`}
-                  onClick={() => setTrackingMode('one_tap')}
-                >
-                  One Tap
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={trackingMode === 'full'}
-                  className={`tracking-mode-opt${trackingMode === 'full' ? ' tracking-mode-opt--active' : ''}`}
-                  onClick={() => setTrackingMode('full')}
-                >
-                  Full
-                </button>
+              <div className="tracking-mode-header-trailing">
+                {trackingMode === 'tally' || trackingMode === 'one_tap' ? (
+                  <StarMomentButton
+                    compact
+                    disabled={session.matchComplete}
+                    starCount={filmStarCount}
+                    onStar={() => void logFilmStar()}
+                  />
+                ) : null}
+                <div className="tracking-mode-switch" role="radiogroup" aria-label="Tracking mode">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={trackingMode === 'tally'}
+                    className={`tracking-mode-opt${trackingMode === 'tally' ? ' tracking-mode-opt--active' : ''}`}
+                    onClick={() => setTrackingMode('tally')}
+                  >
+                    Tally
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={trackingMode === 'one_tap'}
+                    className={`tracking-mode-opt${trackingMode === 'one_tap' ? ' tracking-mode-opt--active' : ''}`}
+                    onClick={() => setTrackingMode('one_tap')}
+                  >
+                    One Tap
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={trackingMode === 'full'}
+                    className={`tracking-mode-opt${trackingMode === 'full' ? ' tracking-mode-opt--active' : ''}`}
+                    onClick={() => setTrackingMode('full')}
+                  >
+                    Full
+                  </button>
+                </div>
               </div>
             </div>
-            {trackingMode === 'one_tap' && (
-              <p className="tracking-mode-hint">Quick counters — one tap per action, no zone detail.</p>
-            )}
-            {trackingMode === 'tally' && (
-              <p className="tracking-mode-hint">Team tallies — pick try scorer and kicker from on-field roster.</p>
-            )}
-            {trackingMode === 'tally' || trackingMode === 'one_tap' ? (
-              <StarMomentButton
-                disabled={session.matchComplete}
-                starCount={filmStarCount}
-                onStar={() => void logFilmStar()}
-              />
-            ) : null}
             {trackingMode === 'tally' ? (
               <TallyPlayerActions
                 onFieldPlayers={onFieldPlayers}

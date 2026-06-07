@@ -141,11 +141,14 @@ export function TallySetPieceStrip({ phase, onChoice, onPenaltyChoice }: Props) 
               key={kind}
               className={`tally-setpiece-group${ruckPending ? ' tally-setpiece-group--ruck-pending' : ''}`}
             >
-              <span className={`tally-setpiece-kind${kind === 'restart' ? ' tally-setpiece-kind--restart' : ''}`}>
-                {displayLabel}
-              </span>
-              {ruckPrompt ? <span className="tally-setpiece-ruck-prompt">{ruckPrompt}</span> : null}
-              <div className="tally-setpiece-btns" role="group" aria-label={displayLabel}>
+              <div className="tally-setpiece-row">
+                <div className="tally-setpiece-label">
+                  <span className={`tally-setpiece-kind${kind === 'restart' ? ' tally-setpiece-kind--restart' : ''}`}>
+                    {displayLabel}
+                  </span>
+                  {ruckPrompt ? <span className="tally-setpiece-ruck-prompt">{ruckPrompt}</span> : null}
+                </div>
+                <div className="tally-setpiece-btns" role="group" aria-label={displayLabel}>
                 {ruckPending ? (
                   <>
                     {RUCK_CONTEST_BUTTONS.map(({ contest, label: btnLabel, title }) => (
@@ -204,6 +207,7 @@ export function TallySetPieceStrip({ phase, onChoice, onPenaltyChoice }: Props) 
                     </button>
                   ))
                 )}
+                </div>
               </div>
             </div>
           );

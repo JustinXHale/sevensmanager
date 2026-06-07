@@ -23,6 +23,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tally penalty picker types: `TallyPenaltyInfractionPick` and set-piece strip `SetPiecePenaltyContext` typing so production `tsc` build passes
 
 ### Changed
+- Live match layout: fixture title and event count moved into the app header; **★** star button inline with tracking mode switch; tighter tab strip — more tally controls visible without scrolling
+- Tally set-piece strip: each row is label left + W/L/FK/P+/P− circles right (one line per restart/ruck/scrum/lineout) instead of stacked title and button rows
 - Tally **Pen −** / **Pen +**, set-piece **P−** / **P+**, and One Tap awarded **!**: red for conceded, gold for awarded (fixed Pen − inheriting green accent border)
 - Tally and One Tap: **Try conceded** (and opponent conversion prompt) moved from Opp tab to **Defense**; Opp tab is subs and cards only
 - Live match **End match (FT)** — tool-row button with confirm; pauses clocks, full-time overlay with final score, **Copy summary**, and **Resume match**; navigates to Stats tab; works in any period (e.g. lightning abandonment)
