@@ -2,7 +2,8 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { computeMatchAnalyticsSnapshot } from '@/domain/matchAnalytics';
 import { kickDecidedSuccessPct, type SetPieceSplit } from '@/domain/matchAnalytics';
 import { formatClock } from '@/domain/matchClock';
-import type { MatchEventKind, MatchEventRecord } from '@/domain/matchEvent';
+import type { MatchEventKind, MatchEventRecord, PlayPhaseContext } from '@/domain/matchEvent';
+import { resolvePenaltyDirection } from '@/domain/matchEvent';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
 import {
   buildPlayerProfiles,
@@ -34,14 +35,21 @@ import {
 import type { PlayerRecord, SubstitutionRecord } from '@/domain/player';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
+import {
+  countConversionsMadeMissed,
+  countPassesAndOffloads,
+  countPenaltiesByDirection,
+  setPieceSplitForPhase,
+  tallySetPieceKinds,
+} from '@/domain/tallyStats';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
 
 type StatsDetail = 'full' | 'one_tap' | 'tally';
 
 const STATS_MODE_HELP: GlossaryEntry[] = [
-  { abbr: 'Full', full: 'Full analytics', desc: 'All sections: phase split, zones, set pieces, ruck speed, penalties, negatives, scoring timeline, event counts, and player detail. Best when tracking in Full mode.' },
+  { abbr: 'Tally', full: 'Tally summary', desc: 'Scoreboard plus attack/defense splits: actions, set pieces (W/L/FK/Pen), penalties awarded/conceded, and tries conceded. Best when tracking in Tally mode.' },
   { abbr: 'One Tap', full: 'One Tap summary', desc: 'Overview plus grouped event counts: attack, defense, and set pieces. Designed for One Tap tracking where zone-level data isn\u2019t captured.' },
-  { abbr: 'Tally', full: 'Raw event counts', desc: 'Event counts only: how many of each action were logged. Best when tracking in Tally mode (team-level tallies, no player attribution).' },
+  { abbr: 'Full', full: 'Full analytics', desc: 'All sections: phase split, zones, set pieces, ruck speed, penalties, negatives, scoring timeline, event counts, and player detail. Best when tracking in Full mode.' },
 ];
 
 type Props = {
@@ -50,6 +58,7 @@ type Props = {
   playersById: Map<string, PlayerRecord>;
   statsDetail?: StatsDetail;
   onStatsDetailChange?: (mode: StatsDetail) => void;
+  onCopySummary?: () => void;
 };
 
 const SECTIONS = [
@@ -123,6 +132,53 @@ function getPanelPayload(
   }
   if (key === 'tackle:made') return { type: 'events', items: sortMatchEventsByTime(tackleEventsMadeList(events)) };
   if (key === 'tackle:missed') return { type: 'events', items: sortMatchEventsByTime(tackleEventsMissedList(events)) };
+  if (key === 'pass:offload') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter((e) => e.deletedAt == null && e.kind === 'pass' && e.passVariant === 'offload'),
+      ),
+    };
+  }
+  if (key === 'pass:standard') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter((e) => e.deletedAt == null && e.kind === 'pass' && e.passVariant !== 'offload'),
+      ),
+    };
+  }
+  if (key === 'conv:made') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter((e) => e.deletedAt == null && e.kind === 'conversion' && e.conversionOutcome !== 'missed'),
+      ),
+    };
+  }
+  if (key === 'conv:missed') {
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter((e) => e.deletedAt == null && e.kind === 'conversion' && e.conversionOutcome === 'missed'),
+      ),
+    };
+  }
+  if (key.startsWith('pen:')) {
+    const [, dir, phase] = key.split(':') as [string, 'conceded' | 'awarded', PlayPhaseContext];
+    return {
+      type: 'events',
+      items: sortMatchEventsByTime(
+        events.filter(
+          (e) =>
+            e.deletedAt == null &&
+            e.kind === 'team_penalty' &&
+            resolvePenaltyDirection(e) === dir &&
+            e.playPhaseContext === phase,
+        ),
+      ),
+    };
+  }
   if (key.startsWith('zone:')) {
     const zoneId = key.slice(5) as ZoneId;
     return { type: 'events', items: sortMatchEventsByTime(tryEventsInZone(events, zoneId)) };
@@ -176,6 +232,9 @@ function expandPanelTitle(key: string): string {
   if (key === 'subs') return 'Substitutions';
   if (key === 'tackle:made') return 'Tackles made';
   if (key === 'tackle:missed') return 'Tackles missed';
+  if (key === 'pass:offload') return 'Offloads';
+  if (key === 'pass:standard') return 'Passes';
+  if (key.startsWith('pen:')) return 'Penalties';
   if (key.startsWith('kind:')) return kindLabel(key.slice(5) as MatchEventKind);
   if (key.startsWith('zone:')) return `Tries \u00b7 ${key.slice(5)}`;
   return 'Events';
@@ -276,7 +335,21 @@ function SetPieceBar({ label, split }: { label: string; split: SetPieceSplit }) 
   );
 }
 
-export function MatchStatsPanel({ events, substitutions, playersById, statsDetail = 'full', onStatsDetailChange }: Props) {
+const SET_PIECE_LABEL: Record<string, string> = {
+  scrum: 'Scrums',
+  lineout: 'Lineouts',
+  restart: 'Restarts',
+  ruck: 'Rucks',
+};
+
+export function MatchStatsPanel({
+  events,
+  substitutions,
+  playersById,
+  statsDetail = 'full',
+  onStatsDetailChange,
+  onCopySummary,
+}: Props) {
   const [activeSection, setActiveSection] = useState<SectionId>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
@@ -386,12 +459,17 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
             title="Stats modes"
             entries={STATS_MODE_HELP}
           />
+          {onCopySummary ? (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onCopySummary}>
+              Copy summary
+            </button>
+          ) : null}
         </div>
         {onStatsDetailChange ? (
           <div className="tracking-mode-switch tracking-mode-switch--stats" role="radiogroup" aria-label="Stats detail level">
-            <button type="button" role="radio" aria-checked={statsDetail === 'full'} className={`tracking-mode-opt${statsDetail === 'full' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('full')}>Full</button>
-            <button type="button" role="radio" aria-checked={statsDetail === 'one_tap'} className={`tracking-mode-opt${statsDetail === 'one_tap' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('one_tap')}>One Tap</button>
             <button type="button" role="radio" aria-checked={statsDetail === 'tally'} className={`tracking-mode-opt${statsDetail === 'tally' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('tally')}>Tally</button>
+            <button type="button" role="radio" aria-checked={statsDetail === 'one_tap'} className={`tracking-mode-opt${statsDetail === 'one_tap' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('one_tap')}>One Tap</button>
+            <button type="button" role="radio" aria-checked={statsDetail === 'full'} className={`tracking-mode-opt${statsDetail === 'full' ? ' tracking-mode-opt--active' : ''}`} onClick={() => onStatsDetailChange('full')}>Full</button>
           </div>
         ) : null}
       </div>
@@ -673,7 +751,77 @@ export function MatchStatsPanel({ events, substitutions, playersById, statsDetai
       })()}
 
       {/* Tally / Simple mode: separate cards per group */}
-      {show('numbers') && (statsDetail === 'tally' || statsDetail === 'one_tap') && (
+      {show('numbers') && statsDetail === 'tally' && (() => {
+        const { pass, offload } = countPassesAndOffloads(events);
+        const conv = countConversionsMadeMissed(events);
+        const penAtk = countPenaltiesByDirection(events, 'attack');
+        const penDef = countPenaltiesByDirection(events, 'defense');
+        return (
+          <>
+            <section className="card tgs-card">
+              <h3 className="tgs-card-title">Scoreboard</h3>
+              <div className="team-global-kpi-row">
+                <div className="team-global-kpi">
+                  <span className="team-global-kpi-label">Points</span>
+                  <span className="team-global-kpi-value tabular-nums">
+                    {snapshot.ownPoints}{' \u2013 '}{snapshot.oppPoints}
+                  </span>
+                </div>
+                <div className="team-global-kpi">
+                  <span className="team-global-kpi-label">Tries</span>
+                  <span className="team-global-kpi-value tabular-nums">
+                    {snapshot.ownTries}{' \u2013 '}{snapshot.oppTries}
+                  </span>
+                </div>
+                <div className="team-global-kpi">
+                  <span className="team-global-kpi-label">Tries conceded</span>
+                  <span className="team-global-kpi-value tabular-nums">{snapshot.oppTries}</span>
+                </div>
+              </div>
+              <div className="live-analytics-compare mt-md" aria-label="Subs and discipline">
+                <CompareRow label="Subs" left={snapshot.subsOurs} right={snapshot.subsOpp} />
+                <CompareRow label="YC" left={snapshot.cardsOurs.yc} right={snapshot.cardsOpp.yc} tone="yc" />
+                <CompareRow label="RC" left={snapshot.cardsOurs.rc} right={snapshot.cardsOpp.rc} tone="rc" />
+              </div>
+            </section>
+            <section className="card tgs-card">
+              <h3 className="tgs-card-title">Attack</h3>
+              <div className="live-stats-grid">
+                <StatCard statKey="pass:standard" value={pass} label="Passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pass:offload" value={offload} label="Offloads" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:line_break" value={byKind.line_break ?? 0} label="Line breaks" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:try" value={byKind.try ?? 0} label="Tries" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="conv:made" value={conv.made} label="Conv. made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="conv:missed" value={conv.missed} label="Conv. missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:negative_action" value={byKind.negative_action ?? 0} label="Negatives" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pen:conceded:attack" value={penAtk.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pen:awarded:attack" value={penAtk.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              </div>
+              <h4 className="tgs-card-subtitle">Set pieces (attack)</h4>
+              {tallySetPieceKinds().map((kind) => (
+                <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'attack')} />
+              ))}
+            </section>
+            <section className="card tgs-card">
+              <h3 className="tgs-card-title">Defense</h3>
+              <div className="live-stats-grid">
+                <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:opponent_try" value={byKind.opponent_try ?? 0} label="Tries conceded" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="kind:opponent_conversion" value={byKind.opponent_conversion ?? 0} label="Opp conv." expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pen:conceded:defense" value={penDef.conceded} label="Pen −" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+                <StatCard statKey="pen:awarded:defense" value={penDef.awarded} label="Pen +" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} />
+              </div>
+              <h4 className="tgs-card-subtitle">Set pieces (defense)</h4>
+              {tallySetPieceKinds().map((kind) => (
+                <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'defense')} />
+              ))}
+            </section>
+          </>
+        );
+      })()}
+
+      {show('numbers') && statsDetail === 'one_tap' && (
         <>
           <section className="card tgs-card">
             <h3 className="tgs-card-title">Attack</h3>

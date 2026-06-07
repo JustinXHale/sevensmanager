@@ -108,6 +108,13 @@ export type PlayPhaseContext = 'attack' | 'defense';
 /** Optional discipline card on `team_penalty` events. */
 export type PenaltyCard = 'yellow' | 'red';
 
+/** Tally / simplified logging: penalty against us vs awarded to us. Legacy rows default to conceded. */
+export type PenaltyDirection = 'conceded' | 'awarded';
+
+export function penaltyDirectionLabel(d: PenaltyDirection): string {
+  return d === 'awarded' ? 'Penalty awarded' : 'Penalty conceded';
+}
+
 export const PENALTY_TYPES = [
   { id: 'offside', label: 'Offside' },
   { id: 'hands_in_ruck', label: 'Hands in ruck' },
@@ -199,6 +206,8 @@ export interface MatchEventRecord {
   penaltyCard?: PenaltyCard;
   /** Free text when `penaltyType === 'other'` or extra detail. */
   penaltyDetail?: string;
+  /** For `kind === 'team_penalty'`: awarded to us vs conceded by us (Tally mode). */
+  penaltyDirection?: PenaltyDirection;
   /** Soft-delete: set when removed from the live log (Phase 3). */
   deletedAt?: number;
   /** For `kind === 'tackle'`. */
@@ -230,6 +239,11 @@ export interface MatchEventRecord {
   negativeActionId?: StoredNegativeActionId;
   /** For `kind === 'conversion'` / `opponent_conversion`. */
   conversionOutcome?: ConversionOutcome;
+}
+
+/** Resolve direction for analytics; missing field means conceded (full-mode infraction pickers). */
+export function resolvePenaltyDirection(e: MatchEventRecord): PenaltyDirection {
+  return e.penaltyDirection ?? 'conceded';
 }
 
 /** True when logged tries exceed conversions (next score on Tr buttons should be a conversion). */

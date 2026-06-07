@@ -22,7 +22,9 @@ import {
   currentMatchDisplayForUi,
   currentPeriodDisplayForUi,
   enterHalfTime,
+  enterMatchComplete,
   exitHalfTime,
+  exitMatchComplete,
   halfTimeElapsedDisplayMs,
   pauseSession,
   resumeSession,
@@ -38,7 +40,9 @@ import {
   type MatchEventKind,
   type MatchEventRecord,
   type PenaltyCard,
+  type PenaltyDirection,
   type PlayPhaseContext,
+  resolvePenaltyDirection,
   restartKickDepthLabel,
   type RestartKickDepth,
   type SetPieceOutcome,
@@ -76,6 +80,8 @@ import { MatchEventTimeline } from './MatchEventTimeline';
 import { OnFieldPlayerActions } from './OnFieldPlayerActions';
 import { SimplePlayerActions, type SimpleActionKind } from './SimplePlayerActions';
 import { TallyPlayerActions, type TallyActionKind } from './TallyPlayerActions';
+import type { TallySetPieceChoice } from './TallySetPieceStrip';
+import { buildMatchSummaryText } from '@/domain/matchSummary';
 import { RefClockBar } from './RefClockBar';
 import { RefClockSettingsDialog, type ClockSettingsApplyPayload } from './RefClockSettingsDialog';
 import { MatchRosterPanel } from './roster/MatchRosterPanel';
@@ -100,14 +106,14 @@ const TRACKING_MODE_STORAGE_PREFIX = 'sevensManager.trackingMode.';
 type TrackingMode = 'full' | 'one_tap' | 'tally';
 
 function readStoredTrackingMode(matchId: string | undefined): TrackingMode {
-  if (!matchId || typeof sessionStorage === 'undefined') return 'full';
+  if (!matchId || typeof sessionStorage === 'undefined') return 'tally';
   try {
     const v = sessionStorage.getItem(`${TRACKING_MODE_STORAGE_PREFIX}${matchId}`);
     if (v === 'one_tap' || v === 'full' || v === 'tally') return v;
   } catch {
     /* ignore */
   }
-  return 'full';
+  return 'tally';
 }
 
 export function MatchLivePage() {
@@ -251,11 +257,11 @@ export function MatchLivePage() {
 
   useEffect(() => {
     const s = session;
-    if (!s?.clockRunning && !s?.halfTimeActive) return;
-    const ms = s.halfTimeActive && !s.clockRunning ? 1000 : 250;
+    if (!s?.clockRunning && !s?.halfTimeActive && !s?.matchComplete) return;
+    const ms = (s.halfTimeActive || s.matchComplete) && !s.clockRunning ? 1000 : 250;
     const id = window.setInterval(() => setNowMs(Date.now()), ms);
     return () => window.clearInterval(id);
-  }, [session?.clockRunning, session?.halfTimeActive, session]);
+  }, [session?.clockRunning, session?.halfTimeActive, session?.matchComplete, session]);
 
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -373,6 +379,10 @@ export function MatchLivePage() {
 
   async function onToggleMatch() {
     if (!session) return;
+    if (session.matchComplete) {
+      setBanner('Use Resume match on the clock to reopen the game.');
+      return;
+    }
     if (session.halfTimeActive) {
       setBanner('Use Resume match on the clock to leave halftime.');
       return;
@@ -384,21 +394,21 @@ export function MatchLivePage() {
   }
 
   async function onAdjustMatch(deltaMs: number) {
-    if (!session || session.halfTimeActive) return;
+    if (!session || session.halfTimeActive || session.matchComplete) return;
     const now = Date.now();
     const flushed = flushPlayerMinutes(session, players, now);
     await persist(adjustCurrentPeriod(flushed, now, deltaMs));
   }
 
   async function onAdvancePeriod() {
-    if (!session || session.halfTimeActive) return;
+    if (!session || session.halfTimeActive || session.matchComplete) return;
     const now = Date.now();
     const flushed = flushPlayerMinutes(session, players, now);
     await persist(advancePeriod(flushed, now));
   }
 
   async function onHalftime() {
-    if (!session || session.halfTimeActive) return;
+    if (!session || session.halfTimeActive || session.matchComplete) return;
     const now = Date.now();
     const flushed = flushPlayerMinutes(session, players, now);
     const advanced = advancePeriod(flushed, now);
@@ -445,6 +455,35 @@ export function MatchLivePage() {
     await persist(exitHalfTime(session));
   }
 
+  async function onEndMatch() {
+    if (!session || session.matchComplete) return;
+    const msg =
+      session.period < 2
+        ? 'End match now? The clock is still in period 1 (e.g. lightning stoppage).'
+        : 'End match now? Clocks will pause and you can review stats.';
+    if (!window.confirm(msg)) return;
+    const now = Date.now();
+    const flushed = flushPlayerMinutes(session, players, now);
+    await persist(enterMatchComplete(flushed, now));
+    setLiveTab('stats');
+  }
+
+  async function onResumeFromComplete() {
+    if (!session || !session.matchComplete) return;
+    await persist(exitMatchComplete(session));
+  }
+
+  async function onCopyMatchSummary() {
+    if (!match) return;
+    const text = buildMatchSummaryText(match, events, substitutions, playersById);
+    try {
+      await navigator.clipboard.writeText(text);
+      setActionToast({ text: 'Summary copied', key: Date.now() });
+    } catch {
+      setBanner('Could not copy — clipboard may be unavailable.');
+    }
+  }
+
   const playersById = useMemo(() => {
     const m = new Map<string, PlayerRecord>();
     for (const p of players) m.set(p.id, p);
@@ -475,14 +514,28 @@ export function MatchLivePage() {
   );
 
   const tallyCounts = useMemo(() => {
-    const c = { pass: 0, offload: 0, line_break: 0, try: 0, negative_action: 0, tackle_made: 0, tackle_missed: 0, penalty: 0 };
+    const c = {
+      pass: 0,
+      offload: 0,
+      line_break: 0,
+      try: 0,
+      negative_action: 0,
+      tackle_made: 0,
+      tackle_missed: 0,
+      penalty_conceded: 0,
+      penalty_awarded: 0,
+    };
     for (const e of events) {
+      if (e.deletedAt != null) continue;
       if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
       else if (e.kind === 'line_break') c.line_break++;
       else if (e.kind === 'try') c.try++;
       else if (e.kind === 'negative_action') c.negative_action++;
       else if (e.kind === 'tackle') { if (e.tackleOutcome === 'missed') c.tackle_missed++; else c.tackle_made++; }
-      else if (e.kind === 'team_penalty') c.penalty++;
+      else if (e.kind === 'team_penalty') {
+        if (resolvePenaltyDirection(e) === 'awarded') c.penalty_awarded++;
+        else c.penalty_conceded++;
+      }
     }
     return c;
   }, [events]);
@@ -752,23 +805,6 @@ export function MatchLivePage() {
     });
   }
 
-  async function logSimpleSetPiece(kind: MatchEventKind, outcome: SetPieceOutcome, phase: PlayPhaseContext) {
-    if (!matchId || !session) return;
-    setBanner(null);
-    await addMatchEvent({
-      matchId,
-      kind,
-      matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
-      period: session.period,
-      setPieceOutcome: outcome,
-      playPhaseContext: phase,
-    });
-    await load();
-    const label =
-      kind === 'scrum' ? 'Scrum' : kind === 'lineout' ? 'Lineout' : kind === 'ruck' ? 'Ruck' : 'Restart';
-    setActionToast({ text: `${label} · ${outcome} · ${phase}`, key: Date.now() });
-  }
-
   async function logTallyAction(kind: TallyActionKind) {
     if (!matchId || !session) return;
     setBanner(null);
@@ -814,7 +850,7 @@ export function MatchLivePage() {
     setActionToast({ text: outcome === 'made' ? 'Conversion made' : 'Conversion missed', key: Date.now() });
   }
 
-  async function logTallyPenalty(payload: TeamPenaltyPayload) {
+  async function logTallyPenalty(direction: PenaltyDirection, phase: PlayPhaseContext) {
     if (!matchId || !session) return;
     setBanner(null);
     await addMatchEvent({
@@ -822,12 +858,57 @@ export function MatchLivePage() {
       kind: 'team_penalty',
       matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
       period: session.period,
-      penaltyType: payload.penaltyType,
-      penaltyCard: payload.card,
-      penaltyDetail: payload.penaltyDetail,
+      penaltyDirection: direction,
+      playPhaseContext: phase,
     });
     await load();
-    setActionToast({ text: 'Penalty logged', key: Date.now() });
+    setActionToast({
+      text: direction === 'awarded' ? 'Penalty awarded' : 'Penalty conceded',
+      key: Date.now(),
+    });
+  }
+
+  async function logTallySetPieceChoice(
+    kind: MatchEventKind,
+    choice: TallySetPieceChoice,
+    phase: PlayPhaseContext,
+  ) {
+    if (!matchId || !session) return;
+    setBanner(null);
+    const t = cumulativeMatchTimeMs(session, Date.now());
+    const base = { matchId, matchTimeMs: t, period: session.period, playPhaseContext: phase };
+    const label =
+      kind === 'scrum' ? 'Scrum' : kind === 'lineout' ? 'Lineout' : kind === 'ruck' ? 'Ruck' : 'Restart';
+
+    if (choice === 'won') {
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'won' });
+    } else if (choice === 'lost') {
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'lost' });
+    } else if (choice === 'free_kick') {
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'free_kick' });
+    } else if (choice === 'penalty_awarded') {
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'won' });
+      await addMatchEvent({
+        matchId,
+        kind: 'team_penalty',
+        matchTimeMs: t,
+        period: session.period,
+        penaltyDirection: 'awarded',
+        playPhaseContext: phase,
+      });
+    } else {
+      await addMatchEvent({ ...base, kind, setPieceOutcome: 'lost' });
+      await addMatchEvent({
+        matchId,
+        kind: 'team_penalty',
+        matchTimeMs: t,
+        period: session.period,
+        penaltyDirection: 'conceded',
+        playPhaseContext: phase,
+      });
+    }
+    await load();
+    setActionToast({ text: `${label} logged`, key: Date.now() });
   }
 
   async function logTeamPenalty(playerId: string, payload: TeamPenaltyPayload) {
@@ -974,6 +1055,7 @@ export function MatchLivePage() {
             playersById={playersById}
             statsDetail={trackingMode === 'tally' ? 'tally' : trackingMode === 'one_tap' ? 'one_tap' : 'full'}
             onStatsDetailChange={(mode) => setTrackingMode(mode)}
+            onCopySummary={() => void onCopyMatchSummary()}
           />
         </div>
       ) : liveTab === 'roster' ? (
@@ -1011,8 +1093,12 @@ export function MatchLivePage() {
             onToggle={() => void onToggleMatch()}
             onAdjust={(d) => void onAdjustMatch(d)}
             onAdvancePeriod={() => void onAdvancePeriod()}
+            matchComplete={!!session.matchComplete}
             onHalftime={() => void onHalftime()}
             onResumeFromHalftime={() => void onResumeFromHalftime()}
+            onEndMatch={() => void onEndMatch()}
+            onResumeFromComplete={() => void onResumeFromComplete()}
+            onCopySummary={() => void onCopyMatchSummary()}
             onOpenClockSettings={() => setClockSettingsOpen(true)}
           />
 
@@ -1035,11 +1121,11 @@ export function MatchLivePage() {
                 <button
                   type="button"
                   role="radio"
-                  aria-checked={trackingMode === 'full'}
-                  className={`tracking-mode-opt${trackingMode === 'full' ? ' tracking-mode-opt--active' : ''}`}
-                  onClick={() => setTrackingMode('full')}
+                  aria-checked={trackingMode === 'tally'}
+                  className={`tracking-mode-opt${trackingMode === 'tally' ? ' tracking-mode-opt--active' : ''}`}
+                  onClick={() => setTrackingMode('tally')}
                 >
-                  Full
+                  Tally
                 </button>
                 <button
                   type="button"
@@ -1053,11 +1139,11 @@ export function MatchLivePage() {
                 <button
                   type="button"
                   role="radio"
-                  aria-checked={trackingMode === 'tally'}
-                  className={`tracking-mode-opt${trackingMode === 'tally' ? ' tracking-mode-opt--active' : ''}`}
-                  onClick={() => setTrackingMode('tally')}
+                  aria-checked={trackingMode === 'full'}
+                  className={`tracking-mode-opt${trackingMode === 'full' ? ' tracking-mode-opt--active' : ''}`}
+                  onClick={() => setTrackingMode('full')}
                 >
-                  Tally
+                  Full
                 </button>
               </div>
             </div>
@@ -1076,8 +1162,8 @@ export function MatchLivePage() {
                 onTallyAction={(kind) => void logTallyAction(kind)}
                 onTallyTackle={(outcome) => void logTallyTackle(outcome)}
                 onTallyConversion={(outcome) => void logTallyConversion(outcome)}
-                onTallySetPiece={(kind, outcome, phase) => void logSimpleSetPiece(kind, outcome, phase)}
-                onTallyPenalty={(payload) => void logTallyPenalty(payload)}
+                onTallySetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
+                onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
                 onOpponentScoring={(kind, pick) => void logOpponentScoring(kind, pick)}
                 opponentStatBoard={opponentStatBoard}
                 onOpponentStatAdjust={(row, delta) => void onOpponentStatAdjust(row, delta)}
@@ -1111,7 +1197,7 @@ export function MatchLivePage() {
                 onTeamPenalty={(pid, payload) => void logTeamPenalty(pid, payload)}
                 onSimpleAction={(kind, pid) => void logSimpleAction(kind, pid)}
                 onSimpleTackle={(pid, outcome) => void logSimpleTackle(pid, outcome)}
-                onSimpleSetPiece={(kind, outcome, phase) => void logSimpleSetPiece(kind, outcome, phase)}
+                onSetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
               />
             ) : (
               <OnFieldPlayerActions

@@ -7,6 +7,7 @@ import type {
   OffloadTone,
   PassVariant,
   PenaltyCard,
+  PenaltyDirection,
   PenaltyTypeId,
   PlayPhaseContext,
   RestartKickDepth,
@@ -26,6 +27,7 @@ export async function addMatchEvent(input: {
   penaltyType?: PenaltyTypeId;
   penaltyCard?: PenaltyCard;
   penaltyDetail?: string;
+  penaltyDirection?: PenaltyDirection;
   tackleOutcome?: TackleOutcome;
   tackleQuality?: TackleQuality;
   offloadTone?: OffloadTone;
@@ -50,6 +52,7 @@ export async function addMatchEvent(input: {
     penaltyType: input.penaltyType,
     penaltyCard: input.penaltyCard,
     penaltyDetail: input.penaltyDetail,
+    penaltyDirection: input.penaltyDirection,
     tackleOutcome: input.tackleOutcome,
     tackleQuality: input.tackleQuality,
     offloadTone: input.offloadTone,

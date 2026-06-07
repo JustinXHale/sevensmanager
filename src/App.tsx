@@ -13,6 +13,8 @@ import { MatchRosterRedirect } from '@/features/match/MatchRosterRedirect';
 import { NewMatchPage } from '@/features/match/NewMatchPage';
 import { ScheduleImportPage } from '@/features/match/ScheduleImportPage';
 import { GlossaryPage } from '@/features/glossary/GlossaryPage';
+import { PlayEditorPage } from '@/features/playbook/PlayEditorPage';
+import { PlayListPage } from '@/features/playbook/PlayListPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { APP_DISPLAY_NAME, APP_LOGO_URL } from '@/config/appMeta';
 import './App.css';
@@ -136,6 +138,8 @@ export default function App() {
             <Route path="/matches/import" element={<ScheduleImportPage />} />
             <Route path="/competition/:competitionId" element={<CompetitionDetailPage />} />
             <Route path="/team/:teamId" element={<TeamHubPage />} />
+            <Route path="/plays" element={<PlayListPage />} />
+            <Route path="/plays/:playId" element={<PlayEditorPage />} />
             <Route path="/glossary" element={<GlossaryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/match/:matchId/roster" element={<MatchRosterRedirect />} />

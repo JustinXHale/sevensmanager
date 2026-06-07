@@ -4,7 +4,9 @@ import type { MatchEventRecord } from '@/domain/matchEvent';
 import {
   fieldLengthBandShortLabel,
   negativeActionLabel,
+  penaltyDirectionLabel,
   penaltyTypeLabel,
+  resolvePenaltyDirection,
   restartKickDepthLabel,
 } from '@/domain/matchEvent';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
@@ -54,16 +56,19 @@ export function formatMatchEventSummary(
   if (e.kind === 'lineout') return setPieceLineParts(e, 'Lineout');
   if (e.kind === 'team_penalty') {
     const p = e.playerId ? playersById.get(e.playerId) : undefined;
-    const who = p ? formatPlayerLabel(p) : 'Player';
+    const who = p ? formatPlayerLabel(p) : null;
     const card =
       e.penaltyCard === 'yellow' ? 'YC · ' : e.penaltyCard === 'red' ? 'RC · ' : '';
-    let typeStr = 'Penalty';
+    let typeStr = penaltyDirectionLabel(resolvePenaltyDirection(e));
     if (e.penaltyType === 'other' && e.penaltyDetail?.trim()) {
       typeStr = `Other (${e.penaltyDetail.trim()})`;
     } else if (e.penaltyType) {
       typeStr = penaltyTypeLabel(e.penaltyType);
     }
-    return `${card}${typeStr} · ${who}${zoneSuffix(e.zoneId)}`;
+    const phase =
+      e.playPhaseContext === 'attack' ? ' · Attack' : e.playPhaseContext === 'defense' ? ' · Defense' : '';
+    const whoBit = who ? ` · ${who}` : '';
+    return `${card}${typeStr}${phase}${whoBit}${zoneSuffix(e.zoneId)}`;
   }
   if (e.kind === 'ruck') {
     const link = e.precedingPassEventId ? ' (after pass)' : '';

@@ -73,6 +73,10 @@ export interface MatchSessionRecord {
   periodClockDisplayMode?: PeriodClockDisplayMode;
   /** Length of period segment for countdown display (default 7:00). */
   periodCountdownLengthMs?: number;
+  /** Full time: match + film clocks paused; tracking remains available. */
+  matchComplete?: boolean;
+  /** Wall time when match was ended (optional display). */
+  matchCompleteWallMs?: number;
 }
 
 /** Max period segment index (advance wraps to 1). */
@@ -103,6 +107,7 @@ export function normalizeSession(raw: MatchSessionRecord | undefined): MatchSess
     gameElapsedMs: raw.gameElapsedMs ?? 0,
     playerMinutesMs: raw.playerMinutesMs ?? {},
     halfTimeActive: raw.halfTimeActive ?? false,
+    matchComplete: raw.matchComplete ?? false,
     matchClockDisplayMode: raw.matchClockDisplayMode ?? 'up',
     matchCountdownLengthMs: raw.matchCountdownLengthMs ?? 14 * 60 * 1000,
     periodClockDisplayMode: raw.periodClockDisplayMode ?? 'up',
@@ -141,6 +146,7 @@ export function resetMatchClockSession(session: MatchSessionRecord): MatchSessio
     gameElapsedMs: session.gameElapsedMs,
     playerMinutesMs: {},
     minutesLedgerMatchMs: undefined,
+    matchComplete: false,
   };
 }
 

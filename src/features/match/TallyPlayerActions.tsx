@@ -1,19 +1,16 @@
 import { useMemo, useState } from 'react';
 import {
-  PENALTY_TYPES,
   type ConversionOutcome,
   type FieldLengthBandId,
   type MatchEventKind,
-  type PenaltyCard,
-  type PenaltyTypeId,
+  type PenaltyDirection,
   type PlayPhaseContext,
-  type SetPieceOutcome,
   type TackleOutcome,
-  type TeamPenaltyPayload,
   type ZoneFlowerPick,
 } from '@/domain/matchEvent';
 import type { ZoneId } from '@/domain/zone';
 import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
+import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 
 export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
 
@@ -25,7 +22,8 @@ type TallyCounts = {
   negative_action: number;
   tackle_made: number;
   tackle_missed: number;
-  penalty: number;
+  penalty_conceded: number;
+  penalty_awarded: number;
 };
 
 type Props = {
@@ -36,8 +34,8 @@ type Props = {
   onTallyAction: (kind: TallyActionKind) => void;
   onTallyTackle: (outcome: TackleOutcome) => void;
   onTallyConversion: (outcome: ConversionOutcome) => void;
-  onTallySetPiece: (kind: MatchEventKind, outcome: SetPieceOutcome, phase: PlayPhaseContext) => void;
-  onTallyPenalty: (payload: TeamPenaltyPayload) => void;
+  onTallySetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
+  onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
   onOpponentScoring: (kind: 'opponent_try' | 'opponent_conversion', pick?: ZoneFlowerPick) => void;
   opponentStatBoard: {
     themLabel: string;
@@ -57,55 +55,7 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   requestAnimationFrame(() => ev.currentTarget.blur());
 }
 
-const STANDARD_PENALTY_TYPES = PENALTY_TYPES.filter((pt) => pt.id !== 'other');
-
-function LivePenaltySubpanel({ onSubmit }: { onSubmit: (p: TeamPenaltyPayload) => void }) {
-  const [card, setCard] = useState<PenaltyCard | null>(null);
-  const [otherText, setOtherText] = useState('');
-  const [otherError, setOtherError] = useState<string | null>(null);
-
-  function logStandard(penaltyType: PenaltyTypeId) {
-    onSubmit({ penaltyType, card: card ?? undefined });
-  }
-
-  function logOther() {
-    const detail = otherText.trim();
-    if (!detail) { setOtherError('Enter a description first.'); return; }
-    setOtherError(null);
-    onSubmit({ penaltyType: 'other', card: card ?? undefined, penaltyDetail: detail });
-    setOtherText('');
-  }
-
-  return (
-    <div className="live-penalty-pick">
-      <div className="live-penalty-cards" role="group" aria-label="Discipline card (optional)">
-        <button type="button" className={`live-penalty-card live-penalty-card-yc${card === 'yellow' ? ' live-penalty-card-pressed' : ''}`} aria-pressed={card === 'yellow'} title="Yellow card" onClick={(e) => { e.stopPropagation(); setCard((c) => (c === 'yellow' ? null : 'yellow')); }}>Yellow card</button>
-        <button type="button" className={`live-penalty-card live-penalty-card-rc${card === 'red' ? ' live-penalty-card-pressed' : ''}`} aria-pressed={card === 'red'} title="Red card" onClick={(e) => { e.stopPropagation(); setCard((c) => (c === 'red' ? null : 'red')); }}>Red card</button>
-      </div>
-      <p className="muted live-penalty-pick-hint">Choose an infraction (required).</p>
-      <div className="live-penalty-type-grid">
-        {STANDARD_PENALTY_TYPES.map((pt) => (
-          <button key={pt.id} type="button" className="live-penalty-type-btn" onClick={(e) => { e.stopPropagation(); logStandard(pt.id); requestAnimationFrame(() => e.currentTarget.blur()); }}>{pt.label}</button>
-        ))}
-      </div>
-      <div className="live-penalty-other">
-        <span className="live-penalty-other-heading">Other</span>
-        <input type="text" className="live-penalty-other-input" value={otherText} onChange={(e) => { setOtherText(e.target.value); setOtherError(null); }} placeholder="Type the infraction…" autoComplete="off" aria-label="Penalty detail" onClick={(e) => e.stopPropagation()} />
-        {otherError ? <p className="error-text live-penalty-other-error" role="alert">{otherError}</p> : null}
-        <button type="button" className="btn btn-secondary live-penalty-other-log" onClick={(e) => { e.stopPropagation(); logOther(); }}>Log other</button>
-      </div>
-    </div>
-  );
-}
-
 const OPPONENT_UI_PLAYER_ID = '_opponent_';
-
-const SET_PIECE_KINDS: { kind: MatchEventKind; label: string }[] = [
-  { kind: 'lineout', label: 'Lineout' },
-  { kind: 'restart', label: 'Restart' },
-  { kind: 'ruck', label: 'Ruck' },
-  { kind: 'scrum', label: 'Scrum' },
-];
 
 const ATTACK_BUTTONS: { kind: TallyActionKind; label: string; countKey: keyof TallyCounts }[] = [
   { kind: 'pass', label: 'Pass', countKey: 'pass' },
@@ -128,14 +78,13 @@ export function TallyPlayerActions({
   onTallyAction,
   onTallyTackle,
   onTallyConversion,
-  onTallySetPiece,
+  onTallySetPieceChoice,
   onTallyPenalty,
   onOpponentScoring,
   opponentStatBoard,
   onOpponentStatAdjust,
 }: Props) {
   const [mode, setMode] = useState<PhaseMode>('attack');
-  const [penaltyOpen, setPenaltyOpen] = useState(false);
 
   const opponentActions = useMemo(() => {
     return [
@@ -145,26 +94,18 @@ export function TallyPlayerActions({
     ];
   }, [owesOpponentConversion]);
 
+  const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
+
   return (
     <div className="on-field-actions-wrap">
       <div className="live-phase-switch" role="group" aria-label="Tally: attack, defense, or opponent">
-        <button type="button" className={`live-phase-btn${mode === 'attack' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'attack'} onClick={(e) => tapThenBlur(e, () => { setMode('attack'); setPenaltyOpen(false); })}>Attack</button>
-        <button type="button" className={`live-phase-btn${mode === 'defense' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'defense'} onClick={(e) => tapThenBlur(e, () => { setMode('defense'); setPenaltyOpen(false); })}>Defense</button>
-        <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => { setMode('opponent'); setPenaltyOpen(false); })}>Opp</button>
+        <button type="button" className={`live-phase-btn${mode === 'attack' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'attack'} onClick={(e) => tapThenBlur(e, () => setMode('attack'))}>Attack</button>
+        <button type="button" className={`live-phase-btn${mode === 'defense' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'defense'} onClick={(e) => tapThenBlur(e, () => setMode('defense'))}>Defense</button>
+        <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => setMode('opponent'))}>Opp</button>
       </div>
 
       {mode !== 'opponent' ? (
-        <div className="simple-setpiece-strip" aria-label="Set pieces (tally)">
-          {SET_PIECE_KINDS.map(({ kind, label }) => (
-            <div key={kind} className="simple-setpiece-group">
-              <span className="simple-setpiece-label">{label}</span>
-              <div className="simple-setpiece-btns">
-                <button type="button" className="simple-setpiece-btn simple-setpiece-btn--won" onClick={(e) => tapThenBlur(e, () => onTallySetPiece(kind, 'won', mode))}>W</button>
-                <button type="button" className="simple-setpiece-btn simple-setpiece-btn--lost" onClick={(e) => tapThenBlur(e, () => onTallySetPiece(kind, 'lost', mode))}>L</button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TallySetPieceStrip phase={phaseContext} onChoice={onTallySetPieceChoice} />
       ) : null}
 
       {mode === 'opponent' ? (
@@ -273,23 +214,21 @@ export function TallyPlayerActions({
             )}
             <button
               type="button"
-              className={`tally-counter-btn tally-counter-btn--penalty${penaltyOpen ? ' tally-counter-btn--active' : ''}`}
-              aria-expanded={penaltyOpen}
-              onClick={(e) => tapThenBlur(e, () => setPenaltyOpen((o) => !o))}
+              className="tally-counter-btn tally-counter-btn--penalty tally-counter-btn--pen-minus"
+              onClick={(e) => tapThenBlur(e, () => onTallyPenalty('conceded', phaseContext))}
             >
-              <span className="tally-counter-label">Penalty</span>
-              <span className="tally-counter-badge">{counts.penalty}</span>
+              <span className="tally-counter-label">Pen −</span>
+              <span className="tally-counter-badge">{counts.penalty_conceded}</span>
+            </button>
+            <button
+              type="button"
+              className="tally-counter-btn tally-counter-btn--penalty tally-counter-btn--pen-plus"
+              onClick={(e) => tapThenBlur(e, () => onTallyPenalty('awarded', phaseContext))}
+            >
+              <span className="tally-counter-label">Pen +</span>
+              <span className="tally-counter-badge">{counts.penalty_awarded}</span>
             </button>
           </div>
-
-          {penaltyOpen ? (
-            <LivePenaltySubpanel
-              onSubmit={(payload) => {
-                onTallyPenalty(payload);
-                setPenaltyOpen(false);
-              }}
-            />
-          ) : null}
         </>
       )}
     </div>

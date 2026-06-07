@@ -2,6 +2,7 @@ import type { MatchRecord } from '@/domain/match';
 import type { MatchEventRecord } from '@/domain/matchEvent';
 import { formatClock } from '@/domain/matchClock';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
+import { countPenaltiesByDirection } from '@/domain/tallyStats';
 import { countEventsByKind, kindLabel, tackleMadeMissed, triesByZone } from '@/domain/matchStats';
 import type { PlayerRecord, SubstitutionRecord } from '@/domain/player';
 import { ZONE_IDS } from '@/domain/zone';
@@ -53,6 +54,9 @@ export function buildMatchSummaryText(
   }
   lines.push(`Tackles made: ${tacklesMade}`);
   lines.push(`Tackles missed: ${tacklesMissed}`);
+  const pens = countPenaltiesByDirection(events);
+  if (pens.conceded > 0) lines.push(`Penalties conceded: ${pens.conceded}`);
+  if (pens.awarded > 0) lines.push(`Penalties awarded: ${pens.awarded}`);
   lines.push(`Substitutions: ${substitutions.length}`);
   lines.push('');
 

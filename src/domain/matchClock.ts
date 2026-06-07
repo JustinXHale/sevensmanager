@@ -284,6 +284,26 @@ export function exitHalfTime(session: MatchSessionRecord): MatchSessionRecord {
   };
 }
 
+/** Pause match + film clocks; mark full time (clears halftime if active). */
+export function enterMatchComplete(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
+  let s = pauseSession(session, nowMs);
+  s = pauseGameSession(s, nowMs);
+  s = exitHalfTime(s);
+  return {
+    ...s,
+    matchComplete: true,
+    matchCompleteWallMs: nowMs,
+  };
+}
+
+export function exitMatchComplete(session: MatchSessionRecord): MatchSessionRecord {
+  return {
+    ...session,
+    matchComplete: false,
+    matchCompleteWallMs: undefined,
+  };
+}
+
 // —— Film / wall clock (continuous; RefLog “game” clock) ——
 
 export function currentGameElapsedDisplayMs(session: MatchSessionRecord, nowMs: number): number {

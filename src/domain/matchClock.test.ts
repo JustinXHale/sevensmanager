@@ -18,6 +18,8 @@ import {
   resumeSession,
   setPeriodFromDisplayedMs,
   shouldBlinkMatchThreshold,
+  enterMatchComplete,
+  exitMatchComplete,
 } from './matchClock';
 
 function baseSession(over: Partial<MatchSessionRecord> = {}): MatchSessionRecord {
@@ -231,5 +233,28 @@ describe('matchClock', () => {
     const r = resumeGameSession(s, 5_000);
     expect(r.gameClockRunning).toBe(true);
     expect(r.gameAnchorWallMs).toBe(5_000);
+  });
+
+  it('enterMatchComplete pauses clocks and clears halftime', () => {
+    const s = baseSession({
+      clockRunning: true,
+      anchorWallMs: 1000,
+      halfTimeActive: true,
+      halfTimeStartedWallMs: 500,
+      gameClockRunning: true,
+      gameAnchorWallMs: 1000,
+    });
+    const next = enterMatchComplete(s, 10_000);
+    expect(next.matchComplete).toBe(true);
+    expect(next.clockRunning).toBe(false);
+    expect(next.gameClockRunning).toBe(false);
+    expect(next.halfTimeActive).toBe(false);
+  });
+
+  it('exitMatchComplete clears flag', () => {
+    const s = baseSession({ matchComplete: true, matchCompleteWallMs: 99 });
+    const next = exitMatchComplete(s);
+    expect(next.matchComplete).toBe(false);
+    expect(next.matchCompleteWallMs).toBeUndefined();
   });
 });

@@ -235,6 +235,10 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'M', full: 'Tackle made', desc: 'Successful tackle — ball carrier brought down or held.', group: 'Defense' },
   { abbr: 'X', full: 'Tackle missed', desc: 'Attempted tackle where the ball carrier broke free.', group: 'Defense' },
   { abbr: 'Neg', full: 'Negative action', desc: 'An error: knock-on, bad pass, or forward pass.', group: 'Shared' },
-  { abbr: '!', full: 'Penalty', desc: 'Infringement conceded by your team.', group: 'Shared' },
-  { abbr: 'W/L', full: 'Won / Lost', desc: 'Set piece outcome — whether your team retained or lost possession.', group: 'Set pieces' },
+  { abbr: 'Pen −', full: 'Penalty conceded', desc: 'Infringement against your team.', group: 'Shared' },
+  { abbr: 'Pen +', full: 'Penalty awarded', desc: 'Infringement by the opponent — penalty for your team.', group: 'Shared' },
+  { abbr: 'W/L', full: 'Won / Lost', desc: 'Set piece outcome with no penalty at that restart.', group: 'Set pieces' },
+  { abbr: 'FK', full: 'Free kick', desc: 'Free kick at the set piece.', group: 'Set pieces' },
+  { abbr: 'P+/P−', full: 'Penalty at set piece', desc: 'Penalty awarded (won) or conceded (lost) at that scrum, lineout, ruck, or restart.', group: 'Set pieces' },
+  { abbr: 'FT', full: 'Full time', desc: 'End the match — pauses clocks; you can reopen or copy the summary.', group: 'Clock' },
 ];

@@ -28,6 +28,7 @@ const ROSTER_HELP: GlossaryEntry[] = [
   { abbr: 'Jerseys', full: 'Jersey slots', desc: 'Jerseys 1–13 are seeded automatically when a team is created. Use Add player for extra slots.' },
   { abbr: 'Weigh-ins', full: 'Match weights', desc: 'Tap a player row then open Match weights to record pre/post weigh-ins. Loss > 2% of body weight is flagged red.' },
   { abbr: 'Details', full: 'Player details', desc: 'Open Player details to edit name, jersey number, or notes.' },
+  { abbr: '×', full: 'Remove player', desc: 'Tap × on a row to remove that player from the team roster (weigh-ins for them are deleted).' },
   { abbr: 'Minutes', full: 'Match minutes', desc: 'Minutes are tracked by jersey number in each match\'s roster. They update automatically.' },
 ];
 
@@ -133,6 +134,20 @@ export function TeamAdminSquadTab({
     [weighRows, load, setError],
   );
 
+  async function onRemoveMember(m: TeamMemberRecord) {
+    if (
+      !confirm(
+        `Remove ${formatTeamMemberLabel(m)} from this roster? Weigh-ins for this player will be deleted.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    await deleteTeamMember(m.id);
+    setExpandedId((id) => (id === m.id ? null : id));
+    await load();
+  }
+
   async function onAddMember(e: FormEvent) {
     e.preventDefault();
     const raw = memberNum.trim();
@@ -177,19 +192,30 @@ export function TeamAdminSquadTab({
                   return (
                     <li key={m.id} className="admin-squad-accordion-item">
                       <div className="roster-expand-card admin-squad-player-card">
-                        <button
-                          type="button"
-                          className="admin-squad-row-toggle"
-                          aria-expanded={open}
-                          aria-controls={`squad-player-panel-${m.id}`}
-                          id={`squad-player-trigger-${m.id}`}
-                          onClick={() => setExpandedId((id) => (id === m.id ? null : m.id))}
-                        >
-                          <span className="admin-squad-name-text">{formatTeamMemberLabel(m)}</span>
-                          <span className="roster-expand-chevron" aria-hidden>
-                            {open ? '▾' : '▸'}
-                          </span>
-                        </button>
+                        <div className="admin-squad-row-header">
+                          <button
+                            type="button"
+                            className="admin-squad-row-toggle"
+                            aria-expanded={open}
+                            aria-controls={`squad-player-panel-${m.id}`}
+                            id={`squad-player-trigger-${m.id}`}
+                            onClick={() => setExpandedId((id) => (id === m.id ? null : m.id))}
+                          >
+                            <span className="admin-squad-name-text">{formatTeamMemberLabel(m)}</span>
+                            <span className="roster-expand-chevron" aria-hidden>
+                              {open ? '▾' : '▸'}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="roster-row-remove admin-squad-row-remove"
+                            title="Remove from roster"
+                            aria-label={`Remove ${formatTeamMemberLabel(m)} from roster`}
+                            onClick={() => void onRemoveMember(m)}
+                          >
+                            ×
+                          </button>
+                        </div>
                         {open ? (
                           <SquadPlayerExpandedSection
                             member={m}

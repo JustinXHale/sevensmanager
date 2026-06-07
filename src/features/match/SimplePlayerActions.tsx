@@ -6,7 +6,6 @@ import {
   type PenaltyCard,
   type PenaltyTypeId,
   type PlayPhaseContext,
-  type SetPieceOutcome,
   type TackleOutcome,
   type TeamPenaltyPayload,
   type ZoneFlowerPick,
@@ -17,6 +16,7 @@ import type { PlayerRecord } from '@/domain/player';
 import { formatPlayerMinutesLabel } from '@/domain/playerMinutes';
 import { formatPlayerLabel, formatPlayerNameOnly, sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
 import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
+import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
 
 export type SimpleActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
 
@@ -68,8 +68,8 @@ type Props = {
   onSimpleAction: (kind: SimpleActionKind, playerId: string) => void;
   /** Single-tap tackle: made or missed (no zone/quality). */
   onSimpleTackle: (playerId: string, outcome: TackleOutcome) => void;
-  /** W / L for set pieces (no area picker). */
-  onSimpleSetPiece: (kind: MatchEventKind, outcome: SetPieceOutcome, phase: PlayPhaseContext) => void;
+  /** Set pieces: W / L / FK / Pen+ / Pen− (no area picker). */
+  onSetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
 };
 
 function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
@@ -147,13 +147,6 @@ function LivePenaltySubpanel({ yellowSecondsLeft, onYellowCardActivate, onSubmit
 
 const OPPONENT_UI_PLAYER_ID = '_opponent_';
 
-const SET_PIECE_KINDS: { kind: MatchEventKind; label: string }[] = [
-  { kind: 'lineout', label: 'Lineout' },
-  { kind: 'restart', label: 'Restart' },
-  { kind: 'ruck', label: 'Ruck' },
-  { kind: 'scrum', label: 'Scrum' },
-];
-
 export function SimplePlayerActions({
   players,
   substituteOptions,
@@ -171,7 +164,7 @@ export function SimplePlayerActions({
   onTeamPenalty,
   onSimpleAction,
   onSimpleTackle,
-  onSimpleSetPiece,
+  onSetPieceChoice,
 }: Props) {
   const [mode, setMode] = useState<PlayerActionMode>('attack');
   const [penaltyMenuFor, setPenaltyMenuFor] = useState<string | null>(null);
@@ -232,19 +225,11 @@ export function SimplePlayerActions({
         <button type="button" className={`live-phase-btn${mode === 'opponent' ? ' live-phase-btn-active' : ''}`} aria-pressed={mode === 'opponent'} onClick={(e) => tapThenBlur(e, () => { setMode('opponent'); setPenaltyMenuFor(null); setSubPickerFor(null); })}>Opp</button>
       </div>
 
-      {/* Simple set-piece strip: W / L per kind */}
       {mode !== 'opponent' ? (
-        <div className="simple-setpiece-strip" aria-label="Set pieces (simple)">
-          {SET_PIECE_KINDS.map(({ kind, label }) => (
-            <div key={kind} className="simple-setpiece-group">
-              <span className="simple-setpiece-label">{label}</span>
-              <div className="simple-setpiece-btns">
-                <button type="button" className="simple-setpiece-btn simple-setpiece-btn--won" onClick={(e) => tapThenBlur(e, () => onSimpleSetPiece(kind, 'won', mode))}>W</button>
-                <button type="button" className="simple-setpiece-btn simple-setpiece-btn--lost" onClick={(e) => tapThenBlur(e, () => onSimpleSetPiece(kind, 'lost', mode))}>L</button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TallySetPieceStrip
+          phase={mode === 'defense' ? 'defense' : 'attack'}
+          onChoice={onSetPieceChoice}
+        />
       ) : null}
 
       {mode === 'opponent' ? (

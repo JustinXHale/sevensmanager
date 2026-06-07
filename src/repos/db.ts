@@ -8,6 +8,7 @@ import type { PlayerRecord, SubstitutionRecord } from '@/domain/player';
 import type { TeamRecord } from '@/domain/team';
 import type { TeamMemberRecord } from '@/domain/teamMember';
 import type { WeighInRecord } from '@/domain/weighIn';
+import type { AttackingPlayRecord } from '@/domain/attackingPlay';
 
 /** Single-row meta: schema version and future flags. */
 export interface MetaRow {
@@ -15,8 +16,8 @@ export interface MetaRow {
   value: unknown;
 }
 
-/** v7: clubs (landing team picker), competitions optional clubId. */
-export const SCHEMA_VERSION = 7;
+/** v8: attacking play canvas (local playbook). */
+export const SCHEMA_VERSION = 8;
 
 /**
  * IndexedDB database. Version bumps run migrations in upgrade handlers.
@@ -34,6 +35,7 @@ export class SevensManagerDb extends Dexie {
   teamMembers!: Table<TeamMemberRecord, string>;
   weighIns!: Table<WeighInRecord, string>;
   dayScheduleItems!: Table<DayScheduleItemRecord, string>;
+  attackingPlays!: Table<AttackingPlayRecord, string>;
 
   constructor() {
     super('sevensmanager');
@@ -129,6 +131,21 @@ export class SevensManagerDb extends Dexie {
           }
         }
       });
+    this.version(8).stores({
+      meta: 'key',
+      matches: 'id, createdAt, kickoffDate, title, competition, competitionId, teamId',
+      matchSessions: 'matchId',
+      players: 'id, matchId, number, status',
+      substitutions: 'id, matchId, matchTimeMs',
+      matchEvents: 'id, matchId, matchTimeMs, kind, createdAt',
+      competitions: 'id, createdAt, name, clubId',
+      clubs: 'id, createdAt, name',
+      teams: 'id, competitionId, name, createdAt',
+      teamMembers: 'id, teamId, number',
+      weighIns: 'id, teamMemberId, recordedAt, matchId',
+      dayScheduleItems: 'id, teamId, dayDate, sortIndex',
+      attackingPlays: 'id, updatedAt',
+    });
   }
 }
 

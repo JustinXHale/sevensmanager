@@ -6,6 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Live match **End match (FT)** — tool-row button with confirm; pauses clocks, full-time overlay with final score, **Copy summary**, and **Resume match**; navigates to Stats tab; works in any period (e.g. lightning abandonment)
+- Tally / One Tap **set-piece circles** — shared `TallySetPieceStrip` with W / L / FK / Pen+ / Pen− per lineout, restart, ruck, and scrum; Pen+ logs won + penalty awarded, Pen− logs lost + penalty conceded
+- **`penaltyDirection`** on `team_penalty` events (`conceded` | `awarded`); Tally standalone **Pen −** / **Pen +** counters (no infraction picker)
+- Tally **stats** — scoreboard (points, tries, tries conceded), attack/defense split with offloads, conversion made/missed, penalties by phase, and set-piece W/L/FK/Pen bars per phase
+- Match stats panel **Copy summary** button (clipboard via `buildMatchSummaryText`)
+
+### Changed
+- Tally mode penalties replaced infraction picker with awarded/conceded counters; One Tap set pieces use the same circle strip as Tally
+- Tracking and stats mode switchers reordered **Tally → One Tap → Full**; **Tally** is the default for new matches
+- Team admin **Squad** tab: **×** remove button on each player row (no need to open Player details)
+
+### Added
+- **Canvas** (`/plays`, `/plays/:id`): local attacking-play editor — quarter-field SVG, seven numbered tokens, solid run paths, dotted pass preview, possession chain + pass times, timeline scrub/play, snap grid, undo/redo, IndexedDB persistence; **Canvas** link in the nav drawer
 - **Nav drawer overhaul**: removed Add match / Import schedule; new layout with icons, divider, and two groups (navigation + utility); items: Clubs, Recent match (conditional shortcut to last-visited match), Glossary, Settings, Profile (disabled / coming soon), Other projects, About
 - **Glossary page** (`/glossary`): aggregates all abbreviation data (tracking, match stats, global stats) into a single scrollable grouped reference
 - **Settings page** (`/settings`): stub with coming-soon placeholder for future preferences
@@ -47,6 +60,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT License
 
 ### Changed
+- **Canvas** (`/plays`): play document is now **five chained phases** (each with its own duration, scrub, paths, and possession); phases 2–5 snap player dots from the end of the previous phase; **Play all phases** runs the full sequence; v1 saved plays migrate to v2 on load; dotted pass lines and ball-in-flight still use release→catch anchors; draw mode can start from a token
 - **Settings** nav item disabled with "Coming soon" badge (matches Profile); route kept as a safety net for bookmarks
 - Recent match nav shortcut cleared automatically when a match is deleted (`clearRecentMatchIfStale`)
 - Stats tab: three-way **Full / One Tap / Tally** toggle (rounded, matching the Tracking tab style) with section dropdown below the title row; unified title "Match stats" across all modes; help icon sits inline with the title

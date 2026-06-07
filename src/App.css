@@ -2509,8 +2509,174 @@ a.live-tab:focus-visible {
 .ref-tool-end {
   min-width: 32px;
   font-size: 0.7rem;
-  color: var(--accent);
-  border-color: var(--border-strong);
+  font-weight: 800;
+  color: #e8b84a;
+  border-color: #6b5520;
+  background: #1a1810;
+}
+
+.ref-tool-end:hover:not(:disabled) {
+  background: #2a2418;
+  border-color: #8a7028;
+}
+
+.ref-clock-wrap--complete .ref-clock-bar--dimmed {
+  opacity: 0.55;
+}
+
+.ref-clock-complete-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  background: rgba(8, 12, 18, 0.88);
+  border-radius: inherit;
+}
+
+.ref-clock-complete-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.ref-clock-complete-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8b84a;
+}
+
+.ref-clock-complete-score {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ref-clock-complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.ref-clock-complete-copy {
+  min-height: 36px;
+  padding: 0.35rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: #1a222d;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ref-clock-complete-copy:hover {
+  border-color: var(--accent);
+}
+
+.tally-setpiece-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.tally-setpiece-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tally-setpiece-kind {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tally-setpiece-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.tally-setpiece-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: #121820;
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tally-setpiece-btn:active {
+  background: rgba(94, 158, 214, 0.15);
+}
+
+.tally-setpiece-btn--lost {
+  border-color: #6b3038;
+  color: #e67a87;
+}
+
+.tally-setpiece-btn--fk {
+  border-color: #4a6a8a;
+  color: #8eb8e8;
+}
+
+.tally-setpiece-btn--pen-plus {
+  border-color: #1d6f4a;
+  color: #3dd68c;
+}
+
+.tally-setpiece-btn--pen-minus {
+  border-color: #6b5520;
+  color: #e8b84a;
+}
+
+.tally-counter-btn--pen-minus {
+  border-color: #6b5520;
+}
+
+.tally-counter-btn--pen-plus {
+  border-color: #1d6f4a;
+}
+
+.tgs-card-subtitle {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tgs-header-title-row .btn-sm {
+  margin-left: auto;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.55rem;
 }
 
 .live-setpiece-bar {
@@ -6046,6 +6212,22 @@ button.competitions-sticky-dropdown-item:hover {
 
 .admin-squad-player-card {
   margin: 0;
+}
+
+.admin-squad-row-header {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.admin-squad-row-header .admin-squad-row-toggle {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-squad-row-remove {
+  flex-shrink: 0;
+  margin-right: 0.4rem;
 }
 
 .admin-squad-row-toggle {

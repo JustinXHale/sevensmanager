@@ -15,6 +15,7 @@ type Props = {
   running: boolean;
   halfTimeActive: boolean;
   halfTimeElapsedMs: number;
+  matchComplete: boolean;
   /** Own team points (from logged tries / conversions). */
   ourScore: number;
   /** Opponent points (from logged opponent tries / conversions). */
@@ -28,6 +29,9 @@ type Props = {
   onAdvancePeriod: () => void;
   onHalftime: () => void;
   onResumeFromHalftime: () => void;
+  onEndMatch: () => void;
+  onResumeFromComplete: () => void;
+  onCopySummary?: () => void;
   onOpenClockSettings: () => void;
 };
 
@@ -44,6 +48,7 @@ export function RefClockBar({
   running,
   halfTimeActive,
   halfTimeElapsedMs,
+  matchComplete,
   ourScore,
   opponentScore,
   ourLabel,
@@ -53,17 +58,25 @@ export function RefClockBar({
   onAdvancePeriod,
   onHalftime,
   onResumeFromHalftime,
+  onEndMatch,
+  onResumeFromComplete,
+  onCopySummary,
   onOpenClockSettings,
 }: Props) {
   const warn = shouldBlink ? ' ref-clk-digits--warn' : '';
   const matchLabel = matchClockMode === 'down' ? 'Match ↓' : 'Match';
   const periodLabel = periodClockMode === 'down' ? `P${period} ↓` : `P${period}`;
+  const clockLocked = halfTimeActive || matchComplete;
 
   return (
-    <div className={`ref-clock-wrap${halfTimeActive ? ' ref-clock-wrap--halftime' : ''}`}>
+    <div
+      className={`ref-clock-wrap${halfTimeActive ? ' ref-clock-wrap--halftime' : ''}${
+        matchComplete ? ' ref-clock-wrap--complete' : ''
+      }`}
+    >
       <div
         className={`ref-clock-bar ref-clock-two-line ref-clock-bar--with-scores${
-          halfTimeActive ? ' ref-clock-bar--dimmed' : ''
+          clockLocked ? ' ref-clock-bar--dimmed' : ''
         }`}
       >
         <div className="ref-clock-score-pillar ref-clock-score-pillar--us">
@@ -92,7 +105,7 @@ export function RefClockBar({
                 className="ref-clk-tap ref-clk-tap--split"
                 title={running ? 'Pause' : 'Start'}
                 aria-label={running ? 'Pause clock' : 'Start clock'}
-                disabled={halfTimeActive}
+                disabled={clockLocked}
                 onClick={onToggle}
               >
                 {running ? '⏸' : '▶'}
@@ -118,7 +131,7 @@ export function RefClockBar({
               <button
                 type="button"
                 className="ref-tool-btn ref-tool-nudge"
-                disabled={halfTimeActive}
+                disabled={clockLocked}
                 onClick={() => onAdjust(-NUDGE_MS)}
               >
                 −5s
@@ -126,7 +139,7 @@ export function RefClockBar({
               <button
                 type="button"
                 className="ref-tool-btn ref-tool-nudge"
-                disabled={halfTimeActive}
+                disabled={clockLocked}
                 onClick={() => onAdjust(NUDGE_MS)}
               >
                 +5s
@@ -137,7 +150,7 @@ export function RefClockBar({
               className="ref-tool-btn ref-tool-next-period"
               title="Next period (1–10, then wraps)"
               aria-label="Advance to next period"
-              disabled={halfTimeActive}
+              disabled={clockLocked}
               onClick={onAdvancePeriod}
             >
               Next
@@ -147,17 +160,27 @@ export function RefClockBar({
               className="ref-tool-btn ref-tool-halftime"
               title="Halftime — advance period, pause match and film clocks"
               aria-label="Halftime"
-              disabled={halfTimeActive}
+              disabled={clockLocked}
               onClick={onHalftime}
             >
               HT
             </button>
             <button
               type="button"
+              className="ref-tool-btn ref-tool-end"
+              title="End match — pause clocks and mark full time"
+              aria-label="End match"
+              disabled={clockLocked}
+              onClick={onEndMatch}
+            >
+              FT
+            </button>
+            <button
+              type="button"
               className="ref-tool-btn ref-tool-edit"
               title="Edit clock settings and set times"
               aria-label="Clock settings"
-              disabled={halfTimeActive}
+              disabled={clockLocked}
               onClick={onOpenClockSettings}
             >
               ✎
@@ -190,6 +213,27 @@ export function RefClockBar({
           <button type="button" className="ref-clock-halftime-resume" onClick={onResumeFromHalftime}>
             Resume match
           </button>
+        </div>
+      ) : null}
+
+      {matchComplete ? (
+        <div className="ref-clock-complete-overlay" role="dialog" aria-label="Full time" aria-modal="true">
+          <div className="ref-clock-complete-banner">
+            <span className="ref-clock-complete-label">Full time</span>
+            <span className="ref-clock-complete-score" aria-label={`Final score ${ourScore} to ${opponentScore}`}>
+              {ourLabel} {ourScore} &ndash; {opponentScore} {opponentLabel}
+            </span>
+          </div>
+          <div className="ref-clock-complete-actions">
+            {onCopySummary ? (
+              <button type="button" className="ref-clock-complete-copy" onClick={onCopySummary}>
+                Copy summary
+              </button>
+            ) : null}
+            <button type="button" className="ref-clock-halftime-resume" onClick={onResumeFromComplete}>
+              Resume match
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
