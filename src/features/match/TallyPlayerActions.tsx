@@ -23,6 +23,7 @@ type TallyCounts = {
   penalty_conceded: number;
   penalty_awarded: number;
   try_conceded: number;
+  system_moment: number;
 };
 
 type ScorerPick =
@@ -40,6 +41,7 @@ type Props = {
   onTallyConversion: (outcome: ConversionOutcome, playerId: string) => void;
   onTallySetPieceChoice: (kind: MatchEventKind, choice: TallySetPieceChoice, phase: PlayPhaseContext) => void;
   onTallyPenalty: (direction: PenaltyDirection, phase: PlayPhaseContext) => void;
+  onTallySystemMoment: () => void;
   onTallyTryConceded: () => void;
   onTallyOpponentConversion: (outcome: ConversionOutcome) => void;
   opponentStatBoard: {
@@ -84,6 +86,7 @@ export function TallyPlayerActions({
   onTallyConversion,
   onTallySetPieceChoice,
   onTallyPenalty,
+  onTallySystemMoment,
   onTallyTryConceded,
   onTallyOpponentConversion,
   opponentStatBoard,
@@ -273,6 +276,21 @@ export function TallyPlayerActions({
               <span className="tally-counter-label">Pen +</span>
               <span className="tally-counter-badge">{counts.penalty_awarded}</span>
             </button>
+            {mode === 'attack' ? (
+              <button
+                type="button"
+                className="tally-counter-btn tally-counter-btn--system-moment"
+                title="Mark a positive system moment in attack"
+                aria-label="System moment — positive attack play"
+                onClick={(e) => tapThenBlur(e, () => onTallySystemMoment())}
+              >
+                <span className="tally-counter-label tally-counter-label--stacked">
+                  <span>System</span>
+                  <span>Moment</span>
+                </span>
+                <span className="tally-counter-badge">{counts.system_moment}</span>
+              </button>
+            ) : null}
           </div>
         </>
       )}

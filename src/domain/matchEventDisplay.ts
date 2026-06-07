@@ -58,6 +58,10 @@ export function formatMatchEventSummary(
     const note = e.markerNote?.trim() ? ` · ${e.markerNote.trim()}` : '';
     return `★ Starred moment${film}${note}`;
   }
+  if (e.kind === 'system_moment') {
+    const film = e.filmTimeMs != null ? ` · Film ${formatClock(e.filmTimeMs)}` : '';
+    return `System moment · Attack${film}`;
+  }
   if (e.kind === 'scrum') return setPieceLineParts(e, 'Scrum');
   if (e.kind === 'lineout') return setPieceLineParts(e, 'Lineout');
   if (e.kind === 'team_penalty') {

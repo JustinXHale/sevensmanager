@@ -534,10 +534,12 @@ export function MatchLivePage() {
       penalty_conceded: 0,
       penalty_awarded: 0,
       try_conceded: 0,
+      system_moment: 0,
     };
     for (const e of events) {
       if (e.deletedAt != null) continue;
-      if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
+      if (e.kind === 'system_moment') c.system_moment++;
+      else if (e.kind === 'pass') { if (e.passVariant === 'offload') c.offload++; else c.pass++; }
       else if (e.kind === 'line_break') c.line_break++;
       else if (e.kind === 'try') c.try++;
       else if (e.kind === 'opponent_try') c.try_conceded++;
@@ -829,6 +831,22 @@ export function MatchLivePage() {
     });
     await load();
     setActionToast({ text: 'Moment starred — see Timeline for film time', key: Date.now() });
+  }
+
+  async function logTallySystemMoment() {
+    if (!matchId || !session || session.matchComplete) return;
+    setBanner(null);
+    const now = Date.now();
+    await addMatchEvent({
+      matchId,
+      kind: 'system_moment',
+      matchTimeMs: cumulativeMatchTimeMs(session, now),
+      period: session.period,
+      playPhaseContext: 'attack',
+      filmTimeMs: currentGameElapsedDisplayMs(session, now),
+    });
+    await load();
+    setActionToast({ text: 'System moment logged', key: Date.now() });
   }
 
   async function logTallyAction(kind: TallyActionKind) {
@@ -1263,6 +1281,7 @@ export function MatchLivePage() {
                 onTallyConversion={(outcome, playerId) => void logTallyConversion(outcome, playerId)}
                 onTallySetPieceChoice={(kind, choice, phase) => void logTallySetPieceChoice(kind, choice, phase)}
                 onTallyPenalty={(direction, phase) => void logTallyPenalty(direction, phase)}
+                onTallySystemMoment={() => void logTallySystemMoment()}
                 onTallyTryConceded={() => void logTallyTryConceded()}
                 onTallyOpponentConversion={(outcome) => void logTallyOpponentConversion(outcome)}
                 opponentStatBoard={opponentStatBoard}

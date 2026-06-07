@@ -231,6 +231,7 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'O', full: 'Offload', desc: 'A pass made in contact while being tackled.', group: 'Attack' },
   { abbr: 'LB', full: 'Line break', desc: 'Ball carrier breaks through the defensive line.', group: 'Attack' },
   { abbr: 'Tr', full: 'Try', desc: 'Grounding the ball in the opponent\u2019s in-goal area (5 pts).', group: 'Attack' },
+  { abbr: 'System Moment', full: 'System moment', desc: 'Gold circle on Tally Attack — marks a positive structured attack worth reviewing on film.', group: 'Attack' },
   { abbr: 'Try −', full: 'Try conceded', desc: 'Opponent try scored against you — logged on the Defense tab.', group: 'Defense' },
   { abbr: 'C', full: 'Conversion', desc: 'Kick at goal after a try (2 pts).', group: 'Attack' },
   { abbr: 'M', full: 'Tackle made', desc: 'Successful tackle — ball carrier brought down or held.', group: 'Defense' },

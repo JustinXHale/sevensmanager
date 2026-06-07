@@ -97,7 +97,7 @@ const KIND_ORDER: MatchEventKind[] = [
 ];
 
 const TALLY_ATTACK_KINDS: MatchEventKind[] = [
-  'pass', 'line_break', 'try', 'conversion', 'negative_action',
+  'pass', 'line_break', 'try', 'conversion', 'negative_action', 'system_moment',
 ];
 const TALLY_DEFENSE_KINDS: MatchEventKind[] = ['team_penalty'];
 const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['scrum', 'lineout', 'restart', 'ruck'];

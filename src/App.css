@@ -3128,6 +3128,31 @@ a.live-tab:focus-visible {
   background: rgba(232, 184, 74, 0.15);
 }
 
+.tally-counter-btn--system-moment {
+  border: none;
+  background: #e8b84a;
+  color: #1c1400;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(232, 184, 74, 0.35);
+}
+
+.tally-counter-btn--system-moment:active {
+  background: #d4a63a;
+}
+
+.tally-counter-btn--system-moment .tally-counter-badge {
+  color: #1c1400;
+  opacity: 0.8;
+}
+
+.tally-counter-label--stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  font-size: 0.72rem;
+}
+
 .tally-counter-label {
   line-height: 1.1;
 }
