@@ -6,7 +6,7 @@ import { orderPlayersInStatus } from '@/domain/rosterDisplay';
 import { RosterPlayerCard } from './RosterPlayerCard';
 
 const ZONES: { status: PlayerStatus; title: string; hint: string }[] = [
-  { status: 'on', title: 'On field', hint: `Up to ${ON_FIELD_MAX}` },
+  { status: 'on', title: 'On field', hint: `${ON_FIELD_MAX} regulation` },
   { status: 'bench', title: 'Bench', hint: 'Reserves' },
   { status: 'off', title: 'Off', hint: 'Not in squad' },
 ];
@@ -44,12 +44,9 @@ export function RosterDragBoard({
   const boardRef = useRef<HTMLDivElement>(null);
 
   const listForZone = (status: PlayerStatus) =>
-    orderPlayersInStatus(
-      players,
-      status,
-      displayOrders[orderKey(status)],
-      status === 'on' ? ON_FIELD_MAX : undefined,
-    );
+    orderPlayersInStatus(players, status, displayOrders[orderKey(status)]);
+
+  const onFieldOverLimit = countOnField > ON_FIELD_MAX;
 
   const resolveDropTarget = useCallback((clientX: number, clientY: number): DropTarget | null => {
     const el = document.elementFromPoint(clientX, clientY);
@@ -175,13 +172,13 @@ export function RosterDragBoard({
       </p>
       {ZONES.map(({ status, title, hint }) => {
         const list = listForZone(status);
-        const full = status === 'on' && countOnField >= ON_FIELD_MAX;
+        const overLimit = status === 'on' && onFieldOverLimit;
         return (
           <section
             key={status}
             className={`roster-drag-zone roster-drag-zone--${status}${
               hoverZone === status ? ' roster-drag-zone--hover' : ''
-            }${full && draggingId ? ' roster-drag-zone--full' : ''}`}
+            }${overLimit ? ' roster-drag-zone--over-limit' : ''}`}
             data-roster-zone={status}
             aria-label={`${title}: ${list.length} players`}
             onDragOver={(e) => onZoneDragOver(status, e)}
@@ -229,7 +226,6 @@ export function RosterDragBoard({
                     >
                       <RosterPlayerCard
                         player={p}
-                        countOnField={countOnField}
                         showStatusTags={false}
                         showSortControls
                         canMoveUp={index > 0}

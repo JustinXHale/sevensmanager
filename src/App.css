@@ -1761,6 +1761,16 @@
   border-color: rgba(124, 179, 66, 0.35);
 }
 
+.roster-drag-zone--on.roster-drag-zone--over-limit {
+  border-color: rgba(239, 68, 68, 0.7);
+  border-style: solid;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.roster-drag-zone--on.roster-drag-zone--over-limit .roster-drag-zone-title {
+  color: #f87171;
+}
+
 .roster-drag-zone--bench {
   border-color: rgba(245, 158, 11, 0.35);
 }
@@ -2900,7 +2910,130 @@ a.live-tab:focus-visible {
 .tally-setpiece-strip {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.55rem;
+}
+
+.tally-setpiece-kind-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.tally-setpiece-outcome-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.tally-setpiece-outcome-row--ruck,
+.tally-setpiece-outcome-row--fk {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 12rem;
+}
+
+.tally-setpiece-layer-hint {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.tally-setpiece-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 4.5rem;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--accent, #5e9ed6);
+  background: transparent;
+  color: var(--text, #e4e4e4);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, border-color 0.15s;
+  padding: 0.2rem;
+}
+
+.tally-setpiece-circle-text {
+  line-height: 1.1;
+  text-align: center;
+}
+
+.tally-setpiece-circle:active {
+  background: rgba(94, 158, 214, 0.18);
+}
+
+.tally-setpiece-circle--active {
+  background: rgba(94, 158, 214, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.tally-setpiece-circle--lost {
+  border-color: #e67a87;
+  color: #e67a87;
+}
+
+.tally-setpiece-circle--fk {
+  border-color: #8eb8e8;
+  color: #8eb8e8;
+}
+
+.tally-setpiece-circle--pen-plus {
+  border-color: #e8b84a;
+  color: #fde68a;
+}
+
+.tally-setpiece-circle--pen-minus {
+  border-color: #dc2626;
+  color: #fca5a5;
+}
+
+.tally-setpiece-circle--ruck-contest {
+  border-color: var(--accent);
+}
+
+.tally-setpiece-layer {
+  padding: 0.45rem 0.35rem 0.15rem;
+  border-top: 1px solid var(--border);
+}
+
+.tally-setpiece-layer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.tally-setpiece-layer-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 0;
+}
+
+.tally-setpiece-layer-back {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+}
+
+.tally-setpiece-layer-back:active {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .tally-penalty-pick {

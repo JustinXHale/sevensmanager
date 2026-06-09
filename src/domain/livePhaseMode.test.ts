@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  suggestPhaseAfterFreeKick,
   suggestPhaseAfterForcedTurnover,
   suggestPhaseAfterOpponentConversion,
   suggestPhaseAfterOurConversion,
@@ -38,8 +39,22 @@ describe('suggestPhaseAfterSetPieceOutcome', () => {
     expect(suggestPhaseAfterSetPieceOutcome('won', 'attack')).toBeNull();
   });
 
-  it('free kick does not switch', () => {
+  it('free kick does not switch via W/L helper', () => {
     expect(suggestPhaseAfterSetPieceOutcome('free_kick', 'attack')).toBeNull();
+  });
+});
+
+describe('suggestPhaseAfterFreeKick', () => {
+  it('their error on defense switches to attack', () => {
+    expect(suggestPhaseAfterFreeKick('opponent', 'defense')).toBe('attack');
+  });
+
+  it('our error on attack switches to defense', () => {
+    expect(suggestPhaseAfterFreeKick('us', 'attack')).toBe('defense');
+  });
+
+  it('their error while receiving restart stays on attack', () => {
+    expect(suggestPhaseAfterFreeKick('opponent', 'attack')).toBeNull();
   });
 });
 

@@ -1,4 +1,4 @@
-import type { PenaltyDirection, PlayPhaseContext } from '@/domain/matchEvent';
+import type { FreeKickAgainst, PenaltyDirection, PlayPhaseContext } from '@/domain/matchEvent';
 
 /** Attack / Defense / Opp tab on Tally and One Tap live tracking. */
 export type LivePhaseMode = 'attack' | 'defense' | 'opponent';
@@ -25,6 +25,16 @@ export function suggestPhaseAfterSetPieceOutcome(
 ): LivePhaseMode | null {
   if (choice === 'lost' && phase === 'attack') return 'defense';
   if (choice === 'won' && phase === 'defense') return 'attack';
+  return null;
+}
+
+/** FK to us on defense → attack; FK to them on attack → defense (possession flip). */
+export function suggestPhaseAfterFreeKick(
+  against: FreeKickAgainst,
+  phase: PlayPhaseContext,
+): LivePhaseMode | null {
+  if (against === 'opponent' && phase === 'defense') return 'attack';
+  if (against === 'us' && phase === 'attack') return 'defense';
   return null;
 }
 

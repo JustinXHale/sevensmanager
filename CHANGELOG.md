@@ -33,6 +33,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- Tally / One Tap set-piece **FK**: third layer **Them** / **Us** (who erred); logged as FK to us vs FK to them; timeline shows fault; receiving restart hints common case
+- Tally / One Tap **set-piece strip**: layered full-size circles — pick Restart/Ruck/Scrum/Lineout, then W/L/FK/P+/P−, then ruck contested or penalty infractions
+- Match **Roster**: no cap on players on field — on-field zone turns red when more than 7 (regulation warning only)
 - Event **Timeline**: attack events use green-tinted cards, defense events use orange-tinted cards (★ starred moments stay gold)
 - Clock settings **Film / video sync** section: left-aligned labels, full-width inputs, and Apply film sync button
 - Clock settings time fields accept **digits-only** on the number pad (e.g. `1048` → `10:48`) so film sync works without typing a colon

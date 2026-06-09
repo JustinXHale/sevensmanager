@@ -1,5 +1,5 @@
 import type { PlayerRecord, PlayerStatus } from '@/domain/player';
-import { ON_FIELD_MAX, SQUAD_MAX, statusSortKey } from '@/domain/player';
+import { SQUAD_MAX, statusSortKey } from '@/domain/player';
 
 /** Primary label: #n plus optional name (RefLog-style). */
 export function formatPlayerLabel(p: PlayerRecord): string {
@@ -90,7 +90,7 @@ export function orderPlayersInStatus(
  * still on field; append any new on-field players by jersey (e.g. roster edits).
  */
 export function orderOnFieldPlayers(players: PlayerRecord[], orderIds: string[] | null): PlayerRecord[] {
-  return orderPlayersInStatus(players, 'on', orderIds, ON_FIELD_MAX);
+  return orderPlayersInStatus(players, 'on', orderIds);
 }
 
 /**
@@ -127,7 +127,7 @@ export function reconcileStatusOrder(
  * append any new on-field ids (sorted by jersey). If `prev` is null, start from jersey order.
  */
 export function reconcileOnFieldOrder(prev: string[] | null, allPlayers: PlayerRecord[]): string[] {
-  return reconcileStatusOrder(prev, allPlayers, 'on', ON_FIELD_MAX);
+  return reconcileStatusOrder(prev, allPlayers, 'on');
 }
 
 export function reconcileAllRosterOrders(
@@ -135,7 +135,7 @@ export function reconcileAllRosterOrders(
   stored: Partial<RosterDisplayOrders> | null | undefined,
 ): RosterDisplayOrders {
   return {
-    on: reconcileStatusOrder(stored?.on ?? null, players, 'on', ON_FIELD_MAX),
+    on: reconcileStatusOrder(stored?.on ?? null, players, 'on'),
     bench: reconcileStatusOrder(stored?.bench ?? null, players, 'bench'),
     off: reconcileStatusOrder(stored?.off ?? null, players, 'off'),
   };

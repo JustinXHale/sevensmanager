@@ -99,6 +99,13 @@ export type OffloadOutcome = 'won' | 'lost';
 /** For scrum / lineout / ruck / restart: result (incl. penalty against or free kick). */
 export type SetPieceOutcome = 'won' | 'lost' | 'penalized' | 'free_kick';
 
+/** Who the free kick is against: opponent erred (FK to us) or we erred (FK to them). */
+export type FreeKickAgainst = 'opponent' | 'us';
+
+export function freeKickAgainstLabel(against: FreeKickAgainst): string {
+  return against === 'opponent' ? 'FK to us (their error)' : 'FK to them (our error)';
+}
+
 /** For `kind === 'ruck'` when won/lost: whether the breakdown was contested. */
 export type RuckContest = 'contested' | 'uncontested';
 
@@ -386,6 +393,8 @@ export interface MatchEventRecord {
   markerNote?: string;
   /** For `kind === 'ruck'` with won/lost outcome (Tally / One Tap). */
   ruckContest?: RuckContest;
+  /** For set-piece `free_kick` outcome: who erred (e.g. restart not 10m → opponent). */
+  freeKickAgainst?: FreeKickAgainst;
 }
 
 /** Resolve direction for analytics; missing field means conceded (full-mode infraction pickers). */

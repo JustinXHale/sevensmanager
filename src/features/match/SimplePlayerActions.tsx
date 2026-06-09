@@ -6,7 +6,6 @@ import {
   type PenaltyDirection,
   type PenaltyTypeId,
   type PlayPhaseContext,
-  type RuckContest,
   penaltyDirectionLabel,
   penaltyTypesForPicker,
   type TackleOutcome,
@@ -20,7 +19,11 @@ import { formatPlayerMinutesLabel } from '@/domain/playerMinutes';
 import { formatPlayerLabel, formatPlayerNameOnly, sortPlayersRefLogStyle } from '@/domain/rosterDisplay';
 import { ZoneFlowerActionButton, type ZoneFlowerActionKind } from './ZoneFlowerActionButton';
 import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
-import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
+import {
+  TallySetPieceStrip,
+  type TallySetPieceChoice,
+  type TallySetPieceLogExtras,
+} from './TallySetPieceStrip';
 import type { LivePhaseMode } from '@/domain/livePhaseMode';
 
 export type SimpleActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action';
@@ -78,7 +81,7 @@ type Props = {
     kind: MatchEventKind,
     choice: TallySetPieceChoice,
     phase: PlayPhaseContext,
-    ruckContest?: RuckContest,
+    extras?: TallySetPieceLogExtras,
   ) => void;
   onSetPiecePenalty: (
     kind: MatchEventKind,

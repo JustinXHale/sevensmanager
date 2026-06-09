@@ -224,16 +224,11 @@ export async function updatePlayerName(playerId: string, name: string): Promise<
 export async function updatePlayerStatus(
   playerId: string,
   next: PlayerStatus,
-): Promise<'ok' | 'toomanyon' | 'missing'> {
+): Promise<'ok' | 'missing'> {
   const p = await db.players.get(playerId);
   if (!p) return 'missing';
   const row = normalizeRow(p as PlayerRecord & { onField?: boolean });
   if (next === row.status) return 'ok';
-  const all = await db.players.where('matchId').equals(row.matchId).toArray();
-  const onCount = all.filter((x) => normalizeRow(x as PlayerRecord & { onField?: boolean }).status === 'on').length;
-  if (next === 'on' && row.status !== 'on' && onCount >= ON_FIELD_MAX) {
-    return 'toomanyon';
-  }
   await db.players.update(playerId, { status: next });
   return 'ok';
 }

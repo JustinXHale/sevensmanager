@@ -55,4 +55,20 @@ describe('roster display order', () => {
     expect(orders.bench).toEqual(['c']);
     expect(orders.off).toEqual([]);
   });
+
+  it('keeps all on-field players when more than seven', () => {
+    const manyOn = [
+      player('p1', 1, 'on'),
+      player('p2', 2, 'on'),
+      player('p3', 3, 'on'),
+      player('p4', 4, 'on'),
+      player('p5', 5, 'on'),
+      player('p6', 6, 'on'),
+      player('p7', 7, 'on'),
+      player('p8', 8, 'on'),
+    ];
+    const ordered = orderPlayersInStatus(manyOn, 'on', null);
+    expect(ordered).toHaveLength(8);
+    expect(reconcileOnFieldOrder(null, manyOn)).toHaveLength(8);
+  });
 });

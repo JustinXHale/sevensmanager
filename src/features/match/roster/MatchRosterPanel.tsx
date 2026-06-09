@@ -131,7 +131,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
   }, [session?.clockRunning]);
 
   const onField = useMemo(
-    () => orderPlayersInStatus(players, 'on', displayOrders.on, ON_FIELD_MAX),
+    () => orderPlayersInStatus(players, 'on', displayOrders.on),
     [players, displayOrders.on],
   );
   const benchOrOff = useMemo(
@@ -182,10 +182,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
 
     if (player.status !== zone) {
       const r = await updatePlayerStatus(playerId, zone);
-      if (r === 'toomanyon') {
-        setBanner(`At most ${ON_FIELD_MAX} players can be on field.`);
-        return;
-      }
+      if (r === 'missing') return;
     }
 
     const updatedPlayers = players.map((p) => (p.id === playerId ? { ...p, status: zone } : p));
@@ -282,7 +279,8 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
           </>
         )}
         <p className="muted roster-seed-note">
-          Drag or use ▴▾ to set order in each group (e.g. on-field 8, 2, 5, 7). Up to {ON_FIELD_MAX} on field.
+          Drag or use ▴▾ to set order in each group (e.g. on-field 8, 2, 5, 7). On field turns red when more
+          than {ON_FIELD_MAX} players.
         </p>
 
         {banner ? <p className="error-text">{banner}</p> : null}

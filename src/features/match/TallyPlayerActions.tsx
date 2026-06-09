@@ -4,13 +4,16 @@ import {
   type MatchEventKind,
   type PenaltyDirection,
   type PlayPhaseContext,
-  type RuckContest,
   type TackleOutcome,
 } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
 import { TallyRosterPick } from './TallyRosterPick';
 import { TallyPenaltyInfractionPicker } from './TallyPenaltyInfractionPicker';
-import { TallySetPieceStrip, type TallySetPieceChoice } from './TallySetPieceStrip';
+import {
+  TallySetPieceStrip,
+  type TallySetPieceChoice,
+  type TallySetPieceLogExtras,
+} from './TallySetPieceStrip';
 import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 import type { LivePhaseMode } from '@/domain/livePhaseMode';
 
@@ -52,7 +55,7 @@ type Props = {
     kind: MatchEventKind,
     choice: TallySetPieceChoice,
     phase: PlayPhaseContext,
-    ruckContest?: RuckContest,
+    extras?: TallySetPieceLogExtras,
   ) => void;
   onTallySetPiecePenalty: (
     kind: MatchEventKind,

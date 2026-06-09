@@ -11,6 +11,7 @@ import type {
   PenaltyTypeId,
   PlayPhaseContext,
   RestartKickDepth,
+  FreeKickAgainst,
   RuckContest,
   SetPieceOutcome,
   TackleOutcome,
@@ -44,6 +45,7 @@ export async function addMatchEvent(input: {
   filmTimeMs?: number;
   markerNote?: string;
   ruckContest?: RuckContest;
+  freeKickAgainst?: FreeKickAgainst;
 }): Promise<MatchEventRecord> {
   const row: MatchEventRecord = {
     id: crypto.randomUUID(),
@@ -82,6 +84,9 @@ export async function addMatchEvent(input: {
   }
   if (input.ruckContest !== undefined) {
     row.ruckContest = input.ruckContest;
+  }
+  if (input.freeKickAgainst !== undefined) {
+    row.freeKickAgainst = input.freeKickAgainst;
   }
   await db.matchEvents.put(row);
   return row;

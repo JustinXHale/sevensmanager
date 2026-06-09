@@ -5,7 +5,6 @@ type Props = {
   onNameCommit: (name: string) => void;
   onStatusChange: (status: PlayerStatus) => void;
   onRemove: () => void;
-  countOnField: number;
   /** When false, status is changed via drag board only. */
   showStatusTags?: boolean;
   showSortControls?: boolean;
@@ -24,7 +23,6 @@ export function RosterPlayerCard({
   onNameCommit,
   onStatusChange,
   onRemove,
-  countOnField,
   showStatusTags = true,
   showSortControls = false,
   canMoveUp = false,
@@ -34,8 +32,6 @@ export function RosterPlayerCard({
   onDragHandlePointerDown,
   isDragging = false,
 }: Props) {
-  const atCap = countOnField >= 7 && player.status !== 'on';
-
   return (
     <div className={`roster-row-compact${isDragging ? ' roster-row-compact--dragging' : ''}`}>
       {onDragHandlePointerDown ? (
@@ -67,7 +63,6 @@ export function RosterPlayerCard({
               key={s}
               type="button"
               className={`roster-tag roster-tag--${s}${player.status === s ? ' roster-tag--active' : ''}`}
-              disabled={s === 'on' && atCap}
               onClick={() => onStatusChange(s)}
             >
               {s === 'on' ? 'On' : s === 'bench' ? 'Bench' : 'Off'}
