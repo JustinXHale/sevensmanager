@@ -5498,9 +5498,19 @@ button.live-stats-cell--btn.live-stats-cell--open {
   border-radius: 8px;
 }
 
+.live-timeline-row--attack {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, #121820);
+}
+
+.live-timeline-row--defense {
+  border-color: color-mix(in srgb, #fb923c 50%, var(--border));
+  background: color-mix(in srgb, #fb923c 12%, #121820);
+}
+
 .live-timeline-row--film-star {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: color-mix(in srgb, var(--accent) 8%, #121820);
+  border-color: color-mix(in srgb, #e8c547 55%, var(--border));
+  background: color-mix(in srgb, #e8c547 10%, #121820);
 }
 
 .live-timeline-film-time {

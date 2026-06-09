@@ -33,6 +33,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- Event **Timeline**: attack events use green-tinted cards, defense events use orange-tinted cards (★ starred moments stay gold)
 - Clock settings **Film / video sync** section: left-aligned labels, full-width inputs, and Apply film sync button
 - Clock settings time fields accept **digits-only** on the number pad (e.g. `1048` → `10:48`) so film sync works without typing a colon
 - Clock settings: **Period** moved below time fields and uses a dropdown (avoids mobile keyboard opening on dialog open)

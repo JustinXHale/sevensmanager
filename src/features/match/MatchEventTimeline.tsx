@@ -3,7 +3,7 @@ import type { MatchSessionRecord } from '@/domain/match';
 import { formatClock, formatFilmClockForSession } from '@/domain/matchClock';
 import type { MatchEventKind, MatchEventRecord } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
-import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
+import { formatMatchEventSummary, timelineRowClassName } from '@/domain/matchEventDisplay';
 import { kindLabel } from '@/domain/matchStats';
 import { MatchEventEditDialog } from './MatchEventEditDialog';
 
@@ -98,10 +98,7 @@ export function MatchEventTimeline({
           ) : (
             <ul className="live-timeline-list">
               {filteredEvents.map((e) => (
-                <li
-                  key={e.id}
-                  className={`live-timeline-row${e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover' ? ' live-timeline-row--film-star' : ''}`}
-                >
+                <li key={e.id} className={timelineRowClassName(e)}>
                   <div className="live-timeline-meta">
                     <span className="live-timeline-time">
                       P{e.period} {formatClock(e.matchTimeMs)}

@@ -179,3 +179,40 @@ export function formatMatchEventSummary(
   const act = PLAYER_KIND_LABEL[e.kind] ?? e.kind;
   return `${act} · ${who}${zoneSuffix(e.zoneId)}${lengthBandSuffix(e)}`;
 }
+
+export type TimelinePhase = 'attack' | 'defense';
+
+/** Attack vs defense for timeline row styling (uses playPhaseContext when logged). */
+export function timelinePhaseForEvent(e: MatchEventRecord): TimelinePhase | null {
+  if (e.playPhaseContext === 'attack') return 'attack';
+  if (e.playPhaseContext === 'defense') return 'defense';
+
+  switch (e.kind) {
+    case 'try':
+    case 'conversion':
+    case 'line_break':
+    case 'negative_action':
+    case 'system_moment':
+      return 'attack';
+    case 'tackle':
+    case 'opponent_try':
+    case 'opponent_conversion':
+    case 'opponent_substitution':
+    case 'opponent_card':
+    case 'forced_turnover':
+      return 'defense';
+    case 'pass':
+      return 'attack';
+    default:
+      return null;
+  }
+}
+
+export function timelineRowClassName(e: MatchEventRecord): string {
+  const classes = ['live-timeline-row'];
+  const phase = timelinePhaseForEvent(e);
+  if (phase === 'attack') classes.push('live-timeline-row--attack');
+  else if (phase === 'defense') classes.push('live-timeline-row--defense');
+  if (e.kind === 'film_star') classes.push('live-timeline-row--film-star');
+  return classes.join(' ');
+}
