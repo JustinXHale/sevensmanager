@@ -72,8 +72,29 @@ export type RuckContestStats = {
   uncontestedMedianMs: number | null;
 };
 
+export type RuckPhaseDetail = {
+  total: number;
+  contested: number;
+  uncontested: number;
+  unknownContest: number;
+  won: number;
+  lost: number;
+  penalized: number;
+  freeKick: number;
+  wonPct: number | null;
+  contestedMedianMs: number | null;
+  uncontestedMedianMs: number | null;
+  overallMedianMs: number | null;
+};
+
+export type RuckBreakdownByPhase = {
+  attack: RuckPhaseDetail;
+  defense: RuckPhaseDetail;
+};
+
 export type InferredMatchStats = {
   ruckContest: RuckContestStats;
+  ruckByPhase: RuckBreakdownByPhase;
   lineBreakToTryPct: number | null;
   attackRuckWonPct: number | null;
   systemMoments: number;
@@ -98,6 +119,90 @@ export type InferredMatchStats = {
   errorClusters: number;
   knockOns: number;
 };
+
+function emptyRuckPhaseDetail(): RuckPhaseDetail {
+  return {
+    total: 0,
+    contested: 0,
+    uncontested: 0,
+    unknownContest: 0,
+    won: 0,
+    lost: 0,
+    penalized: 0,
+    freeKick: 0,
+    wonPct: null,
+    contestedMedianMs: null,
+    uncontestedMedianMs: null,
+    overallMedianMs: null,
+  };
+}
+
+function finalizeRuckPhaseDetail(
+  detail: RuckPhaseDetail,
+  events: MatchEventRecord[],
+  phase: PlayPhaseContext,
+): RuckPhaseDetail {
+  const decided = detail.won + detail.lost;
+  return {
+    ...detail,
+    wonPct: pct(detail.won, decided),
+    contestedMedianMs: ruckSpeedMedianMs(ruckToFirstPassDurationsMs(events, phase, 'contested')),
+    uncontestedMedianMs: ruckSpeedMedianMs(ruckToFirstPassDurationsMs(events, phase, 'uncontested')),
+    overallMedianMs: ruckSpeedMedianMs(ruckToFirstPassDurationsMs(events, phase)),
+  };
+}
+
+export function computeRuckBreakdownByPhase(events: MatchEventRecord[]): RuckBreakdownByPhase {
+  const attack = emptyRuckPhaseDetail();
+  const defense = emptyRuckPhaseDetail();
+
+  for (const e of events) {
+    if (e.deletedAt != null || e.kind !== 'ruck') continue;
+    const bucket = e.playPhaseContext === 'defense' ? defense : attack;
+
+    bucket.total += 1;
+    if (e.ruckContest === 'contested') bucket.contested += 1;
+    else if (e.ruckContest === 'uncontested') bucket.uncontested += 1;
+    else bucket.unknownContest += 1;
+
+    const o = e.setPieceOutcome;
+    if (o === 'won') bucket.won += 1;
+    else if (o === 'lost') bucket.lost += 1;
+    else if (o === 'penalized') bucket.penalized += 1;
+    else if (o === 'free_kick') bucket.freeKick += 1;
+  }
+
+  return {
+    attack: finalizeRuckPhaseDetail(attack, events, 'attack'),
+    defense: finalizeRuckPhaseDetail(defense, events, 'defense'),
+  };
+}
+
+function aggregateRuckPhaseDetail(
+  parts: RuckPhaseDetail[],
+  contestedDurations: number[],
+  uncontestedDurations: number[],
+  overallDurations: number[],
+): RuckPhaseDetail {
+  const merged = emptyRuckPhaseDetail();
+  for (const p of parts) {
+    merged.total += p.total;
+    merged.contested += p.contested;
+    merged.uncontested += p.uncontested;
+    merged.unknownContest += p.unknownContest;
+    merged.won += p.won;
+    merged.lost += p.lost;
+    merged.penalized += p.penalized;
+    merged.freeKick += p.freeKick;
+  }
+  return {
+    ...merged,
+    wonPct: pct(merged.won, merged.won + merged.lost),
+    contestedMedianMs: ruckSpeedMedianMs(contestedDurations),
+    uncontestedMedianMs: ruckSpeedMedianMs(uncontestedDurations),
+    overallMedianMs: ruckSpeedMedianMs(overallDurations),
+  };
+}
 
 export function computeRuckContestStats(events: MatchEventRecord[]): RuckContestStats {
   let contested = 0;
@@ -150,8 +255,6 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
   const lineBreaks = countLineBreaks(events);
   const tries = countTries(events);
   const phase = phaseTimeSplit(events);
-  const attackRucks = setPieceByPhase(events, 'ruck').attack;
-  const attackRuckDecided = attackRucks.won + attackRucks.lost;
   const chains = passChainLengths(events);
   const defenseMs = phase?.defenseMs ?? 0;
   const offenseMs = phase?.offenseMs ?? 0;
@@ -231,10 +334,13 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
   const penDefAwarded = countPenaltiesAwarded(events, 'defense');
   const penDefConceded = countPenaltiesConceded(events, 'defense');
 
+  const ruckByPhase = computeRuckBreakdownByPhase(events);
+
   return {
     ruckContest: computeRuckContestStats(events),
+    ruckByPhase,
     lineBreakToTryPct: pct(tries, lineBreaks),
-    attackRuckWonPct: pct(attackRucks.won, attackRuckDecided),
+    attackRuckWonPct: ruckByPhase.attack.wonPct,
     systemMoments,
     systemMomentsPerOffenseMin:
       offenseMs > 0 ? Math.round((systemMoments / (offenseMs / 60_000)) * 100) / 100 : null,
@@ -288,10 +394,16 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
   let errorClusters = 0;
   let offenseMs = 0;
   let defenseMs = 0;
-  let attackRucksWon = 0;
-  let attackRucksLost = 0;
   let attackRestartsWon = 0;
   let attackRestartsLost = 0;
+  const attackPhaseParts: RuckPhaseDetail[] = [];
+  const defensePhaseParts: RuckPhaseDetail[] = [];
+  const atkConDur: number[] = [];
+  const atkUncDur: number[] = [];
+  const atkAllDur: number[] = [];
+  const defConDur: number[] = [];
+  const defUncDur: number[] = [];
+  const defAllDur: number[] = [];
   const allChains: number[] = [];
   let penAtkAwarded = 0;
   let penAtkConceded = 0;
@@ -333,9 +445,15 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
       defenseMs += pt.defenseMs;
     }
 
-    const atkRuck = setPieceByPhase(batch, 'ruck').attack;
-    attackRucksWon += atkRuck.won;
-    attackRucksLost += atkRuck.lost;
+    const rb = computeRuckBreakdownByPhase(batch);
+    attackPhaseParts.push(rb.attack);
+    defensePhaseParts.push(rb.defense);
+    atkConDur.push(...ruckToFirstPassDurationsMs(batch, 'attack', 'contested'));
+    atkUncDur.push(...ruckToFirstPassDurationsMs(batch, 'attack', 'uncontested'));
+    atkAllDur.push(...ruckToFirstPassDurationsMs(batch, 'attack'));
+    defConDur.push(...ruckToFirstPassDurationsMs(batch, 'defense', 'contested'));
+    defUncDur.push(...ruckToFirstPassDurationsMs(batch, 'defense', 'uncontested'));
+    defAllDur.push(...ruckToFirstPassDurationsMs(batch, 'defense'));
 
     const atkRestart = setPieceByPhase(batch, 'restart').attack;
     attackRestartsWon += atkRestart.won;
@@ -360,8 +478,11 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
     avgTryGapMs = Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length);
   }
 
-  const attackRuckDecided = attackRucksWon + attackRucksLost;
   const attackRestartDecided = attackRestartsWon + attackRestartsLost;
+  const ruckByPhase: RuckBreakdownByPhase = {
+    attack: aggregateRuckPhaseDetail(attackPhaseParts, atkConDur, atkUncDur, atkAllDur),
+    defense: aggregateRuckPhaseDetail(defensePhaseParts, defConDur, defUncDur, defAllDur),
+  };
 
   return {
     ruckContest: {
@@ -371,8 +492,9 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
       contestedMedianMs: ruckSpeedMedianMs(contestedDurations),
       uncontestedMedianMs: ruckSpeedMedianMs(uncontestedDurations),
     },
+    ruckByPhase,
     lineBreakToTryPct: pct(tries, lineBreaks),
-    attackRuckWonPct: pct(attackRucksWon, attackRuckDecided),
+    attackRuckWonPct: ruckByPhase.attack.wonPct,
     systemMoments,
     systemMomentsPerOffenseMin:
       offenseMs > 0 ? Math.round((systemMoments / (offenseMs / 60_000)) * 100) / 100 : null,
@@ -402,8 +524,13 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
   };
 }
 
+export function hasRuckBreakdownData(r: RuckBreakdownByPhase): boolean {
+  return r.attack.total > 0 || r.defense.total > 0;
+}
+
 export function hasInferredStatsData(s: InferredMatchStats): boolean {
   return (
+    hasRuckBreakdownData(s.ruckByPhase) ||
     s.ruckContest.contested + s.ruckContest.uncontested + s.ruckContest.unknown > 0 ||
     s.lineBreakToTryPct != null ||
     s.systemMoments > 0 ||

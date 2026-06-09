@@ -37,6 +37,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- **Ruck speed**: attack and defense tables show total rucks, contested/uncontested, W/L, won %, and median speed per contest type
 - **Pass to pass**: +1s added to every pass-to-pass pair (catch + pass logging offset)
 - **Ruck speed**: +2s added to each ruck-to-pass duration to offset multi-step ruck logging before the event is stamped
 - Match and team **Ruck speed**: attack and defense medians calculated separately (game median kept); new **Pass to pass** timing for consecutive passes only (skips pass → line break, etc.)

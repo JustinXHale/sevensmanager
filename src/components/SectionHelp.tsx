@@ -151,6 +151,11 @@ const INVOLVEMENT: GlossaryEntry[] = [
 ];
 
 const RUCK: GlossaryEntry[] = [
+  { abbr: 'Con', full: 'Contested', desc: 'Rucks logged with Con (contested) after W/L in the set-piece strip.' },
+  { abbr: 'Unc', full: 'Uncontested', desc: 'Rucks logged with Unc (uncontested) after W/L.' },
+  { abbr: '?', full: 'Unknown contest', desc: 'Rucks logged before contest tracking or via One Tap without Con/Unc.' },
+  { abbr: 'W / L', full: 'Won / Lost', desc: 'Ruck outcome from the set-piece strip (our ball retained vs lost).' },
+  { abbr: 'Con spd', full: 'Contested speed', desc: 'Median ruck-to-next-pass for contested rucks in that phase (+2s offset).' },
   { abbr: 'Atk', full: 'Attack ruck median', desc: 'Median time from attack-phase rucks to the next pass, plus 2s to offset multi-step ruck logging (Ruck \u2192 W/L \u2192 Con/Unc). Lower is faster ball recycling on our ball.' },
   { abbr: 'Def', full: 'Defense ruck median', desc: 'Median time from defense-phase rucks to the next pass (+2s logging offset) — how quickly we get the ball back after a tackle.' },
   { abbr: 'Game', full: 'Game median', desc: 'Median across all ruck-to-first-pass pairs in the match (+2s logging offset), attack + defense combined.' },

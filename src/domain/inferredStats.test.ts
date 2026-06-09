@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchEventRecord } from './matchEvent';
 import { isDeadTimeGap, phaseTimeSplit } from './matchAnalyticsDeep';
-import { computeInferredMatchStats, passChainLengths } from './inferredStats';
+import { computeInferredMatchStats, computeRuckBreakdownByPhase, passChainLengths } from './inferredStats';
 
 function ev(over: Partial<MatchEventRecord> & Pick<MatchEventRecord, 'id' | 'kind'>): MatchEventRecord {
   return {
@@ -50,6 +50,20 @@ describe('passChainLengths', () => {
   });
 });
 
+describe('computeRuckBreakdownByPhase', () => {
+  it('splits contest and outcomes by attack vs defense', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: '1', kind: 'ruck', playPhaseContext: 'attack', setPieceOutcome: 'won', ruckContest: 'contested' }),
+      ev({ id: '2', kind: 'ruck', playPhaseContext: 'attack', setPieceOutcome: 'lost', ruckContest: 'uncontested' }),
+      ev({ id: '3', kind: 'ruck', playPhaseContext: 'defense', setPieceOutcome: 'won', ruckContest: 'contested' }),
+      ev({ id: '4', kind: 'ruck', playPhaseContext: 'defense', setPieceOutcome: 'lost' }),
+    ];
+    const b = computeRuckBreakdownByPhase(events);
+    expect(b.attack).toMatchObject({ total: 2, contested: 1, uncontested: 1, won: 1, lost: 1, wonPct: 50 });
+    expect(b.defense).toMatchObject({ total: 2, contested: 1, unknownContest: 1, won: 1, lost: 1, wonPct: 50 });
+  });
+});
+
 describe('computeInferredMatchStats', () => {
   it('computes line break conversion and attack ruck won pct', () => {
     const events: MatchEventRecord[] = [
@@ -62,6 +76,7 @@ describe('computeInferredMatchStats', () => {
     const s = computeInferredMatchStats(events);
     expect(s.lineBreakToTryPct).toBe(50);
     expect(s.attackRuckWonPct).toBe(50);
+    expect(s.ruckByPhase.attack.total).toBe(2);
   });
 
   it('counts possession swing after defense ruck won', () => {

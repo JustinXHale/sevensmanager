@@ -1,11 +1,9 @@
 import type { InferredMatchStats } from '@/domain/inferredStats';
+import { hasRuckBreakdownData } from '@/domain/inferredStats';
+import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 
 function fmtPct(v: number | null): string {
   return v != null ? `${v}%` : '—';
-}
-
-function fmtSec(ms: number | null): string {
-  return ms != null ? `${(ms / 1000).toFixed(1)}s` : '—';
 }
 
 function fmtMin(ms: number | null): string {
@@ -32,33 +30,14 @@ type Props = {
 };
 
 export function InferredStatsSection({ stats }: Props) {
-  const rc = stats.ruckContest;
-  const ruckTotal = rc.contested + rc.uncontested + rc.unknown;
-
   return (
     <div className="inferred-stats-grid">
+      {hasRuckBreakdownData(stats.ruckByPhase) && (
+        <RuckPhaseBreakdownPanel breakdown={stats.ruckByPhase} />
+      )}
+
       <h4 className="tgs-card-subtitle">Ball speed & retention</h4>
       <div className="team-global-kpi-row inferred-kpi-row">
-        {ruckTotal > 0 && (
-          <>
-            <Kpi
-              label="Ruck contested"
-              value={`${rc.contested}`}
-              sub={ruckTotal > 0 ? `${Math.round((rc.contested / ruckTotal) * 100)}% of rucks` : undefined}
-            />
-            <Kpi
-              label="Con speed (median)"
-              value={fmtSec(rc.contestedMedianMs)}
-              sub={rc.contested > 0 ? `${rc.contested} pairs` : 'no pairs'}
-            />
-            <Kpi
-              label="Unc speed (median)"
-              value={fmtSec(rc.uncontestedMedianMs)}
-              sub={rc.uncontested > 0 ? `${rc.uncontested} pairs` : 'no pairs'}
-            />
-            <Kpi label="Attack ruck won %" value={fmtPct(stats.attackRuckWonPct)} />
-          </>
-        )}
         <Kpi label="LB → try %" value={fmtPct(stats.lineBreakToTryPct)} />
         <Kpi
           label="Avg pass chain"

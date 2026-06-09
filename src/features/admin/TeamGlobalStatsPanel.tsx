@@ -11,10 +11,11 @@ import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import type { TeamRecord } from '@/domain/team';
 import { ZONE_IDS } from '@/domain/zone';
 import { SectionHelp, GLOBAL_GLOSSARY } from '@/components/SectionHelp';
-import { hasInferredStatsData } from '@/domain/inferredStats';
+import { hasInferredStatsData, hasRuckBreakdownData } from '@/domain/inferredStats';
 import { countEventsByKind } from '@/domain/matchStats';
 import { aggregateDeepAnalytics, aggregateTeamMatchSnapshots, tackleCompletionPct } from '@/domain/teamGlobalStats';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
+import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 import { countActiveEventsForMatch, listMatchEvents } from '@/repos/matchEventsRepo';
 import { getSession, listMatchesForTeam } from '@/repos/matchesRepo';
 import { listPlayers, listSubstitutions } from '@/repos/rosterRepo';
@@ -218,7 +219,13 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     return SECTIONS.filter((s) => {
       if (isSingleMatch && (s.id === 'points' || s.id === 'matches')) return false;
       if (s.id === 'zones') return deep.zoneHeatRows.length > 0;
-      if (s.id === 'ruck') return deep.ruckDurations.length > 0 || deep.passToPassDurations.length > 0;
+      if (s.id === 'ruck') {
+        return (
+          hasRuckBreakdownData(deep.inferred.ruckByPhase) ||
+          deep.ruckDurations.length > 0 ||
+          deep.passToPassDurations.length > 0
+        );
+      }
       if (s.id === 'penalties') return deep.penaltyTypes.length > 0;
       if (s.id === 'negatives') return deep.negativeActions.length > 0;
       if (s.id === 'players') return deep.playerProfiles.size > 0;
@@ -507,13 +514,16 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       )}
 
       {/* Ruck speed */}
-      {show('ruck') && (deep.ruckDurations.length > 0 || deep.passToPassDurations.length > 0) && (() => {
+      {show('ruck') && (hasRuckBreakdownData(deep.inferred.ruckByPhase) || deep.ruckDurations.length > 0 || deep.passToPassDurations.length > 0) && (() => {
         const dist = ruckSpeedDistribution(deep.ruckDurations);
         const distMax = Math.max(1, ...dist.map((b) => b.count));
         const fmtSec = (ms: number | null) => (ms != null ? `${(ms / 1000).toFixed(1)}s` : '—');
         return (
           <section className="card tgs-card">
             {sectionTitle('ruck')}
+            {hasRuckBreakdownData(deep.inferred.ruckByPhase) && (
+              <RuckPhaseBreakdownPanel breakdown={deep.inferred.ruckByPhase} />
+            )}
             {deep.ruckDurations.length > 0 && (
               <>
                 <p className="muted tgs-card-sub">Ruck to first pass (+2s logging offset for multi-step ruck taps), split by phase when the ruck was logged.</p>

@@ -50,6 +50,8 @@ import {
 } from '@/domain/tallyStats';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
+import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
+import { hasRuckBreakdownData } from '@/domain/inferredStats';
 
 type StatsDetail = 'full' | 'one_tap' | 'tally';
 
@@ -583,7 +585,13 @@ export function MatchStatsPanel({
     }
     if (s.id === 'zones') return heatRows.length > 0;
     if (s.id === 'involvement') return profiles.size > 0;
-    if (s.id === 'ruck') return ruckDurations.length > 0 || passToPassDurations.length > 0;
+    if (s.id === 'ruck') {
+      return (
+        hasRuckBreakdownData(inferred.ruckByPhase) ||
+        ruckDurations.length > 0 ||
+        passToPassDurations.length > 0
+      );
+    }
     if (s.id === 'penalties') return penTypes.length > 0;
     if (s.id === 'negatives') return negActions.length > 0;
     if (s.id === 'phase') return phaseTime != null;
@@ -797,13 +805,16 @@ export function MatchStatsPanel({
       )}
 
       {/* Ruck speed */}
-      {show('ruck') && (ruckDurations.length > 0 || passToPassDurations.length > 0) && (() => {
+      {show('ruck') && (hasRuckBreakdownData(inferred.ruckByPhase) || ruckDurations.length > 0 || passToPassDurations.length > 0) && (() => {
         const dist = ruckSpeedDistribution(ruckDurations);
         const distMax = Math.max(1, ...dist.map((b) => b.count));
         const fmtSec = (ms: number | null) => (ms != null ? `${(ms / 1000).toFixed(1)}s` : '—');
         return (
           <section className="card tgs-card">
             {sectionTitle('ruck')}
+            {hasRuckBreakdownData(inferred.ruckByPhase) && (
+              <RuckPhaseBreakdownPanel breakdown={inferred.ruckByPhase} />
+            )}
             {ruckDurations.length > 0 && (
               <>
                 <p className="muted tgs-card-sub">Ruck to first pass (+2s logging offset for multi-step ruck taps), split by phase when the ruck was logged.</p>
