@@ -5,7 +5,7 @@ import { derivedFixtureLabel } from '@/domain/matchDisplay';
 import type { MatchRecord } from '@/domain/match';
 import type { TeamRecord } from '@/domain/team';
 import { countActiveMatchEventsByMatchId } from '@/repos/matchEventsRepo';
-import { listMatchesForTeam } from '@/repos/matchesRepo';
+import { deleteMatch, listMatchesForTeam } from '@/repos/matchesRepo';
 import {
   DISPLAY_TIMEZONE_OPTIONS,
   DISPLAY_TIMEZONE_STORAGE_KEY,
@@ -55,6 +55,12 @@ export function TeamLivePanel({ team }: Props) {
   const newMatchHref = `/matches/new?teamId=${team.id}&competitionId=${team.competitionId}&returnTo=${returnToTeamMatch}`;
   const importHref = `/matches/import?returnTo=${returnToTeamMatch}`;
 
+  const refreshMatches = useCallback(async () => {
+    const [rows, countMap] = await Promise.all([listMatchesForTeam(team.id), countActiveMatchEventsByMatchId()]);
+    setMatches(rows);
+    setEventCountsByMatchId(countMap);
+  }, [team.id]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -67,6 +73,24 @@ export function TeamLivePanel({ team }: Props) {
       cancelled = true;
     };
   }, [team.id]);
+
+  async function onDeleteMatch(m: MatchRecord) {
+    const label = derivedFixtureLabel(m);
+    const eventCount = eventCountsByMatchId.get(m.id) ?? 0;
+    const eventNote =
+      eventCount > 0
+        ? ` This removes ${eventCount} logged ${eventCount === 1 ? 'event' : 'events'}, the roster, and clock.`
+        : ' This removes the roster and clock.';
+    if (
+      !window.confirm(
+        `Delete “${label}”?${eventNote} This can’t be undone.`,
+      )
+    ) {
+      return;
+    }
+    await deleteMatch(m.id);
+    await refreshMatches();
+  }
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -134,7 +158,7 @@ export function TeamLivePanel({ team }: Props) {
                   : null;
                 const matchesReturnTo = `/team/${team.id}?tab=match`;
                 return (
-                  <li key={m.id} className="match-row">
+                  <li key={m.id} className="match-row match-row--with-action">
                     <Link
                       to={{
                         pathname: `/match/${m.id}`,
@@ -157,6 +181,15 @@ export function TeamLivePanel({ team }: Props) {
                         {eventCount} {eventCount === 1 ? 'event' : 'events'} logged
                       </span>
                     </Link>
+                    <button
+                      type="button"
+                      className="match-row-delete btn-danger"
+                      title={`Delete ${derivedFixtureLabel(m)}`}
+                      aria-label={`Delete ${derivedFixtureLabel(m)}`}
+                      onClick={() => void onDeleteMatch(m)}
+                    >
+                      ×
+                    </button>
                   </li>
                 );
               })}
