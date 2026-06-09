@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 
 ### Fixed
+- Live clock **−5s / +5s** nudge no longer pauses the match timer when the clock is running
 - Clock settings **Apply film sync** updates video time only (no match-clock validation); main Apply skips match/period when unchanged; cancel clears stale error banner
 - Tally penalty picker types: `TallyPenaltyInfractionPick` and set-piece strip `SetPiecePenaltyContext` typing so production `tsc` build passes
 

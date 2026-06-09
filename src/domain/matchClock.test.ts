@@ -93,6 +93,19 @@ describe('matchClock', () => {
     expect(a.elapsedMsInCurrentPeriod).toBe(0);
   });
 
+  it('adjustCurrentPeriod keeps clock running when nudging live time', () => {
+    const s = baseSession({
+      clockRunning: true,
+      anchorWallMs: 10_000,
+      elapsedMsInCurrentPeriod: 50_000,
+    });
+    const a = adjustCurrentPeriod(s, 25_000, 5_000);
+    expect(a.clockRunning).toBe(true);
+    expect(a.anchorWallMs).toBe(25_000);
+    expect(a.elapsedMsInCurrentPeriod).toBe(70_000);
+    expect(currentPeriodElapsedDisplayMs(a, 30_000)).toBe(75_000);
+  });
+
   it('formatClock renders m:ss', () => {
     expect(formatClock(7 * 60 * 1000)).toBe('7:00');
     expect(formatClock(65_000)).toBe('1:05');

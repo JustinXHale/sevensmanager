@@ -93,16 +93,26 @@ export function advanceToSecondHalf(
   return advancePeriod(session, nowMs);
 }
 
-/** Adjust current period time by delta ms (can be negative). */
+/** Adjust current period time by delta ms (can be negative). Keeps the clock running if it was running. */
 export function adjustCurrentPeriod(
   session: MatchSessionRecord,
   nowMs: number,
   deltaMs: number,
 ): MatchSessionRecord {
-  const base = pauseSession(session, nowMs);
-  const next = Math.max(0, base.elapsedMsInCurrentPeriod + deltaMs);
+  const folded = session.clockRunning
+    ? session.elapsedMsInCurrentPeriod + (nowMs - session.anchorWallMs)
+    : session.elapsedMsInCurrentPeriod;
+  const next = Math.max(0, folded + deltaMs);
+  if (session.clockRunning) {
+    return {
+      ...session,
+      elapsedMsInCurrentPeriod: next,
+      anchorWallMs: nowMs,
+      clockRunning: true,
+    };
+  }
   return {
-    ...base,
+    ...session,
     elapsedMsInCurrentPeriod: next,
   };
 }
