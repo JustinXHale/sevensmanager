@@ -101,7 +101,7 @@ describe('ruckToFirstPassDurationsMs', () => {
       ev({ id: 'r2', kind: 'ruck', matchTimeMs: 30_000, period: 1 }),
       ev({ id: 'p2', kind: 'pass', matchTimeMs: 50_000, period: 1, playerId: 'b' }),
     ];
-    expect(ruckToFirstPassDurationsMs(events)).toEqual([15_000, 20_000]);
+    expect(ruckToFirstPassDurationsMs(events)).toEqual([17_000, 22_000]);
   });
 
   it('does not pair across periods', () => {
@@ -119,12 +119,12 @@ describe('ruckToFirstPassDurationsMs', () => {
       ev({ id: 'r2', kind: 'ruck', matchTimeMs: 5000, period: 1, playPhaseContext: 'defense' }),
       ev({ id: 'p2', kind: 'pass', matchTimeMs: 9000, period: 1, playerId: 'b' }),
     ];
-    expect(ruckToFirstPassDurationsMs(events, 'attack')).toEqual([3000]);
-    expect(ruckToFirstPassDurationsMs(events, 'defense')).toEqual([4000]);
+    expect(ruckToFirstPassDurationsMs(events, 'attack')).toEqual([5000]);
+    expect(ruckToFirstPassDurationsMs(events, 'defense')).toEqual([6000]);
     expect(ruckSpeedSplit(events)).toEqual({
-      all: [3000, 4000],
-      attack: [3000],
-      defense: [4000],
+      all: [5000, 6000],
+      attack: [5000],
+      defense: [6000],
     });
   });
 });
@@ -137,7 +137,7 @@ describe('passToPassDurationsMs', () => {
       ev({ id: 'lb', kind: 'line_break', matchTimeMs: 7000, period: 1, playerId: 'b' }),
       ev({ id: 'p3', kind: 'pass', matchTimeMs: 9000, period: 1, playerId: 'c' }),
     ];
-    expect(passToPassDurationsMs(events)).toEqual([3000]);
+    expect(passToPassDurationsMs(events)).toEqual([4000]);
   });
 
   it('skips pass then line break then try', () => {
@@ -156,6 +156,16 @@ describe('passToPassDurationsMs', () => {
       ev({ id: 'p2', kind: 'pass', matchTimeMs: 5000, period: 1, playerId: 'b' }),
     ];
     expect(passToPassDurationsMs(events)).toEqual([]);
+  });
+
+  it('adds 1s logging offset to every pass-to-pass pair', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 10_000, period: 1, playerId: 'a' }),
+      ev({ id: 'p2', kind: 'pass', matchTimeMs: 10_000, period: 1, playerId: 'b' }),
+      ev({ id: 'p3', kind: 'pass', matchTimeMs: 10_500, period: 1, playerId: 'c' }),
+      ev({ id: 'p4', kind: 'pass', matchTimeMs: 12_000, period: 1, playerId: 'd' }),
+    ];
+    expect(passToPassDurationsMs(events)).toEqual([1000, 1500, 2500]);
   });
 });
 

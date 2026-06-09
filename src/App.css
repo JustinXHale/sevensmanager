@@ -7821,6 +7821,21 @@ button.competitions-sticky-dropdown-item:hover {
   row-gap: 0.75rem;
 }
 
+.inferred-stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.inferred-kpi-row {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
+.inferred-kpi {
+  min-width: 6.5rem;
+}
+
 .deep-ruck-kpi {
   display: flex;
   flex-direction: column;

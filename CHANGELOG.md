@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Match and team **Inferred insights**: ruck contest speed, line-break→try %, attack ruck won %, system moment rate, turnover balance, penalty net by phase, pass chain length, opp pass pressure, possession swings, scoring drought/burst, restart receive %, and error clusters
+- **Offense / Defense** playing time excludes dead time between try→conversion and conversion→restart
 - Team **Global stats**: **System moments** total in Overview (and per-match count on Points by match); respects match filter
 - Team **Global stats**: **Match** dropdown to filter all sections to a single game (or all games pooled)
 - Team **Match** tab: **×** on each match card deletes the match after confirm (roster, clock, and all events)
@@ -35,6 +37,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- **Pass to pass**: +1s added to every pass-to-pass pair (catch + pass logging offset)
+- **Ruck speed**: +2s added to each ruck-to-pass duration to offset multi-step ruck logging before the event is stamped
 - Match and team **Ruck speed**: attack and defense medians calculated separately (game median kept); new **Pass to pass** timing for consecutive passes only (skips pass → line break, etc.)
 - Tally / One Tap set-piece **FK**: third layer **Them** / **Us** (who erred); logged as FK to us vs FK to them; timeline shows fault; receiving restart hints common case
 - Tally / One Tap **set-piece strip**: layered full-size circles — pick Restart/Ruck/Scrum/Lineout, then W/L/FK/P+/P−, then ruck contested or penalty infractions

@@ -165,10 +165,10 @@ describe('ruckSpeedByPeriod', () => {
     const result = ruckSpeedByPeriod(events);
     expect(result).toHaveLength(2);
     expect(result[0]!.period).toBe(1);
-    expect(result[0]!.avgMs).toBe(4000);
+    expect(result[0]!.avgMs).toBe(6000);
     expect(result[0]!.count).toBe(2);
     expect(result[1]!.period).toBe(2);
-    expect(result[1]!.avgMs).toBe(2000);
+    expect(result[1]!.avgMs).toBe(4000);
   });
 });
 

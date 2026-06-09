@@ -11,8 +11,10 @@ import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import type { TeamRecord } from '@/domain/team';
 import { ZONE_IDS } from '@/domain/zone';
 import { SectionHelp, GLOBAL_GLOSSARY } from '@/components/SectionHelp';
+import { hasInferredStatsData } from '@/domain/inferredStats';
 import { countEventsByKind } from '@/domain/matchStats';
 import { aggregateDeepAnalytics, aggregateTeamMatchSnapshots, tackleCompletionPct } from '@/domain/teamGlobalStats';
+import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { countActiveEventsForMatch, listMatchEvents } from '@/repos/matchEventsRepo';
 import { getSession, listMatchesForTeam } from '@/repos/matchesRepo';
 import { listPlayers, listSubstitutions } from '@/repos/rosterRepo';
@@ -38,6 +40,7 @@ const SECTIONS = [
   { id: 'phase', label: 'Offense / Defense' },
   { id: 'zones', label: 'Zone heat map' },
   { id: 'ruck', label: 'Ruck speed' },
+  { id: 'insights', label: 'Inferred insights' },
   { id: 'penalties', label: 'Penalties' },
   { id: 'negatives', label: 'Negatives' },
   { id: 'players', label: 'Top players' },
@@ -220,6 +223,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       if (s.id === 'negatives') return deep.negativeActions.length > 0;
       if (s.id === 'players') return deep.playerProfiles.size > 0;
       if (s.id === 'phase') return deep.phaseTime != null;
+      if (s.id === 'insights') return hasInferredStatsData(deep.inferred);
       if (s.id === 'lineup') return !isSingleMatch && efficiencyRows.length > 0;
       return true;
     });
@@ -446,10 +450,23 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             </div>
           </div>
           <p className="muted tgs-card-sub mt-xs">
+            Playing time {fmtMs(deep.phaseTime.playingTimeMs)}
+            {deep.phaseTime.deadTimeMs > 0
+              ? ` · ${fmtMs(deep.phaseTime.deadTimeMs)} dead time excluded (try→conversion, conversion→restart)`
+              : ''}
+            .{' '}
             {isSingleMatch
               ? 'Estimated from event classification for this match. Gaps > 90 s are capped.'
-              : 'Estimated from event classification across all logged matches. Gaps > 90 s are capped.'}
+              : 'Estimated across selected matches. Gaps > 90 s are capped.'}
           </p>
+        </section>
+      )}
+
+      {/* Inferred insights */}
+      {show('insights') && hasInferredStatsData(deep.inferred) && (
+        <section className="card tgs-card">
+          {sectionTitle('insights')}
+          <InferredStatsSection stats={deep.inferred} />
         </section>
       )}
 
@@ -499,7 +516,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             {sectionTitle('ruck')}
             {deep.ruckDurations.length > 0 && (
               <>
-                <p className="muted tgs-card-sub">Ruck to first pass — split by phase when the ruck was logged.</p>
+                <p className="muted tgs-card-sub">Ruck to first pass (+2s logging offset for multi-step ruck taps), split by phase when the ruck was logged.</p>
                 <div className="deep-ruck-kpis deep-ruck-kpis--wrap">
                   <div className="deep-ruck-kpi">
                     <span className="deep-ruck-kpi-value">{fmtSec(deep.ruckAttackMedianMs)}</span>
@@ -536,7 +553,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             {deep.passToPassDurations.length > 0 && (
               <>
                 <h4 className="tgs-card-subtitle">Pass to pass</h4>
-                <p className="muted tgs-card-sub">Only consecutive passes in the same period (not pass → line break or break → try).</p>
+                <p className="muted tgs-card-sub">Only consecutive passes in the same period (not pass → line break or break → try). +1s logging offset on every pair (catch + pass).</p>
                 <div className="deep-ruck-kpis">
                   <div className="deep-ruck-kpi">
                     <span className="deep-ruck-kpi-value">{fmtSec(deep.passToPassMedianMs)}</span>

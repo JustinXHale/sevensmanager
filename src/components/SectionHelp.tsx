@@ -107,8 +107,20 @@ const OVERVIEW_GLOBAL: GlossaryEntry[] = [
 ];
 
 const PHASE: GlossaryEntry[] = [
-  { abbr: 'Offense', full: 'Offense time', desc: 'Estimated time your team had possession or was attacking, based on event types logged.' },
-  { abbr: 'Defense', full: 'Defense time', desc: 'Estimated time your team was without possession, based on defensive events logged.' },
+  { abbr: 'Offense', full: 'Offense time', desc: 'Estimated playing time your team had possession or was attacking. Excludes dead time between try→conversion and conversion→restart.' },
+  { abbr: 'Defense', full: 'Defense time', desc: 'Estimated playing time on defense. Excludes scoring setup and walk-back gaps.' },
+  { abbr: 'Dead time', full: 'Dead time excluded', desc: 'Clock gaps from try to conversion kick and from conversion to restart — not counted in offense/defense split.' },
+];
+
+const INSIGHTS: GlossaryEntry[] = [
+  { abbr: 'Con / Unc speed', full: 'Ruck speed by contest', desc: 'Median ruck-to-pass time for contested vs uncontested rucks (+2s logging offset).' },
+  { abbr: 'LB → try %', full: 'Line break conversion', desc: 'Tries divided by line breaks — how often breaks finish.' },
+  { abbr: 'Pass chain', full: 'Pass chain length', desc: 'Average consecutive our-team passes before a non-pass event.' },
+  { abbr: 'Sys / off min', full: 'System moment rate', desc: 'System moments per minute of estimated offense playing time.' },
+  { abbr: 'Opp passes/min', full: 'Opponent pass pressure', desc: 'Opponent passes logged per minute of defense playing time.' },
+  { abbr: 'Swings', full: 'Possession swings', desc: 'Defense ruck won followed by our pass within 45s — turnover to attack.' },
+  { abbr: 'Turnover balance', full: 'Turnover balance', desc: 'Forced turnovers minus (negatives + penalties conceded).' },
+  { abbr: 'Error clusters', full: 'Error clusters', desc: 'Knock-ons followed within 90s by opponent try or our set-piece lost.' },
 ];
 
 const ZONES: GlossaryEntry[] = [
@@ -139,10 +151,10 @@ const INVOLVEMENT: GlossaryEntry[] = [
 ];
 
 const RUCK: GlossaryEntry[] = [
-  { abbr: 'Atk', full: 'Attack ruck median', desc: 'Median time from attack-phase rucks to the next pass. Lower is faster ball recycling on our ball.' },
-  { abbr: 'Def', full: 'Defense ruck median', desc: 'Median time from defense-phase rucks to the next pass — how quickly we get the ball back after a tackle.' },
-  { abbr: 'Game', full: 'Game median', desc: 'Median across all ruck-to-first-pass pairs in the match (attack + defense combined).' },
-  { abbr: 'Pass\u2013pass', full: 'Pass to pass', desc: 'Median time between two consecutive pass events in the same period. Skips pass \u2192 line break, line break \u2192 try, and other non-pass events between.' },
+  { abbr: 'Atk', full: 'Attack ruck median', desc: 'Median time from attack-phase rucks to the next pass, plus 2s to offset multi-step ruck logging (Ruck \u2192 W/L \u2192 Con/Unc). Lower is faster ball recycling on our ball.' },
+  { abbr: 'Def', full: 'Defense ruck median', desc: 'Median time from defense-phase rucks to the next pass (+2s logging offset) — how quickly we get the ball back after a tackle.' },
+  { abbr: 'Game', full: 'Game median', desc: 'Median across all ruck-to-first-pass pairs in the match (+2s logging offset), attack + defense combined.' },
+  { abbr: 'Pass\u2013pass', full: 'Pass to pass', desc: 'Median time between two consecutive pass events in the same period (+1s logging offset on every pair). Skips pass \u2192 line break, line break \u2192 try, and other non-pass events between.' },
 ];
 
 const SET_PIECES: GlossaryEntry[] = [
@@ -213,6 +225,7 @@ export const MATCH_GLOSSARY: Record<string, GlossaryEntry[]> = {
   zones: ZONES,
   involvement: INVOLVEMENT,
   ruck: RUCK,
+  insights: INSIGHTS,
   setpieces: SET_PIECES,
   penalties: PENALTIES,
   negatives: NEGATIVES,
@@ -226,6 +239,7 @@ export const GLOBAL_GLOSSARY: Record<string, GlossaryEntry[]> = {
   phase: PHASE,
   zones: ZONES,
   ruck: RUCK,
+  insights: INSIGHTS,
   penalties: PENALTIES,
   negatives: NEGATIVES,
   players: INVOLVEMENT,

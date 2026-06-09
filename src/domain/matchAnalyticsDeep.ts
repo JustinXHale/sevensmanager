@@ -5,7 +5,7 @@ import type {
   PenaltyTypeId,
 } from '@/domain/matchEvent';
 import { penaltyTypeLabel } from '@/domain/matchEvent';
-import { sortMatchEventsByTime } from '@/domain/matchStats';
+import { RUCK_SPEED_LOGGING_OFFSET_MS, sortMatchEventsByTime } from '@/domain/matchStats';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
 
 // ---------------------------------------------------------------------------
@@ -248,7 +248,7 @@ export function ruckSpeedByPeriod(events: MatchEventRecord[]): RuckSpeedByPeriod
       const dt = next.matchTimeMs - e.matchTimeMs;
       if (dt >= 0) {
         const arr = byPeriod.get(p0) ?? [];
-        arr.push(dt);
+        arr.push(dt + RUCK_SPEED_LOGGING_OFFSET_MS);
         byPeriod.set(p0, arr);
       }
       break;
@@ -276,7 +276,7 @@ export type SetPiecePhaseBreakdown = {
 
 export function setPieceByPhase(
   events: MatchEventRecord[],
-  kind: 'scrum' | 'lineout' | 'ruck',
+  kind: 'scrum' | 'lineout' | 'ruck' | 'restart',
 ): SetPiecePhaseBreakdown {
   const empty = (): SetPiecePhaseSlice => ({ won: 0, lost: 0, penalized: 0, freeKick: 0 });
   const out: SetPiecePhaseBreakdown = {
@@ -439,13 +439,31 @@ export type PhaseTimeSplit = {
   defenseMs: number;
   offensePct: number;
   defensePct: number;
+  /** Try→conversion and conversion→restart gaps excluded from phase split. */
+  deadTimeMs: number;
+  playingTimeMs: number;
 };
+
+/** Gaps between scoring events and restarts are walk-back / setup — not playing time. */
+export function isDeadTimeGap(curr: MatchEventRecord, next: MatchEventRecord): boolean {
+  if (curr.period !== next.period) return false;
+  if (curr.kind === 'try' && next.kind === 'conversion') return true;
+  if (curr.kind === 'opponent_try' && next.kind === 'opponent_conversion') return true;
+  if (
+    (curr.kind === 'conversion' || curr.kind === 'opponent_conversion') &&
+    next.kind === 'restart'
+  ) {
+    return true;
+  }
+  return false;
+}
 
 /**
  * Estimate time spent on offense vs defense by classifying each event
  * and attributing the gap to the next event to the current phase.
  * Only gaps within the same period are counted (period transitions are ignored).
  * Gaps larger than 90s are capped to avoid skewing from long stoppages.
+ * Dead time (try→conversion, conversion→restart) is tracked separately.
  */
 export function phaseTimeSplit(events: MatchEventRecord[]): PhaseTimeSplit | null {
   const active = events.filter((e) => e.deletedAt == null);
@@ -454,6 +472,7 @@ export function phaseTimeSplit(events: MatchEventRecord[]): PhaseTimeSplit | nul
 
   let offenseMs = 0;
   let defenseMs = 0;
+  let deadTimeMs = 0;
   const MAX_GAP = 90_000;
 
   for (let i = 0; i < sorted.length - 1; i++) {
@@ -461,22 +480,30 @@ export function phaseTimeSplit(events: MatchEventRecord[]): PhaseTimeSplit | nul
     const next = sorted[i + 1]!;
     if (curr.period !== next.period) continue;
 
-    const phase = classifyPhase(curr);
-    if (!phase) continue;
-
     const gap = Math.min(next.matchTimeMs - curr.matchTimeMs, MAX_GAP);
     if (gap <= 0) continue;
+
+    if (isDeadTimeGap(curr, next)) {
+      deadTimeMs += gap;
+      continue;
+    }
+
+    const phase = classifyPhase(curr);
+    if (!phase) continue;
 
     if (phase === 'offense') offenseMs += gap;
     else defenseMs += gap;
   }
 
-  const total = offenseMs + defenseMs;
-  if (total === 0) return null;
+  const playingTimeMs = offenseMs + defenseMs;
+  if (playingTimeMs === 0 && deadTimeMs === 0) return null;
+  const total = playingTimeMs;
   return {
     offenseMs,
     defenseMs,
-    offensePct: Math.round((offenseMs / total) * 100),
-    defensePct: Math.round((defenseMs / total) * 100),
+    offensePct: total > 0 ? Math.round((offenseMs / total) * 100) : 0,
+    defensePct: total > 0 ? Math.round((defenseMs / total) * 100) : 0,
+    deadTimeMs,
+    playingTimeMs,
   };
 }

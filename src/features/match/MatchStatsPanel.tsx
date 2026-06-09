@@ -34,6 +34,7 @@ import {
   triesAndConversionsByPlayer,
   tryEventsInZone,
 } from '@/domain/matchStats';
+import { computeInferredMatchStats, hasInferredStatsData } from '@/domain/inferredStats';
 import type { PlayerRecord, SubstitutionRecord } from '@/domain/player';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
@@ -48,6 +49,7 @@ import {
   tallySetPieceKinds,
 } from '@/domain/tallyStats';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
+import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 
 type StatsDetail = 'full' | 'one_tap' | 'tally';
 
@@ -73,6 +75,7 @@ const SECTIONS = [
   { id: 'zones', label: 'Zone heat map' },
   { id: 'involvement', label: 'Involvement' },
   { id: 'ruck', label: 'Ruck speed' },
+  { id: 'insights', label: 'Inferred insights' },
   { id: 'setpieces', label: 'Set pieces' },
   { id: 'penalties', label: 'Penalties' },
   { id: 'negatives', label: 'Negatives' },
@@ -543,6 +546,7 @@ export function MatchStatsPanel({
   const passToPassDurations = useMemo(() => passToPassDurationsMs(events), [events]);
   const passToPassMedian = useMemo(() => ruckSpeedMedianMs(passToPassDurations), [passToPassDurations]);
   const phaseTime = useMemo(() => phaseTimeSplit(events), [events]);
+  const inferred = useMemo(() => computeInferredMatchStats(events), [events]);
   const timeline = useMemo(() => scoringTimeline(events), [events]);
 
   const scrumPhase = useMemo(() => setPieceByPhase(events, 'scrum'), [events]);
@@ -583,6 +587,7 @@ export function MatchStatsPanel({
     if (s.id === 'penalties') return penTypes.length > 0;
     if (s.id === 'negatives') return negActions.length > 0;
     if (s.id === 'phase') return phaseTime != null;
+    if (s.id === 'insights') return hasInferredStatsData(inferred);
     if (s.id === 'scoring') return timeline.length > 0;
     return true;
   });
@@ -730,6 +735,21 @@ export function MatchStatsPanel({
               <span className="tgs-phase-time muted tabular-nums">{fmtMs(phaseTime.defenseMs)}</span>
             </div>
           </div>
+          <p className="muted tgs-card-sub mt-xs">
+            Playing time {fmtMs(phaseTime.playingTimeMs)}
+            {phaseTime.deadTimeMs > 0
+              ? ` · ${fmtMs(phaseTime.deadTimeMs)} dead time excluded (try→conversion, conversion→restart)`
+              : ''}
+            . Gaps &gt; 90s capped.
+          </p>
+        </section>
+      )}
+
+      {/* Inferred insights */}
+      {show('insights') && hasInferredStatsData(inferred) && (
+        <section className="card tgs-card">
+          {sectionTitle('insights')}
+          <InferredStatsSection stats={inferred} />
         </section>
       )}
 
@@ -786,7 +806,7 @@ export function MatchStatsPanel({
             {sectionTitle('ruck')}
             {ruckDurations.length > 0 && (
               <>
-                <p className="muted tgs-card-sub">Ruck to first pass — split by phase when the ruck was logged.</p>
+                <p className="muted tgs-card-sub">Ruck to first pass (+2s logging offset for multi-step ruck taps), split by phase when the ruck was logged.</p>
                 <div className="deep-ruck-kpis deep-ruck-kpis--wrap">
                   <div className="deep-ruck-kpi">
                     <span className="deep-ruck-kpi-value">{fmtSec(ruckAttackMedian)}</span>
@@ -820,7 +840,7 @@ export function MatchStatsPanel({
             {passToPassDurations.length > 0 && (
               <>
                 <h4 className="tgs-card-subtitle">Pass to pass</h4>
-                <p className="muted tgs-card-sub">Only consecutive passes in the same period (not pass → line break or break → try).</p>
+                <p className="muted tgs-card-sub">Only consecutive passes in the same period (not pass → line break or break → try). +1s logging offset on every pair (catch + pass).</p>
                 <div className="deep-ruck-kpis">
                   <div className="deep-ruck-kpi">
                     <span className="deep-ruck-kpi-value">{fmtSec(passToPassMedian)}</span>

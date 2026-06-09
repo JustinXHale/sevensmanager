@@ -13,6 +13,7 @@ import {
   type PlayerProfile,
   type ZoneHeatRow,
 } from '@/domain/matchAnalyticsDeep';
+import { aggregateInferredStats, type InferredMatchStats } from '@/domain/inferredStats';
 import { countEventsByKind, passToPassDurationsMs, ruckSpeedSplit } from '@/domain/matchStats';
 import { ZONE_IDS } from '@/domain/zone';
 
@@ -93,6 +94,7 @@ export type TeamDeepAggregate = {
   passToPassMedianMs: number | null;
   systemMoments: number;
   phaseTime: PhaseTimeSplit | null;
+  inferred: InferredMatchStats;
 };
 
 /**
@@ -152,18 +154,27 @@ export function aggregateDeepAnalytics(allEvents: MatchEventRecord[][]): TeamDee
 
   let offMs = 0;
   let defMs = 0;
+  let deadMs = 0;
   let hasPhase = false;
   for (const batch of allEvents) {
     const pt = phaseTimeSplit(batch);
     if (pt) {
       offMs += pt.offenseMs;
       defMs += pt.defenseMs;
+      deadMs += pt.deadTimeMs;
       hasPhase = true;
     }
   }
-  const total = offMs + defMs;
-  const globalPhase: PhaseTimeSplit | null = hasPhase && total > 0
-    ? { offenseMs: offMs, defenseMs: defMs, offensePct: Math.round((offMs / total) * 100), defensePct: Math.round((defMs / total) * 100) }
+  const playing = offMs + defMs;
+  const globalPhase: PhaseTimeSplit | null = hasPhase && (playing > 0 || deadMs > 0)
+    ? {
+        offenseMs: offMs,
+        defenseMs: defMs,
+        offensePct: playing > 0 ? Math.round((offMs / playing) * 100) : 0,
+        defensePct: playing > 0 ? Math.round((defMs / playing) * 100) : 0,
+        deadTimeMs: deadMs,
+        playingTimeMs: playing,
+      }
     : null;
 
   return {
@@ -181,6 +192,7 @@ export function aggregateDeepAnalytics(allEvents: MatchEventRecord[][]): TeamDee
     passToPassMedianMs: ruckSpeedMedianMs(passToPassDurations),
     systemMoments,
     phaseTime: globalPhase,
+    inferred: aggregateInferredStats(allEvents),
   };
 }
 

@@ -5,6 +5,7 @@ import {
   type MatchEventRecord,
   type PenaltyCard,
   type PlayPhaseContext,
+  type RuckContest,
 } from '@/domain/matchEvent';
 import type { SubstitutionRecord } from '@/domain/player';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
@@ -143,13 +144,18 @@ export type RuckSpeedSplit = {
   defense: number[];
 };
 
+/** Compensates for multi-step ruck logging (Ruck → W/L → Con/Unc) before matchTimeMs is stamped. */
+export const RUCK_SPEED_LOGGING_OFFSET_MS = 2000;
+
 /**
- * Ruck = breakdown (product). For each ruck, time until the next pass in the same period (clock ms).
+ * Ruck = breakdown (product). For each ruck, time until the next pass in the same period (clock ms),
+ * plus {@link RUCK_SPEED_LOGGING_OFFSET_MS} to approximate breakdown start before the final ruck tap.
  * When `phase` is set, only rucks logged in that attack/defense context are included.
  */
 export function ruckToFirstPassDurationsMs(
   events: MatchEventRecord[],
   phase?: PlayPhaseContext,
+  contest?: RuckContest,
 ): number[] {
   const sorted = sortMatchEventsByTime(events);
   const out: number[] = [];
@@ -157,6 +163,7 @@ export function ruckToFirstPassDurationsMs(
     const e = sorted[i]!;
     if (e.kind !== 'ruck') continue;
     if (phase != null && e.playPhaseContext !== phase) continue;
+    if (contest != null && e.ruckContest !== contest) continue;
     const p0 = e.period;
     const t0 = e.matchTimeMs;
     for (let j = i + 1; j < sorted.length; j++) {
@@ -164,7 +171,7 @@ export function ruckToFirstPassDurationsMs(
       if (next.period !== p0) break;
       if (next.kind !== 'pass') continue;
       const dt = next.matchTimeMs - t0;
-      if (dt >= 0) out.push(dt);
+      if (dt >= 0) out.push(dt + RUCK_SPEED_LOGGING_OFFSET_MS);
       break;
     }
   }
@@ -185,8 +192,12 @@ export function isOurPassEvent(e: MatchEventRecord): boolean {
   return !(e.playPhaseContext === 'defense' && !e.playerId);
 }
 
+/** Compensates for rapid pass logging (catch + pass) before the second pass is stamped. */
+export const PASS_TO_PASS_LOGGING_OFFSET_MS = 1000;
+
 /**
- * Time between consecutive pass events in the same period (clock ms).
+ * Time between consecutive pass events in the same period (clock ms),
+ * plus {@link PASS_TO_PASS_LOGGING_OFFSET_MS} on every pair.
  * Only back-to-back passes count — pass → line break or line break → try are skipped.
  */
 export function passToPassDurationsMs(events: MatchEventRecord[]): number[] {
@@ -199,7 +210,7 @@ export function passToPassDurationsMs(events: MatchEventRecord[]): number[] {
     if (!isOurPassEvent(next)) continue;
     if (next.period !== e.period) continue;
     const dt = next.matchTimeMs - e.matchTimeMs;
-    if (dt >= 0) out.push(dt);
+    if (dt >= 0) out.push(dt + PASS_TO_PASS_LOGGING_OFFSET_MS);
   }
   return out;
 }
