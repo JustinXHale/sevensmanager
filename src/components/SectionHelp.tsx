@@ -101,6 +101,7 @@ const OVERVIEW_GLOBAL: GlossaryEntry[] = [
   { abbr: 'Points (Σ)', full: 'Total points', desc: 'Cumulative points scored and conceded across all matches. Shown as Us – Opponent.' },
   { abbr: 'Tries (Σ)', full: 'Total tries', desc: 'Cumulative tries scored and conceded across all matches.' },
   { abbr: 'Tackle % (pooled)', full: 'Pooled tackle completion', desc: 'All tackles made \u00f7 all tackles attempted across every match, as a single percentage.' },
+  { abbr: 'System moments (\u03a3)', full: 'System moments', desc: 'Positive attack system plays logged from the gold System Moment button in Tally Attack, summed across selected matches.' },
   { abbr: 'M', full: 'Tackles made', desc: 'Successful tackles where the ball carrier was brought down or held.' },
   { abbr: 'X', full: 'Tackles missed', desc: 'Attempted tackles where the ball carrier broke free or was not stopped.' },
 ];
@@ -187,6 +188,7 @@ const EVENT_COUNTS: GlossaryEntry[] = [
 
 const POINTS_BY_MATCH: GlossaryEntry[] = [
   { abbr: 'Points by match', full: 'Points per match', desc: 'Stacked bar showing your points vs opponent points for each match.' },
+  { abbr: 'sys', full: 'System moments', desc: 'Count of positive attack system plays logged for that match.' },
 ];
 
 const LINEUP_EFFICIENCY: GlossaryEntry[] = [

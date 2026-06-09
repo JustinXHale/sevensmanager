@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Team **Global stats**: **System moments** total in Overview (and per-match count on Points by match); respects match filter
 - Team **Global stats**: **Match** dropdown to filter all sections to a single game (or all games pooled)
 - Team **Match** tab: **×** on each match card deletes the match after confirm (roster, clock, and all events)
 - Tally and One Tap: **★ Star moment** button — bookmarks match + film clock for footage review; starred rows on Timeline show film time (filter **Starred moments**)

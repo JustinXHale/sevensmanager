@@ -13,7 +13,7 @@ import {
   type PlayerProfile,
   type ZoneHeatRow,
 } from '@/domain/matchAnalyticsDeep';
-import { passToPassDurationsMs, ruckSpeedSplit } from '@/domain/matchStats';
+import { countEventsByKind, passToPassDurationsMs, ruckSpeedSplit } from '@/domain/matchStats';
 import { ZONE_IDS } from '@/domain/zone';
 
 /** Roll-up across multiple matches (each snapshot is one game). */
@@ -91,6 +91,7 @@ export type TeamDeepAggregate = {
   ruckDefenseMedianMs: number | null;
   passToPassDurations: number[];
   passToPassMedianMs: number | null;
+  systemMoments: number;
   phaseTime: PhaseTimeSplit | null;
 };
 
@@ -104,6 +105,7 @@ export function aggregateDeepAnalytics(allEvents: MatchEventRecord[][]): TeamDee
   const zoneHeatRows = buildZoneHeatRows(flat);
   const penaltyTypes = penaltyCountByType(flat);
   const negativeActions = negativeActionBreakdown(flat);
+  const systemMoments = countEventsByKind(flat).system_moment ?? 0;
 
   const mergedProfiles = new Map<string, PlayerProfile>();
   for (const batch of allEvents) {
@@ -177,6 +179,7 @@ export function aggregateDeepAnalytics(allEvents: MatchEventRecord[][]): TeamDee
     ruckDefenseMedianMs: ruckSpeedMedianMs(ruckDefenseDurations),
     passToPassDurations,
     passToPassMedianMs: ruckSpeedMedianMs(passToPassDurations),
+    systemMoments,
     phaseTime: globalPhase,
   };
 }

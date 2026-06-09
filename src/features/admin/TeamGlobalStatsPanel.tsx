@@ -11,6 +11,7 @@ import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import type { TeamRecord } from '@/domain/team';
 import { ZONE_IDS } from '@/domain/zone';
 import { SectionHelp, GLOBAL_GLOSSARY } from '@/components/SectionHelp';
+import { countEventsByKind } from '@/domain/matchStats';
 import { aggregateDeepAnalytics, aggregateTeamMatchSnapshots, tackleCompletionPct } from '@/domain/teamGlobalStats';
 import { countActiveEventsForMatch, listMatchEvents } from '@/repos/matchEventsRepo';
 import { getSession, listMatchesForTeam } from '@/repos/matchesRepo';
@@ -366,6 +367,17 @@ export function TeamGlobalStatsPanel({ team }: Props) {
                 {aggregate.tacklesMade}{'M \u00b7 '}{aggregate.tacklesMissed}X
               </span>
             </div>
+            {deep.systemMoments > 0 && (
+              <div className="team-global-kpi">
+                <span className="team-global-kpi-label">{isSingleMatch ? 'System moments' : 'System moments (\u03a3)'}</span>
+                <span className="team-global-kpi-value tabular-nums">{deep.systemMoments}</span>
+                {!isSingleMatch && aggregate.gameCount > 1 ? (
+                  <span className="team-global-kpi-sub muted">
+                    {(deep.systemMoments / aggregate.gameCount).toFixed(1)} / game
+                  </span>
+                ) : null}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -380,6 +392,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
               const opp = r.snapshot.oppPoints;
               const combined = own + opp;
               const barWidthPct = maxCombinedPoints > 0 ? (combined / maxCombinedPoints) * 100 : 0;
+              const systemMoments = countEventsByKind(r.events).system_moment ?? 0;
               return (
                 <li key={r.match.id} className="tgs-points-row">
                   <span className="tgs-points-name">{opponentLabel(r.match)}</span>
@@ -393,7 +406,14 @@ export function TeamGlobalStatsPanel({ team }: Props) {
                       ) : null}
                     </div>
                   </div>
-                  <span className="tgs-points-score tabular-nums">{own}{'\u2013'}{opp}</span>
+                  <span className="tgs-points-score tabular-nums">
+                    {own}{'\u2013'}{opp}
+                    {systemMoments > 0 ? (
+                      <span className="tgs-points-sys muted" title="System moments">
+                        {' \u00b7 '}{systemMoments} sys
+                      </span>
+                    ) : null}
+                  </span>
                 </li>
               );
             })}
