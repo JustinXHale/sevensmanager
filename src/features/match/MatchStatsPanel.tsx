@@ -23,7 +23,8 @@ import {
   countEventsByKind,
   eventsOfKind,
   kindLabel,
-  ruckToFirstPassDurationsMs,
+  passToPassDurationsMs,
+  ruckSpeedSplit,
   sortMatchEventsByTime,
   sortSubstitutionsByTime,
   tackleEventsMadeList,
@@ -534,8 +535,13 @@ export function MatchStatsPanel({
   const profiles = useMemo(() => buildPlayerProfiles(events), [events]);
   const penTypes = useMemo(() => penaltyCountByType(events), [events]);
   const negActions = useMemo(() => negativeActionBreakdown(events), [events]);
-  const ruckDurations = useMemo(() => ruckToFirstPassDurationsMs(events), [events]);
+  const ruckSplit = useMemo(() => ruckSpeedSplit(events), [events]);
+  const ruckDurations = ruckSplit.all;
   const ruckMedian = useMemo(() => ruckSpeedMedianMs(ruckDurations), [ruckDurations]);
+  const ruckAttackMedian = useMemo(() => ruckSpeedMedianMs(ruckSplit.attack), [ruckSplit.attack]);
+  const ruckDefenseMedian = useMemo(() => ruckSpeedMedianMs(ruckSplit.defense), [ruckSplit.defense]);
+  const passToPassDurations = useMemo(() => passToPassDurationsMs(events), [events]);
+  const passToPassMedian = useMemo(() => ruckSpeedMedianMs(passToPassDurations), [passToPassDurations]);
   const phaseTime = useMemo(() => phaseTimeSplit(events), [events]);
   const timeline = useMemo(() => scoringTimeline(events), [events]);
 
@@ -573,7 +579,7 @@ export function MatchStatsPanel({
     }
     if (s.id === 'zones') return heatRows.length > 0;
     if (s.id === 'involvement') return profiles.size > 0;
-    if (s.id === 'ruck') return ruckDurations.length > 0;
+    if (s.id === 'ruck') return ruckDurations.length > 0 || passToPassDurations.length > 0;
     if (s.id === 'penalties') return penTypes.length > 0;
     if (s.id === 'negatives') return negActions.length > 0;
     if (s.id === 'phase') return phaseTime != null;
@@ -771,36 +777,62 @@ export function MatchStatsPanel({
       )}
 
       {/* Ruck speed */}
-      {show('ruck') && ruckDurations.length > 0 && (() => {
+      {show('ruck') && (ruckDurations.length > 0 || passToPassDurations.length > 0) && (() => {
         const dist = ruckSpeedDistribution(ruckDurations);
         const distMax = Math.max(1, ...dist.map((b) => b.count));
+        const fmtSec = (ms: number | null) => (ms != null ? `${(ms / 1000).toFixed(1)}s` : '—');
         return (
           <section className="card tgs-card">
             {sectionTitle('ruck')}
-            <div className="deep-ruck-kpis">
-              <div className="deep-ruck-kpi">
-                <span className="deep-ruck-kpi-value">{(ruckMedian! / 1000).toFixed(1)}s</span>
-                <span className="deep-ruck-kpi-label">Median</span>
-              </div>
-              <div className="deep-ruck-kpi">
-                <span className="deep-ruck-kpi-value">{ruckDurations.length}</span>
-                <span className="deep-ruck-kpi-label">Pairs</span>
-              </div>
-            </div>
-            <div className="deep-ruck-dist">
-              {dist.map((b) => {
-                const tone = RUCK_BUCKET_TONE[b.label] ?? 'ok';
-                return (
-                  <div key={b.label} className="deep-ruck-bucket">
-                    <div className="deep-ruck-bucket-bar-wrap">
-                      <div className={`deep-ruck-bucket-bar deep-ruck-bucket-bar--${tone}`} style={{ height: `${Math.round((b.count / distMax) * 100)}%` }} />
-                    </div>
-                    <span className="deep-ruck-bucket-count tabular-nums">{b.count}</span>
-                    <span className="deep-ruck-bucket-label muted">{b.label}</span>
+            {ruckDurations.length > 0 && (
+              <>
+                <p className="muted tgs-card-sub">Ruck to first pass — split by phase when the ruck was logged.</p>
+                <div className="deep-ruck-kpis deep-ruck-kpis--wrap">
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(ruckAttackMedian)}</span>
+                    <span className="deep-ruck-kpi-label">Atk median ({ruckSplit.attack.length})</span>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(ruckDefenseMedian)}</span>
+                    <span className="deep-ruck-kpi-label">Def median ({ruckSplit.defense.length})</span>
+                  </div>
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(ruckMedian)}</span>
+                    <span className="deep-ruck-kpi-label">Game median ({ruckDurations.length})</span>
+                  </div>
+                </div>
+                <div className="deep-ruck-dist">
+                  {dist.map((b) => {
+                    const tone = RUCK_BUCKET_TONE[b.label] ?? 'ok';
+                    return (
+                      <div key={b.label} className="deep-ruck-bucket">
+                        <div className="deep-ruck-bucket-bar-wrap">
+                          <div className={`deep-ruck-bucket-bar deep-ruck-bucket-bar--${tone}`} style={{ height: `${Math.round((b.count / distMax) * 100)}%` }} />
+                        </div>
+                        <span className="deep-ruck-bucket-count tabular-nums">{b.count}</span>
+                        <span className="deep-ruck-bucket-label muted">{b.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {passToPassDurations.length > 0 && (
+              <>
+                <h4 className="tgs-card-subtitle">Pass to pass</h4>
+                <p className="muted tgs-card-sub">Only consecutive passes in the same period (not pass → line break or break → try).</p>
+                <div className="deep-ruck-kpis">
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(passToPassMedian)}</span>
+                    <span className="deep-ruck-kpi-label">Median</span>
+                  </div>
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{passToPassDurations.length}</span>
+                    <span className="deep-ruck-kpi-label">Pairs</span>
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         );
       })()}

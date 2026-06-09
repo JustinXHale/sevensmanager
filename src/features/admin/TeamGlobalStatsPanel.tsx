@@ -5,7 +5,7 @@ import type { MatchEventRecord } from '@/domain/matchEvent';
 import { playerInvolvement, ruckSpeedDistribution } from '@/domain/matchAnalyticsDeep';
 import { computePlayerEfficiency, type PlayerEfficiencyRow } from '@/domain/lineupEfficiency';
 import type { MatchLiveLocationState } from '@/domain/matchNavigation';
-import type { MatchRecord } from '@/domain/match';
+import { matchListSortKey, type MatchRecord } from '@/domain/match';
 import type { PlayerRecord } from '@/domain/player';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import type { TeamRecord } from '@/domain/team';
@@ -45,10 +45,19 @@ const SECTIONS = [
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'] | 'all';
+type MatchFilterId = 'all' | string;
 
 function opponentLabel(m: MatchRecord): string {
   const opp = m.opponentName?.trim();
   return opp ? `vs ${opp}` : m.title?.trim() || 'Match';
+}
+
+function matchFilterOptionLabel(r: MatchWithStats, displayTimeZone: string): string {
+  const kickoff = r.match.kickoffDate
+    ? formatMatchKickoffInZone(r.match.kickoffDate, displayTimeZone)
+    : null;
+  const base = opponentLabel(r.match);
+  return kickoff ? `${base} · ${kickoff}` : base;
 }
 
 const RUCK_BUCKET_TONE: Record<string, string> = {
@@ -79,6 +88,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
   const [globalPlayers, setGlobalPlayers] = useState<Map<string, PlayerRecord>>(new Map());
   const [displayTimeZone] = useState(() => getStoredDisplayTimeZone());
   const [activeSection, setActiveSection] = useState<SectionId>('all');
+  const [selectedMatchId, setSelectedMatchId] = useState<MatchFilterId>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,31 +149,53 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [load]);
 
+  const sortedWithStats = useMemo(
+    () => [...withStats].sort((a, b) => matchListSortKey(b.match) - matchListSortKey(a.match)),
+    [withStats],
+  );
+
+  useEffect(() => {
+    if (selectedMatchId === 'all') return;
+    if (!withStats.some((r) => r.match.id === selectedMatchId)) {
+      setSelectedMatchId('all');
+    }
+  }, [withStats, selectedMatchId]);
+
+  const filteredStats = useMemo(() => {
+    if (selectedMatchId === 'all') return sortedWithStats;
+    return sortedWithStats.filter((r) => r.match.id === selectedMatchId);
+  }, [sortedWithStats, selectedMatchId]);
+
+  const isSingleMatch = selectedMatchId !== 'all';
+  const selectedMatchRow = isSingleMatch
+    ? filteredStats.find((r) => r.match.id === selectedMatchId)
+    : undefined;
+
   const aggregate = useMemo(
     () =>
       aggregateTeamMatchSnapshots(
-        withStats.map((r) => ({ eventCount: r.eventCount, snapshot: r.snapshot })),
+        filteredStats.map((r) => ({ eventCount: r.eventCount, snapshot: r.snapshot })),
       ),
-    [withStats],
+    [filteredStats],
   );
 
   const pooledTacklePct = tackleCompletionPct(aggregate.tacklesMade, aggregate.tacklesMissed);
 
   const deep = useMemo(
-    () => aggregateDeepAnalytics(withStats.map((r) => r.events)),
-    [withStats],
+    () => aggregateDeepAnalytics(filteredStats.map((r) => r.events)),
+    [filteredStats],
   );
 
   const efficiencyRows = useMemo(
     () =>
       computePlayerEfficiency(
-        withStats.map((r) => ({
+        filteredStats.map((r) => ({
           events: r.events,
           playerMinutesMs: r.playerMinutesMs,
           playerIdToStableKey: r.playerIdToStableKey,
         })),
       ),
-    [withStats],
+    [filteredStats],
   );
 
   const qualifiedRows = useMemo(() => efficiencyRows.filter((r) => r.qualified), [efficiencyRows]);
@@ -171,11 +203,33 @@ export function TeamGlobalStatsPanel({ team }: Props) {
 
   const maxCombinedPoints = useMemo(() => {
     let max = 1;
-    for (const r of withStats) {
+    for (const r of filteredStats) {
       max = Math.max(max, r.snapshot.ownPoints + r.snapshot.oppPoints);
     }
     return max;
-  }, [withStats]);
+  }, [filteredStats]);
+
+  const visibleSections = useMemo(() => {
+    if (withStats.length === 0) return [];
+    return SECTIONS.filter((s) => {
+      if (isSingleMatch && (s.id === 'points' || s.id === 'matches')) return false;
+      if (s.id === 'zones') return deep.zoneHeatRows.length > 0;
+      if (s.id === 'ruck') return deep.ruckDurations.length > 0 || deep.passToPassDurations.length > 0;
+      if (s.id === 'penalties') return deep.penaltyTypes.length > 0;
+      if (s.id === 'negatives') return deep.negativeActions.length > 0;
+      if (s.id === 'players') return deep.playerProfiles.size > 0;
+      if (s.id === 'phase') return deep.phaseTime != null;
+      if (s.id === 'lineup') return !isSingleMatch && efficiencyRows.length > 0;
+      return true;
+    });
+  }, [withStats.length, isSingleMatch, deep, efficiencyRows.length]);
+
+  useEffect(() => {
+    if (activeSection === 'all') return;
+    if (!visibleSections.some((s) => s.id === activeSection)) {
+      setActiveSection('all');
+    }
+  }, [activeSection, visibleSections]);
 
   const statsReturnPath = `/team/${team.id}?tab=stats`;
   const statsReturnEncoded = encodeURIComponent(statsReturnPath);
@@ -223,17 +277,6 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     );
   }
 
-  const visibleSections = SECTIONS.filter((s) => {
-    if (s.id === 'zones') return deep.zoneHeatRows.length > 0;
-    if (s.id === 'ruck') return deep.ruckDurations.length > 0;
-    if (s.id === 'penalties') return deep.penaltyTypes.length > 0;
-    if (s.id === 'negatives') return deep.negativeActions.length > 0;
-    if (s.id === 'players') return deep.playerProfiles.size > 0;
-    if (s.id === 'phase') return deep.phaseTime != null;
-    if (s.id === 'lineup') return efficiencyRows.length > 0;
-    return true;
-  });
-
   const current = activeSection === 'all' ? 'all' : (visibleSections.find((s) => s.id === activeSection) ? activeSection : 'all');
   const show = (id: string) => current === 'all' || current === id;
   const sectionTitle = (id: string) => {
@@ -252,18 +295,42 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     <div className="tgs-root">
       <div className="tgs-header">
         <h2 className="team-global-stats-title">Global stats</h2>
-        <select
-          className="filter-select tgs-section-select"
-          value={current}
-          onChange={(e) => setActiveSection(e.target.value as SectionId)}
-          aria-label="Section"
-        >
-          <option value="all">All sections</option>
-          {visibleSections.map((s) => (
-            <option key={s.id} value={s.id}>{s.label}</option>
-          ))}
-        </select>
+        <div className="tgs-header-filters">
+          <select
+            className="filter-select tgs-section-select tgs-match-select"
+            value={selectedMatchId}
+            onChange={(e) => setSelectedMatchId(e.target.value as MatchFilterId)}
+            aria-label="Match"
+          >
+            <option value="all">All games ({sortedWithStats.length})</option>
+            {sortedWithStats.map((r) => (
+              <option key={r.match.id} value={r.match.id}>
+                {matchFilterOptionLabel(r, displayTimeZone)}
+              </option>
+            ))}
+          </select>
+          <select
+            className="filter-select tgs-section-select"
+            value={current}
+            onChange={(e) => setActiveSection(e.target.value as SectionId)}
+            aria-label="Section"
+          >
+            <option value="all">All sections</option>
+            {visibleSections.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
+      {isSingleMatch && selectedMatchRow && (
+        <p className="muted tgs-match-filter-hint">
+          Showing stats for {matchFilterOptionLabel(selectedMatchRow, displayTimeZone)}.
+          {' '}
+          <button type="button" className="tgs-match-filter-clear" onClick={() => setSelectedMatchId('all')}>
+            View all games
+          </button>
+        </p>
+      )}
 
       {/* Overview KPIs */}
       {show('overview') && (
@@ -271,7 +338,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
           {sectionTitle('overview')}
           <div className="team-global-kpi-row">
             <div className="team-global-kpi">
-              <span className="team-global-kpi-label">Matches</span>
+              <span className="team-global-kpi-label">{isSingleMatch ? 'Match' : 'Matches'}</span>
               <span className="team-global-kpi-value tabular-nums">{aggregate.gameCount}</span>
             </div>
             <div className="team-global-kpi">
@@ -279,19 +346,19 @@ export function TeamGlobalStatsPanel({ team }: Props) {
               <span className="team-global-kpi-value tabular-nums">{aggregate.totalEvents}</span>
             </div>
             <div className="team-global-kpi">
-              <span className="team-global-kpi-label">{`Points (\u03a3)`}</span>
+              <span className="team-global-kpi-label">{isSingleMatch ? 'Points' : `Points (\u03a3)`}</span>
               <span className="team-global-kpi-value tabular-nums">
                 {aggregate.sumOwnPoints}{' \u2013 '}{aggregate.sumOppPoints}
               </span>
             </div>
             <div className="team-global-kpi">
-              <span className="team-global-kpi-label">{`Tries (\u03a3)`}</span>
+              <span className="team-global-kpi-label">{isSingleMatch ? 'Tries' : `Tries (\u03a3)`}</span>
               <span className="team-global-kpi-value tabular-nums">
                 {aggregate.sumOwnTries}{' \u2013 '}{aggregate.sumOppTries}
               </span>
             </div>
             <div className="team-global-kpi">
-              <span className="team-global-kpi-label">Tackle % (pooled)</span>
+              <span className="team-global-kpi-label">{isSingleMatch ? 'Tackle %' : 'Tackle % (pooled)'}</span>
               <span className="team-global-kpi-value tabular-nums">
                 {pooledTacklePct != null ? `${pooledTacklePct}%` : '\u2014'}
               </span>
@@ -308,7 +375,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         <section className="card tgs-card">
           {sectionTitle('points')}
           <ul className="tgs-points-list" aria-label="Points per match">
-            {withStats.map((r) => {
+            {filteredStats.map((r) => {
               const own = r.snapshot.ownPoints;
               const opp = r.snapshot.oppPoints;
               const combined = own + opp;
@@ -359,7 +426,9 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             </div>
           </div>
           <p className="muted tgs-card-sub mt-xs">
-            Estimated from event classification across all logged matches. Gaps &gt; 90 s are capped.
+            {isSingleMatch
+              ? 'Estimated from event classification for this match. Gaps > 90 s are capped.'
+              : 'Estimated from event classification across all logged matches. Gaps > 90 s are capped.'}
           </p>
         </section>
       )}
@@ -401,39 +470,65 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       )}
 
       {/* Ruck speed */}
-      {show('ruck') && deep.ruckDurations.length > 0 && (() => {
+      {show('ruck') && (deep.ruckDurations.length > 0 || deep.passToPassDurations.length > 0) && (() => {
         const dist = ruckSpeedDistribution(deep.ruckDurations);
         const distMax = Math.max(1, ...dist.map((b) => b.count));
+        const fmtSec = (ms: number | null) => (ms != null ? `${(ms / 1000).toFixed(1)}s` : '—');
         return (
           <section className="card tgs-card">
             {sectionTitle('ruck')}
-            <div className="deep-ruck-kpis">
-              <div className="deep-ruck-kpi">
-                <span className="deep-ruck-kpi-value">{(deep.ruckMedianMs! / 1000).toFixed(1)}s</span>
-                <span className="deep-ruck-kpi-label">Median</span>
-              </div>
-              <div className="deep-ruck-kpi">
-                <span className="deep-ruck-kpi-value">{deep.ruckDurations.length}</span>
-                <span className="deep-ruck-kpi-label">Pairs</span>
-              </div>
-            </div>
-            <div className="deep-ruck-dist">
-              {dist.map((b) => {
-                const tone = RUCK_BUCKET_TONE[b.label] ?? 'ok';
-                return (
-                  <div key={b.label} className="deep-ruck-bucket">
-                    <div className="deep-ruck-bucket-bar-wrap">
-                      <div
-                        className={`deep-ruck-bucket-bar deep-ruck-bucket-bar--${tone}`}
-                        style={{ height: `${Math.round((b.count / distMax) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="deep-ruck-bucket-count tabular-nums">{b.count}</span>
-                    <span className="deep-ruck-bucket-label muted">{b.label}</span>
+            {deep.ruckDurations.length > 0 && (
+              <>
+                <p className="muted tgs-card-sub">Ruck to first pass — split by phase when the ruck was logged.</p>
+                <div className="deep-ruck-kpis deep-ruck-kpis--wrap">
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(deep.ruckAttackMedianMs)}</span>
+                    <span className="deep-ruck-kpi-label">Atk median ({deep.ruckAttackDurations.length})</span>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(deep.ruckDefenseMedianMs)}</span>
+                    <span className="deep-ruck-kpi-label">Def median ({deep.ruckDefenseDurations.length})</span>
+                  </div>
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(deep.ruckMedianMs)}</span>
+                    <span className="deep-ruck-kpi-label">Game median ({deep.ruckDurations.length})</span>
+                  </div>
+                </div>
+                <div className="deep-ruck-dist">
+                  {dist.map((b) => {
+                    const tone = RUCK_BUCKET_TONE[b.label] ?? 'ok';
+                    return (
+                      <div key={b.label} className="deep-ruck-bucket">
+                        <div className="deep-ruck-bucket-bar-wrap">
+                          <div
+                            className={`deep-ruck-bucket-bar deep-ruck-bucket-bar--${tone}`}
+                            style={{ height: `${Math.round((b.count / distMax) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="deep-ruck-bucket-count tabular-nums">{b.count}</span>
+                        <span className="deep-ruck-bucket-label muted">{b.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {deep.passToPassDurations.length > 0 && (
+              <>
+                <h4 className="tgs-card-subtitle">Pass to pass</h4>
+                <p className="muted tgs-card-sub">Only consecutive passes in the same period (not pass → line break or break → try).</p>
+                <div className="deep-ruck-kpis">
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{fmtSec(deep.passToPassMedianMs)}</span>
+                    <span className="deep-ruck-kpi-label">Median</span>
+                  </div>
+                  <div className="deep-ruck-kpi">
+                    <span className="deep-ruck-kpi-value">{deep.passToPassDurations.length}</span>
+                    <span className="deep-ruck-kpi-label">Pairs</span>
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         );
       })()}
@@ -645,7 +740,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         <section className="card tgs-card">
           {sectionTitle('matches')}
           <ul className="team-global-game-list">
-            {withStats.map((r) => {
+            {filteredStats.map((r) => {
               const m = r.match;
               const kickoffLabel = m.kickoffDate ? formatMatchKickoffInZone(m.kickoffDate, displayTimeZone) : null;
               return (

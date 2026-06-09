@@ -7,6 +7,8 @@ import {
   offloadToneBreakdown,
   rugbyPointsFromOpponentEvents,
   rugbyPointsFromOwnTeamEvents,
+  passToPassDurationsMs,
+  ruckSpeedSplit,
   ruckToFirstPassDurationsMs,
   triesByZone,
 } from './matchStats';
@@ -108,6 +110,52 @@ describe('ruckToFirstPassDurationsMs', () => {
       ev({ id: 'p1', kind: 'pass', matchTimeMs: 20_000, period: 2, playerId: 'a' }),
     ];
     expect(ruckToFirstPassDurationsMs(events)).toEqual([]);
+  });
+
+  it('splits attack and defense rucks by playPhaseContext', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'r1', kind: 'ruck', matchTimeMs: 0, period: 1, playPhaseContext: 'attack' }),
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 3000, period: 1, playerId: 'a' }),
+      ev({ id: 'r2', kind: 'ruck', matchTimeMs: 5000, period: 1, playPhaseContext: 'defense' }),
+      ev({ id: 'p2', kind: 'pass', matchTimeMs: 9000, period: 1, playerId: 'b' }),
+    ];
+    expect(ruckToFirstPassDurationsMs(events, 'attack')).toEqual([3000]);
+    expect(ruckToFirstPassDurationsMs(events, 'defense')).toEqual([4000]);
+    expect(ruckSpeedSplit(events)).toEqual({
+      all: [3000, 4000],
+      attack: [3000],
+      defense: [4000],
+    });
+  });
+});
+
+describe('passToPassDurationsMs', () => {
+  it('measures only consecutive passes in the same period', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 1000, period: 1, playerId: 'a' }),
+      ev({ id: 'p2', kind: 'pass', matchTimeMs: 4000, period: 1, playerId: 'b' }),
+      ev({ id: 'lb', kind: 'line_break', matchTimeMs: 7000, period: 1, playerId: 'b' }),
+      ev({ id: 'p3', kind: 'pass', matchTimeMs: 9000, period: 1, playerId: 'c' }),
+    ];
+    expect(passToPassDurationsMs(events)).toEqual([3000]);
+  });
+
+  it('skips pass then line break then try', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 0, period: 1, playerId: 'a' }),
+      ev({ id: 'lb', kind: 'line_break', matchTimeMs: 2000, period: 1, playerId: 'a' }),
+      ev({ id: 't1', kind: 'try', matchTimeMs: 5000, period: 1, playerId: 'a' }),
+    ];
+    expect(passToPassDurationsMs(events)).toEqual([]);
+  });
+
+  it('excludes opponent pass rows', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 0, period: 1, playerId: 'a' }),
+      ev({ id: 'opp', kind: 'pass', matchTimeMs: 2000, period: 1, playPhaseContext: 'defense' }),
+      ev({ id: 'p2', kind: 'pass', matchTimeMs: 5000, period: 1, playerId: 'b' }),
+    ];
+    expect(passToPassDurationsMs(events)).toEqual([]);
   });
 });
 

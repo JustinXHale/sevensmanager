@@ -4,6 +4,7 @@ import {
   type MatchEventKind,
   type MatchEventRecord,
   type PenaltyCard,
+  type PlayPhaseContext,
 } from '@/domain/matchEvent';
 import type { SubstitutionRecord } from '@/domain/player';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
@@ -136,16 +137,26 @@ export function offloadToneBreakdown(events: MatchEventRecord[]): {
   return { negative, neutral, positive };
 }
 
+export type RuckSpeedSplit = {
+  all: number[];
+  attack: number[];
+  defense: number[];
+};
+
 /**
  * Ruck = breakdown (product). For each ruck, time until the next pass in the same period (clock ms).
- * Used for average “breakdown length” without extra taps.
+ * When `phase` is set, only rucks logged in that attack/defense context are included.
  */
-export function ruckToFirstPassDurationsMs(events: MatchEventRecord[]): number[] {
+export function ruckToFirstPassDurationsMs(
+  events: MatchEventRecord[],
+  phase?: PlayPhaseContext,
+): number[] {
   const sorted = sortMatchEventsByTime(events);
   const out: number[] = [];
   for (let i = 0; i < sorted.length; i++) {
     const e = sorted[i]!;
     if (e.kind !== 'ruck') continue;
+    if (phase != null && e.playPhaseContext !== phase) continue;
     const p0 = e.period;
     const t0 = e.matchTimeMs;
     for (let j = i + 1; j < sorted.length; j++) {
@@ -156,6 +167,39 @@ export function ruckToFirstPassDurationsMs(events: MatchEventRecord[]): number[]
       if (dt >= 0) out.push(dt);
       break;
     }
+  }
+  return out;
+}
+
+export function ruckSpeedSplit(events: MatchEventRecord[]): RuckSpeedSplit {
+  return {
+    all: ruckToFirstPassDurationsMs(events),
+    attack: ruckToFirstPassDurationsMs(events, 'attack'),
+    defense: ruckToFirstPassDurationsMs(events, 'defense'),
+  };
+}
+
+/** Our-team pass rows (excludes defense-tab opponent pass without a player). */
+export function isOurPassEvent(e: MatchEventRecord): boolean {
+  if (e.deletedAt != null || e.kind !== 'pass') return false;
+  return !(e.playPhaseContext === 'defense' && !e.playerId);
+}
+
+/**
+ * Time between consecutive pass events in the same period (clock ms).
+ * Only back-to-back passes count — pass → line break or line break → try are skipped.
+ */
+export function passToPassDurationsMs(events: MatchEventRecord[]): number[] {
+  const sorted = sortMatchEventsByTime(events);
+  const out: number[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const e = sorted[i]!;
+    if (!isOurPassEvent(e)) continue;
+    const next = sorted[i + 1]!;
+    if (!isOurPassEvent(next)) continue;
+    if (next.period !== e.period) continue;
+    const dt = next.matchTimeMs - e.matchTimeMs;
+    if (dt >= 0) out.push(dt);
   }
   return out;
 }

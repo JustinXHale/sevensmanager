@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Team **Global stats**: **Match** dropdown to filter all sections to a single game (or all games pooled)
 - Team **Match** tab: **×** on each match card deletes the match after confirm (roster, clock, and all events)
 - Tally and One Tap: **★ Star moment** button — bookmarks match + film clock for footage review; starred rows on Timeline show film time (filter **Starred moments**)
 - Tally **Attack**: filled gold **System Moment** circle at end of counter grid — logs positive attack system plays with match + film clock for timeline review
@@ -33,6 +34,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- Match and team **Ruck speed**: attack and defense medians calculated separately (game median kept); new **Pass to pass** timing for consecutive passes only (skips pass → line break, etc.)
 - Tally / One Tap set-piece **FK**: third layer **Them** / **Us** (who erred); logged as FK to us vs FK to them; timeline shows fault; receiving restart hints common case
 - Tally / One Tap **set-piece strip**: layered full-size circles — pick Restart/Ruck/Scrum/Lineout, then W/L/FK/P+/P−, then ruck contested or penalty infractions
 - Match **Roster**: no cap on players on field — on-field zone turns red when more than 7 (regulation warning only)

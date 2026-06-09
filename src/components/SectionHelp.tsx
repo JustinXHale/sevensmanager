@@ -138,8 +138,10 @@ const INVOLVEMENT: GlossaryEntry[] = [
 ];
 
 const RUCK: GlossaryEntry[] = [
-  { abbr: 'Median', full: 'Median ruck speed', desc: 'Middle value of all ruck-to-first-pass durations. Lower is faster ball recycling.' },
-  { abbr: 'Pairs', full: 'Ruck\u2013pass pairs', desc: 'Number of ruck events that were followed by a pass, used to calculate speed.' },
+  { abbr: 'Atk', full: 'Attack ruck median', desc: 'Median time from attack-phase rucks to the next pass. Lower is faster ball recycling on our ball.' },
+  { abbr: 'Def', full: 'Defense ruck median', desc: 'Median time from defense-phase rucks to the next pass — how quickly we get the ball back after a tackle.' },
+  { abbr: 'Game', full: 'Game median', desc: 'Median across all ruck-to-first-pass pairs in the match (attack + defense combined).' },
+  { abbr: 'Pass\u2013pass', full: 'Pass to pass', desc: 'Median time between two consecutive pass events in the same period. Skips pass \u2192 line break, line break \u2192 try, and other non-pass events between.' },
 ];
 
 const SET_PIECES: GlossaryEntry[] = [

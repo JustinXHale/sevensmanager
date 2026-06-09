@@ -13,7 +13,7 @@ import {
   type PlayerProfile,
   type ZoneHeatRow,
 } from '@/domain/matchAnalyticsDeep';
-import { ruckToFirstPassDurationsMs } from '@/domain/matchStats';
+import { passToPassDurationsMs, ruckSpeedSplit } from '@/domain/matchStats';
 import { ZONE_IDS } from '@/domain/zone';
 
 /** Roll-up across multiple matches (each snapshot is one game). */
@@ -85,6 +85,12 @@ export type TeamDeepAggregate = {
   playerProfiles: Map<string, PlayerProfile>;
   ruckDurations: number[];
   ruckMedianMs: number | null;
+  ruckAttackDurations: number[];
+  ruckDefenseDurations: number[];
+  ruckAttackMedianMs: number | null;
+  ruckDefenseMedianMs: number | null;
+  passToPassDurations: number[];
+  passToPassMedianMs: number | null;
   phaseTime: PhaseTimeSplit | null;
 };
 
@@ -131,8 +137,15 @@ export function aggregateDeepAnalytics(allEvents: MatchEventRecord[][]): TeamDee
   }
 
   const ruckDurations: number[] = [];
+  const ruckAttackDurations: number[] = [];
+  const ruckDefenseDurations: number[] = [];
+  const passToPassDurations: number[] = [];
   for (const batch of allEvents) {
-    ruckDurations.push(...ruckToFirstPassDurationsMs(batch));
+    const split = ruckSpeedSplit(batch);
+    ruckDurations.push(...split.all);
+    ruckAttackDurations.push(...split.attack);
+    ruckDefenseDurations.push(...split.defense);
+    passToPassDurations.push(...passToPassDurationsMs(batch));
   }
 
   let offMs = 0;
@@ -158,6 +171,12 @@ export function aggregateDeepAnalytics(allEvents: MatchEventRecord[][]): TeamDee
     playerProfiles: mergedProfiles,
     ruckDurations,
     ruckMedianMs: ruckSpeedMedianMs(ruckDurations),
+    ruckAttackDurations,
+    ruckDefenseDurations,
+    ruckAttackMedianMs: ruckSpeedMedianMs(ruckAttackDurations),
+    ruckDefenseMedianMs: ruckSpeedMedianMs(ruckDefenseDurations),
+    passToPassDurations,
+    passToPassMedianMs: ruckSpeedMedianMs(passToPassDurations),
     phaseTime: globalPhase,
   };
 }
