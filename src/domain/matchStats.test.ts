@@ -97,11 +97,11 @@ describe('ruckToFirstPassDurationsMs', () => {
   it('pairs each ruck with next pass in same period only', () => {
     const events: MatchEventRecord[] = [
       ev({ id: 'r1', kind: 'ruck', matchTimeMs: 10_000, period: 1 }),
-      ev({ id: 'p1', kind: 'pass', matchTimeMs: 25_000, period: 1, playerId: 'a' }),
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 15_000, period: 1, playerId: 'a' }),
       ev({ id: 'r2', kind: 'ruck', matchTimeMs: 30_000, period: 1 }),
-      ev({ id: 'p2', kind: 'pass', matchTimeMs: 50_000, period: 1, playerId: 'b' }),
+      ev({ id: 'p2', kind: 'pass', matchTimeMs: 35_000, period: 1, playerId: 'b' }),
     ];
-    expect(ruckToFirstPassDurationsMs(events)).toEqual([17_000, 22_000]);
+    expect(ruckToFirstPassDurationsMs(events)).toEqual([7000, 7000]);
   });
 
   it('does not pair across periods', () => {
@@ -115,9 +115,9 @@ describe('ruckToFirstPassDurationsMs', () => {
   it('splits attack and defense rucks by playPhaseContext', () => {
     const events: MatchEventRecord[] = [
       ev({ id: 'r1', kind: 'ruck', matchTimeMs: 0, period: 1, playPhaseContext: 'attack' }),
-      ev({ id: 'p1', kind: 'pass', matchTimeMs: 3000, period: 1, playerId: 'a' }),
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 3000, period: 1, playPhaseContext: 'attack', playerId: 'a' }),
       ev({ id: 'r2', kind: 'ruck', matchTimeMs: 5000, period: 1, playPhaseContext: 'defense' }),
-      ev({ id: 'p2', kind: 'pass', matchTimeMs: 9000, period: 1, playerId: 'b' }),
+      ev({ id: 'p2', kind: 'pass', matchTimeMs: 9000, period: 1, playPhaseContext: 'defense' }),
     ];
     expect(ruckToFirstPassDurationsMs(events, 'attack')).toEqual([5000]);
     expect(ruckToFirstPassDurationsMs(events, 'defense')).toEqual([6000]);
@@ -126,6 +126,23 @@ describe('ruckToFirstPassDurationsMs', () => {
       attack: [5000],
       defense: [6000],
     });
+  });
+
+  it('does not pair defense ruck with a later attack pass after possession change', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'r1', kind: 'ruck', matchTimeMs: 5000, period: 1, playPhaseContext: 'defense' }),
+      ev({ id: 'p_def', kind: 'pass', matchTimeMs: 8000, period: 1, playPhaseContext: 'defense' }),
+      ev({ id: 'p_atk', kind: 'pass', matchTimeMs: 45_000, period: 1, playPhaseContext: 'attack', playerId: 'a' }),
+    ];
+    expect(ruckToFirstPassDurationsMs(events, 'defense')).toEqual([5000]);
+  });
+
+  it('skips ruck pairs longer than max cap', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: 'r1', kind: 'ruck', matchTimeMs: 0, period: 1, playPhaseContext: 'attack' }),
+      ev({ id: 'p1', kind: 'pass', matchTimeMs: 20_000, period: 1, playPhaseContext: 'attack', playerId: 'a' }),
+    ];
+    expect(ruckToFirstPassDurationsMs(events, 'attack')).toEqual([]);
   });
 });
 

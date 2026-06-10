@@ -76,10 +76,6 @@ function inferredBullets(stats: InferredMatchStats): string {
   if (stats.forcedTurnovers > 0) {
     lines.push(`Forced turnovers: ${stats.forcedTurnovers}`);
   }
-  if (stats.turnoverBalance !== 0) {
-    const sign = stats.turnoverBalance > 0 ? '+' : '';
-    lines.push(`Turnover balance: ${sign}${stats.turnoverBalance}`);
-  }
   if (stats.penaltiesConceded > 0 || stats.penaltyNetAttack !== 0 || stats.penaltyNetDefense !== 0) {
     lines.push(
       `Penalties conceded: ${stats.penaltiesConceded} (attack ${stats.penaltyNetAttack >= 0 ? '+' : ''}${stats.penaltyNetAttack}, defense ${stats.penaltyNetDefense >= 0 ? '+' : ''}${stats.penaltyNetDefense})`,

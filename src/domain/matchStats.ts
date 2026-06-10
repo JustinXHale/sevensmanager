@@ -147,6 +147,9 @@ export type RuckSpeedSplit = {
 /** Compensates for multi-step ruck logging (Ruck → W/L → Con/Unc) before matchTimeMs is stamped. */
 export const RUCK_SPEED_LOGGING_OFFSET_MS = 2000;
 
+/** Ignore ruck→pass gaps above this (clock stalls / possession change before next logged pass). */
+export const RUCK_SPEED_MAX_PAIR_MS = 12_000;
+
 /**
  * Ruck = breakdown (product). For each ruck, time until the next pass in the same period (clock ms),
  * plus {@link RUCK_SPEED_LOGGING_OFFSET_MS} to approximate breakdown start before the final ruck tap.
@@ -170,8 +173,10 @@ export function ruckToFirstPassDurationsMs(
       const next = sorted[j]!;
       if (next.period !== p0) break;
       if (next.kind !== 'pass') continue;
+      if (e.playPhaseContext != null && next.playPhaseContext !== e.playPhaseContext) continue;
       const dt = next.matchTimeMs - t0;
-      if (dt >= 0) out.push(dt + RUCK_SPEED_LOGGING_OFFSET_MS);
+      if (dt < 0 || dt > RUCK_SPEED_MAX_PAIR_MS) break;
+      out.push(dt + RUCK_SPEED_LOGGING_OFFSET_MS);
       break;
     }
   }

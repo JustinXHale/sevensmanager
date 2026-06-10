@@ -324,27 +324,23 @@ export function InferredStatsSection({
     },
   ];
 
-  const turnoverSub = `+${stats.forcedTurnovers} FT −${stats.negatives} neg −${stats.penaltiesConceded} pen`;
-  const turnoverRead =
-    stats.turnoverBalance > 0
-      ? 'Positive — more takeaways than errors given away.'
-      : stats.turnoverBalance < 0
-        ? 'Negative — errors and penalties outweighed forced turnovers.'
-        : 'Even — takeaways matched errors.';
-
   const discipline: KpiDef[] = [
-    {
-      id: 'turnover-balance',
-      label: 'Turnover balance',
-      value: fmtSigned(stats.turnoverBalance),
-      sub: turnoverSub,
-      drilldown: ['forced-turnovers', 'negatives', 'penalties-conceded'],
-      help: {
-        meaning: 'Simple score for whether you are winning or losing the ball battle.',
-        formula: 'Forced turnovers − (all negatives + all penalties conceded)',
-        readAs: `${turnoverRead} Zero or positive is better; negative (e.g. −11) means too many giveaways.`,
-      },
-    },
+    ...(stats.forcedTurnovers > 0
+      ? [
+          {
+            id: 'forced-turnovers',
+            label: 'Forced turnovers',
+            value: String(stats.forcedTurnovers),
+            sub: 'Logged from Defense (gold button)',
+            drilldown: 'forced-turnovers' as const,
+            help: {
+              meaning:
+                'Positive defensive turnovers you logged deliberately — e.g. dominant tackle forcing a knock-on.',
+              readAs: 'Higher is better. Each tap is one forced turnover event; no formula — just your button logs.',
+            },
+          } satisfies KpiDef,
+        ]
+      : []),
     {
       id: 'pen-net-attack',
       label: 'Pen net (attack)',

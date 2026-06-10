@@ -13,6 +13,25 @@ function fmtDurationMs(ms: number | null): string | null {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function msToSeconds(ms: number | null): number | null {
+  if (ms == null) return null;
+  return Math.round(ms / 100) / 10;
+}
+
+function ruckPhaseExport(
+  phase: InferredMatchStats['ruckByPhase']['attack'],
+): Record<string, number | null> {
+  return {
+    total: phase.total,
+    won: phase.won,
+    lost: phase.lost,
+    wonPct: phase.wonPct,
+    contestedMedianSec: msToSeconds(phase.contestedMedianMs),
+    uncontestedMedianSec: msToSeconds(phase.uncontestedMedianMs),
+    overallMedianSec: msToSeconds(phase.overallMedianMs),
+  };
+}
+
 function pctOrNull(n: number | null): number | null {
   return n;
 }
@@ -44,9 +63,10 @@ function serializeInferred(stats: InferredMatchStats) {
     },
     discipline: {
       forcedTurnovers: stats.forcedTurnovers,
+      forcedTurnoversDefinition:
+        'Count of forced_turnover events logged from the Defense Forced Turnover button (not derived)',
       negatives: stats.negatives,
       penaltiesConceded: stats.penaltiesConceded,
-      turnoverBalance: stats.turnoverBalance,
       penaltyNetAttack: stats.penaltyNetAttack,
       penaltyNetDefense: stats.penaltyNetDefense,
       knockOns: stats.knockOns,
@@ -57,22 +77,9 @@ function serializeInferred(stats: InferredMatchStats) {
     },
     ruck: {
       contest: stats.ruckContest,
-      attack: {
-        total: attack.total,
-        won: attack.won,
-        lost: attack.lost,
-        wonPct: attack.wonPct,
-        contestedMedianMs: attack.contestedMedianMs,
-        uncontestedMedianMs: attack.uncontestedMedianMs,
-      },
-      defense: {
-        total: defense.total,
-        won: defense.won,
-        lost: defense.lost,
-        wonPct: defense.wonPct,
-        contestedMedianMs: defense.contestedMedianMs,
-        uncontestedMedianMs: defense.uncontestedMedianMs,
-      },
+      note: 'Median ruck speeds in seconds (ruck to next pass in same phase; gaps over 12s excluded)',
+      attack: ruckPhaseExport(attack),
+      defense: ruckPhaseExport(defense),
     },
   };
 }
@@ -101,10 +108,11 @@ export type MatchStatsBrief = {
     systemMoments: number;
   };
   phase: PhaseTimeSplit | null;
-  ruckMedianMs: number | null;
-  ruckAttackMedianMs: number | null;
-  ruckDefenseMedianMs: number | null;
-  passToPassMedianMs: number | null;
+  ruckMedianSec: number | null;
+  ruckAttackMedianSec: number | null;
+  ruckDefenseMedianSec: number | null;
+  passToPassMedianSec: number | null;
+  ruckSpeedNote: string;
   topPenalties: { label: string; count: number }[];
   topNegatives: { label: string; count: number }[];
   inferred: ReturnType<typeof serializeInferred>;
@@ -151,10 +159,12 @@ export function buildMatchStatsBrief(input: {
       systemMoments: input.systemMoments,
     },
     phase: input.phase,
-    ruckMedianMs: input.ruckMedianMs,
-    ruckAttackMedianMs: input.ruckAttackMedianMs,
-    ruckDefenseMedianMs: input.ruckDefenseMedianMs,
-    passToPassMedianMs: input.passToPassMedianMs,
+    ruckMedianSec: msToSeconds(input.ruckMedianMs),
+    ruckAttackMedianSec: msToSeconds(input.ruckAttackMedianMs),
+    ruckDefenseMedianSec: msToSeconds(input.ruckDefenseMedianMs),
+    passToPassMedianSec: msToSeconds(input.passToPassMedianMs),
+    ruckSpeedNote:
+      'Prefer inferred.ruck attack/defense medians (phase-specific). Top-level medians are pooled summaries.',
     topPenalties: input.penaltyTypes.slice(0, 6).map((r) => ({ label: r.label, count: r.count })),
     topNegatives: input.negativeActions.slice(0, 6).map((r) => ({ label: r.label, count: r.count })),
     inferred: serializeInferred(input.inferred),
@@ -169,10 +179,11 @@ export type TeamStatsBrief = {
   matchLabel: string | null;
   aggregate: TeamGlobalAggregate & { tackleCompletionPct: number | null };
   phase: PhaseTimeSplit | null;
-  ruckMedianMs: number | null;
-  ruckAttackMedianMs: number | null;
-  ruckDefenseMedianMs: number | null;
-  passToPassMedianMs: number | null;
+  ruckMedianSec: number | null;
+  ruckAttackMedianSec: number | null;
+  ruckDefenseMedianSec: number | null;
+  passToPassMedianSec: number | null;
+  ruckSpeedNote: string;
   topPenalties: { label: string; count: number }[];
   topNegatives: { label: string; count: number }[];
   inferred: ReturnType<typeof serializeInferred>;
@@ -204,10 +215,12 @@ export function buildTeamStatsBrief(input: {
       tackleCompletionPct: input.tackleCompletionPct,
     },
     phase: input.phase,
-    ruckMedianMs: input.ruckMedianMs,
-    ruckAttackMedianMs: input.ruckAttackMedianMs,
-    ruckDefenseMedianMs: input.ruckDefenseMedianMs,
-    passToPassMedianMs: input.passToPassMedianMs,
+    ruckMedianSec: msToSeconds(input.ruckMedianMs),
+    ruckAttackMedianSec: msToSeconds(input.ruckAttackMedianMs),
+    ruckDefenseMedianSec: msToSeconds(input.ruckDefenseMedianMs),
+    passToPassMedianSec: msToSeconds(input.passToPassMedianMs),
+    ruckSpeedNote:
+      'Prefer inferred.ruck attack/defense medians (phase-specific). Top-level medians are pooled summaries.',
     topPenalties: input.penaltyTypes.slice(0, 6).map((r) => ({ label: r.label, count: r.count })),
     topNegatives: input.negativeActions.slice(0, 6).map((r) => ({ label: r.label, count: r.count })),
     inferred: serializeInferred(input.inferred),

@@ -7,6 +7,7 @@ import {
   getCachedInsights,
   setCachedInsights,
 } from '@/services/aiInsights';
+import { formatAiInsightsHtml } from '@/services/aiInsightsFormat';
 import { LiteMaaSClientError } from '@/services/litemaasClient';
 import {
   getStoredLiteMaaSSettings,
@@ -120,7 +121,10 @@ export function AiInsightsSection({ cacheKey, brief, disabled = false }: Props) 
       {error ? <p className="ai-insights-error" role="alert">{error}</p> : null}
 
       {text ? (
-        <pre className="ai-insights-body">{text}</pre>
+        <div
+          className="ai-insights-body"
+          dangerouslySetInnerHTML={{ __html: formatAiInsightsHtml(text) }}
+        />
       ) : configured && !loading && !error ? (
         <p className="muted ai-insights-hint">Tap Generate insights to analyze the stats below.</p>
       ) : null}

@@ -40,7 +40,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Halftime footage sync**: wall-clock elapsed during HT is banked on Resume match and added to video times (footage that does not cut at halftime)
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
+### Changed
+- **Inferred insights** shows **Forced turnovers** as a direct button-log count; removed turnover balance formula from UI, exports, and AI brief
+
 ### Fixed
+- **AI coaching insights** renders formatted sections (bold titles, bullets) instead of raw markdown; strips model thinking/reasoning from displayed output
+- **Defense ruck speed** no longer pairs defensive rucks with a later attack pass after possession changes (fixes inflated ~40s medians); gaps over 12s excluded
+- **Stats brief for AI** clarifies forced turnovers as a defensive metric; ruck speeds exported in seconds with phase-specific medians
 - **LiteMaaS client** reads `reasoning_content` / multipart `content` from Qwen-style models so connection test and insights no longer fail with “empty response” when auth succeeded
 - **Settings** LiteMaaS test connection on localhost uses a built-in dev proxy to avoid browser CORS blocks; clearer errors when deployed without CORS
 

@@ -26,7 +26,10 @@ type ChatCompletionResponse = {
   error?: { message?: string };
 };
 
-function extractMessageText(message: ChatCompletionChoice['message']): string {
+function extractMessageText(
+  message: ChatCompletionChoice['message'],
+  contentOnly = false,
+): string {
   if (!message) return '';
 
   const direct = message.content;
@@ -38,6 +41,8 @@ function extractMessageText(message: ChatCompletionChoice['message']): string {
       .join('\n');
     if (fromParts) return fromParts;
   }
+
+  if (contentOnly) return '';
 
   const reasoning =
     (typeof message.reasoning_content === 'string' ? message.reasoning_content.trim() : '') ||
@@ -69,7 +74,7 @@ function corsHelpMessage(): string {
 export async function chatCompletion(
   settings: LiteMaaSSettings,
   messages: ChatMessage[],
-  options?: { maxTokens?: number; temperature?: number },
+  options?: { maxTokens?: number; temperature?: number; contentOnly?: boolean },
 ): Promise<string> {
   const baseUrl = normalizeLiteLLMBaseUrl(settings.baseUrl);
   const apiKey = settings.apiKey.trim();
@@ -121,7 +126,7 @@ export async function chatCompletion(
   }
 
   const choice = body.choices?.[0];
-  const content = extractMessageText(choice?.message);
+  const content = extractMessageText(choice?.message, options?.contentOnly);
   if (!content) {
     const finish = choice?.finish_reason?.trim();
     const suffix = finish ? ` (finish_reason: ${finish})` : '';
