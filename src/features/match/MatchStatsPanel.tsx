@@ -468,6 +468,12 @@ export function MatchStatsPanel({
         </select>
       ) : null}
 
+      {aiBrief ? (
+        <section className="card tgs-card tgs-card--ai-insights">
+          <AiInsightsSection cacheKey={`match:${match!.id}`} brief={aiBrief} />
+        </section>
+      ) : null}
+
       {/* Overview */}
       {show('overview') && (
         <section className="card tgs-card">
@@ -569,9 +575,6 @@ export function MatchStatsPanel({
             playersById={playersById}
             filmSession={filmSession}
           />
-          {aiBrief ? (
-            <AiInsightsSection cacheKey={`match:${match!.id}`} brief={aiBrief} />
-          ) : null}
         </section>
       )}
 

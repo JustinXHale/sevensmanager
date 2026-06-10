@@ -401,6 +401,10 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         </p>
       )}
 
+      <section className="card tgs-card tgs-card--ai-insights">
+        <AiInsightsSection cacheKey={aiCacheKey} brief={aiBrief} />
+      </section>
+
       {/* Overview KPIs */}
       {show('overview') && (
         <section className="card tgs-card">
@@ -613,7 +617,6 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             matchLabelsByMatchId={matchLabelsByMatchId}
             matchOrder={matchOrder}
           />
-          <AiInsightsSection cacheKey={aiCacheKey} brief={aiBrief} />
         </section>
       )}
 

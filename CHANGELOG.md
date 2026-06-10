@@ -45,6 +45,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Settings** LiteMaaS test connection on localhost uses a built-in dev proxy to avoid browser CORS blocks; clearer errors when deployed without CORS
 
 ### Changed
+- **AI coaching insights** moved to the top of match **Stats** and team **Global stats** (above Overview / Inferred insights)
 - **Event timeline** Edit dialog: change set-piece outcome (W/L, penalized, free kick), restart depth, ruck contest, tackle result, negative play type, and penalty awarded/conceded — not just time and zone
 - **Settings** API key field includes show/hide toggle to verify pasted key
 - **Event timeline** and stat drill-down lists show footage time in parentheses beside match time when film sync is configured

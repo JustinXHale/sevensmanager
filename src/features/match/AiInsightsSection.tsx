@@ -122,7 +122,7 @@ export function AiInsightsSection({ cacheKey, brief, disabled = false }: Props) 
       {text ? (
         <pre className="ai-insights-body">{text}</pre>
       ) : configured && !loading && !error ? (
-        <p className="muted ai-insights-hint">Tap Generate insights to analyze the stats above.</p>
+        <p className="muted ai-insights-hint">Tap Generate insights to analyze the stats below.</p>
       ) : null}
 
       {loading ? <p className="muted ai-insights-hint">Analyzing stats…</p> : null}
