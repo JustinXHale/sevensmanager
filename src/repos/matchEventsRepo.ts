@@ -143,7 +143,20 @@ export async function restoreMatchEvent(id: string): Promise<void> {
   await db.matchEvents.put(next);
 }
 
-/** Minimal edit: clock time, segment, optional zone (null clears zone), optional length band, pass delivery. */
+function applyNullablePatch<K extends keyof MatchEventRecord>(
+  next: MatchEventRecord,
+  key: K,
+  value: MatchEventRecord[K] | null | undefined,
+): void {
+  if (value === undefined) return;
+  if (value === null) {
+    delete next[key];
+  } else {
+    next[key] = value;
+  }
+}
+
+/** Edit clock, zone, and event-specific fields (outcome, delivery, etc.). */
 export async function updateMatchEvent(
   id: string,
   patch: {
@@ -155,6 +168,15 @@ export async function updateMatchEvent(
     offloadTone?: OffloadTone | null;
     conversionOutcome?: ConversionOutcome | null;
     penaltyCard?: PenaltyCard | null;
+    setPieceOutcome?: SetPieceOutcome | null;
+    restartKickDepth?: RestartKickDepth | null;
+    playPhaseContext?: PlayPhaseContext | null;
+    freeKickAgainst?: FreeKickAgainst | null;
+    ruckContest?: RuckContest | null;
+    tackleOutcome?: TackleOutcome | null;
+    tackleQuality?: TackleQuality | null;
+    negativeActionId?: NegativeActionId | null;
+    penaltyDirection?: PenaltyDirection | null;
   },
 ): Promise<void> {
   const row = await db.matchEvents.get(id);
@@ -164,35 +186,20 @@ export async function updateMatchEvent(
     matchTimeMs: patch.matchTimeMs,
     period: patch.period,
   };
-  if (patch.zoneId === null) {
-    delete next.zoneId;
-  } else if (patch.zoneId !== undefined) {
-    next.zoneId = patch.zoneId;
-  }
-  if (patch.fieldLengthBand === null) {
-    delete next.fieldLengthBand;
-  } else if (patch.fieldLengthBand !== undefined) {
-    next.fieldLengthBand = patch.fieldLengthBand;
-  }
-  if (patch.passVariant === null) {
-    delete next.passVariant;
-  } else if (patch.passVariant !== undefined) {
-    next.passVariant = patch.passVariant;
-  }
-  if (patch.offloadTone === null) {
-    delete next.offloadTone;
-  } else if (patch.offloadTone !== undefined) {
-    next.offloadTone = patch.offloadTone;
-  }
-  if (patch.conversionOutcome === null) {
-    delete next.conversionOutcome;
-  } else if (patch.conversionOutcome !== undefined) {
-    next.conversionOutcome = patch.conversionOutcome;
-  }
-  if (patch.penaltyCard === null) {
-    delete next.penaltyCard;
-  } else if (patch.penaltyCard !== undefined) {
-    next.penaltyCard = patch.penaltyCard;
-  }
+  applyNullablePatch(next, 'zoneId', patch.zoneId);
+  applyNullablePatch(next, 'fieldLengthBand', patch.fieldLengthBand);
+  applyNullablePatch(next, 'passVariant', patch.passVariant);
+  applyNullablePatch(next, 'offloadTone', patch.offloadTone);
+  applyNullablePatch(next, 'conversionOutcome', patch.conversionOutcome);
+  applyNullablePatch(next, 'penaltyCard', patch.penaltyCard);
+  applyNullablePatch(next, 'setPieceOutcome', patch.setPieceOutcome);
+  applyNullablePatch(next, 'restartKickDepth', patch.restartKickDepth);
+  applyNullablePatch(next, 'playPhaseContext', patch.playPhaseContext);
+  applyNullablePatch(next, 'freeKickAgainst', patch.freeKickAgainst);
+  applyNullablePatch(next, 'ruckContest', patch.ruckContest);
+  applyNullablePatch(next, 'tackleOutcome', patch.tackleOutcome);
+  applyNullablePatch(next, 'tackleQuality', patch.tackleQuality);
+  applyNullablePatch(next, 'negativeActionId', patch.negativeActionId);
+  applyNullablePatch(next, 'penaltyDirection', patch.penaltyDirection);
   await db.matchEvents.put(next);
 }

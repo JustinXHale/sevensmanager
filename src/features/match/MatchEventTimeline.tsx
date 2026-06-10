@@ -138,6 +138,8 @@ export function MatchEventTimeline({
 
       <MatchEventEditDialog
         event={editingEvent}
+        playersById={playersById}
+        filmSession={filmSession}
         open={editingId !== null}
         onClose={() => setEditingId(null)}
         onSaved={() => {
