@@ -766,6 +766,44 @@
   font: inherit;
 }
 
+.settings-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.settings-input--with-toggle {
+  padding-right: 2.75rem;
+}
+
+.settings-input-toggle {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.settings-input-toggle:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-input-toggle svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
 .settings-field-hint {
   font-size: 0.8rem;
   line-height: 1.4;

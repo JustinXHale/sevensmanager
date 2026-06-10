@@ -1,14 +1,49 @@
 import type { LiteMaaSSettings } from '@/utils/litemaasSettings';
+import {
+  liteLLMProxyUrl,
+  normalizeLiteLLMBaseUrl,
+  shouldUseLiteLLMProxy,
+} from '@/utils/litellmUrl';
 
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
 };
 
+type ChatMessagePart = { type?: string; text?: string };
+
+type ChatCompletionChoice = {
+  message?: {
+    content?: string | ChatMessagePart[] | null;
+    reasoning_content?: string | null;
+    reasoning?: string | null;
+  };
+  finish_reason?: string | null;
+};
+
 type ChatCompletionResponse = {
-  choices?: { message?: { content?: string } }[];
+  choices?: ChatCompletionChoice[];
   error?: { message?: string };
 };
+
+function extractMessageText(message: ChatCompletionChoice['message']): string {
+  if (!message) return '';
+
+  const direct = message.content;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  if (Array.isArray(direct)) {
+    const fromParts = direct
+      .map((part) => (typeof part?.text === 'string' ? part.text.trim() : ''))
+      .filter(Boolean)
+      .join('\n');
+    if (fromParts) return fromParts;
+  }
+
+  const reasoning =
+    (typeof message.reasoning_content === 'string' ? message.reasoning_content.trim() : '') ||
+    (typeof message.reasoning === 'string' ? message.reasoning.trim() : '');
+  return reasoning;
+}
 
 export class LiteMaaSClientError extends Error {
   readonly isLikelyCors: boolean;
@@ -20,8 +55,15 @@ export class LiteMaaSClientError extends Error {
   }
 }
 
-function completionsUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+function directCompletionsUrl(baseUrl: string): string {
+  return `${normalizeLiteLLMBaseUrl(baseUrl)}/v1/chat/completions`;
+}
+
+function corsHelpMessage(): string {
+  return (
+    'Network request failed — the browser blocked the call (usually CORS). ' +
+    'Run the app locally with npm run dev (built-in proxy), or ask your LiteMaaS admin to allow your site origin on the LiteLLM gateway.'
+  );
 }
 
 export async function chatCompletion(
@@ -29,22 +71,29 @@ export async function chatCompletion(
   messages: ChatMessage[],
   options?: { maxTokens?: number; temperature?: number },
 ): Promise<string> {
-  const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '');
+  const baseUrl = normalizeLiteLLMBaseUrl(settings.baseUrl);
   const apiKey = settings.apiKey.trim();
   const model = settings.model.trim();
+  const useProxy = shouldUseLiteLLMProxy();
 
   if (!baseUrl || !apiKey) {
     throw new LiteMaaSClientError('LiteMaaS API key and base URL are required. Add them in Settings.');
   }
 
+  const requestUrl = useProxy ? liteLLMProxyUrl() : directCompletionsUrl(baseUrl);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  };
+  if (useProxy) {
+    headers['X-LiteLLM-Base-Url'] = baseUrl;
+  }
+
   let response: Response;
   try {
-    response = await fetch(completionsUrl(baseUrl), {
+    response = await fetch(requestUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages,
@@ -53,17 +102,17 @@ export async function chatCompletion(
       }),
     });
   } catch {
-    throw new LiteMaaSClientError(
-      'Network request failed. If the LiteLLM endpoint blocks browser calls (CORS), you may need a small proxy server.',
-      true,
-    );
+    throw new LiteMaaSClientError(corsHelpMessage(), true);
   }
 
   let body: ChatCompletionResponse;
+  const rawText = await response.text();
   try {
-    body = (await response.json()) as ChatCompletionResponse;
+    body = rawText ? (JSON.parse(rawText) as ChatCompletionResponse) : {};
   } catch {
-    throw new LiteMaaSClientError(`Unexpected response from LiteLLM (HTTP ${response.status}).`);
+    throw new LiteMaaSClientError(
+      `Unexpected response from LiteLLM (HTTP ${response.status})${rawText ? `: ${rawText.slice(0, 120)}` : '.'}`,
+    );
   }
 
   if (!response.ok) {
@@ -71,9 +120,15 @@ export async function chatCompletion(
     throw new LiteMaaSClientError(msg);
   }
 
-  const content = body.choices?.[0]?.message?.content?.trim();
+  const choice = body.choices?.[0];
+  const content = extractMessageText(choice?.message);
   if (!content) {
-    throw new LiteMaaSClientError('LiteLLM returned an empty response.');
+    const finish = choice?.finish_reason?.trim();
+    const suffix = finish ? ` (finish_reason: ${finish})` : '';
+    throw new LiteMaaSClientError(
+      `LiteLLM accepted the request but returned no assistant text${suffix}. ` +
+        'Check the model name in Settings, or try a non-reasoning model for the connection test.',
+    );
   }
   return content;
 }
@@ -81,9 +136,7 @@ export async function chatCompletion(
 export async function testLiteMaaSConnection(settings: LiteMaaSSettings): Promise<string> {
   return chatCompletion(
     settings,
-    [
-      { role: 'user', content: 'Reply with exactly: connected' },
-    ],
-    { maxTokens: 16, temperature: 0 },
+    [{ role: 'user', content: 'Reply with exactly: connected' }],
+    { maxTokens: 128, temperature: 0 },
   );
 }

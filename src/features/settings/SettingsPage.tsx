@@ -10,6 +10,7 @@ import {
   setStoredLiteMaaSSettings,
   type LiteMaaSSettings,
 } from '@/utils/litemaasSettings';
+import { normalizeLiteLLMBaseUrl } from '@/utils/litellmUrl';
 
 export function SettingsPage() {
   const { setTeamHeader } = useAppChrome();
@@ -18,6 +19,7 @@ export function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     setTeamHeader({ backTo: '/', title: 'Settings' });
@@ -42,7 +44,7 @@ export function SettingsPage() {
   const onTest = async () => {
     const draft = {
       apiKey: settings.apiKey.trim(),
-      baseUrl: settings.baseUrl.trim().replace(/\/+$/, ''),
+      baseUrl: normalizeLiteLLMBaseUrl(settings.baseUrl),
       model: settings.model.trim() || DEFAULT_LITEMAAS_MODEL,
     };
     if (!isLiteMaaSConfigured(draft)) {
@@ -98,14 +100,36 @@ export function SettingsPage() {
 
         <label className="settings-field">
           <span className="settings-field-label">API key</span>
-          <input
-            type="password"
-            className="settings-input"
-            placeholder="sk-…"
-            value={settings.apiKey}
-            onChange={(e) => setSettings((s) => ({ ...s, apiKey: e.target.value }))}
-            autoComplete="off"
-          />
+          <div className="settings-input-wrap">
+            <input
+              type={showApiKey ? 'text' : 'password'}
+              className="settings-input settings-input--with-toggle"
+              placeholder="sk-…"
+              value={settings.apiKey}
+              onChange={(e) => setSettings((s) => ({ ...s, apiKey: e.target.value }))}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              className="settings-input-toggle"
+              aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+              aria-pressed={showApiKey}
+              onClick={() => setShowApiKey((v) => !v)}
+            >
+              {showApiKey ? (
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.03 10.03 0 0 0 3.3-4.38 1.5 1.5 0 0 0 0-1.4A10.04 10.04 0 0 0 9.5 3C6.23 3 3.58 4.77 1.28 7.22a1.5 1.5 0 0 0-.01 1.56Zm4.03 4.03 1.27 1.27a2.5 2.5 0 0 0 3.37 3.37l1.27 1.27a4 4 0 0 1-5.91-5.91Zm5.37 2.19a4 4 0 0 1-5.08-5.08l1.5 1.5a2.5 2.5 0 0 0 3.58 3.58l.01.01Z" clipRule="evenodd" />
+                  <path d="m12.77 11.23 1.27 1.27a10.03 10.03 0 0 0 3.3-4.38 1.5 1.5 0 0 0 0-1.4A10.04 10.04 0 0 0 9.5 6c-1.1 0-2.14.2-3.08.55l1.48 1.48a4 4 0 0 1 4.77 4.77l.01.01Z" />
+                  <path d="M2.22 12.28a10.04 10.04 0 0 0 9.5 3c2.2 0 4.2-.7 5.77-1.9l1.43 1.43a.75.75 0 0 0 1.06-1.06L3.28 2.22a.75.75 0 0 0-1.06 1.06l1.745 1.745a10.03 10.03 0 0 0-3.3 4.38 1.5 1.5 0 0 0 .01 1.56Z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10 3c-2.7 0-5.22 1.23-6.72 3.22a1.5 1.5 0 0 0 0 1.56C4.78 9.77 7.3 11 10 11s5.22-1.23 6.72-3.22a1.5 1.5 0 0 0 0-1.56C15.22 4.23 12.7 3 10 3Zm0 7.5a3.75 3.75 0 1 1 0-7.5 3.75 3.75 0 0 1 0 7.5Z" />
+                </svg>
+              )}
+            </button>
+          </div>
           <span className="settings-field-hint muted">
             From your LiteMaaS subscription. Paste once — used for Generate insights on stats pages.
           </span>
@@ -142,6 +166,10 @@ export function SettingsPage() {
             Clear
           </button>
         </div>
+
+        <p className="settings-field-hint muted">
+          On localhost, Test connection uses a built-in proxy to avoid browser CORS blocks. Deployed sites need CORS enabled on your LiteLLM route.
+        </p>
 
         {testResult ? <p className="settings-feedback settings-feedback--ok">{testResult}</p> : null}
         {testError ? <p className="settings-feedback settings-feedback--err" role="alert">{testError}</p> : null}

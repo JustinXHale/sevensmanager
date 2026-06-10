@@ -1,3 +1,5 @@
+import { normalizeLiteLLMBaseUrl } from '@/utils/litellmUrl';
+
 /** LiteMaaS / LiteLLM connection settings (stored locally in the browser). */
 export const LITEMAAS_SETTINGS_STORAGE_KEY = 'sevensmanager.litemaasSettings';
 
@@ -15,12 +17,8 @@ export const DEFAULT_LITEMAAS_SETTINGS: LiteMaaSSettings = {
   model: DEFAULT_LITEMAAS_MODEL,
 };
 
-function normalizeBaseUrl(raw: string): string {
-  return raw.trim().replace(/\/+$/, '');
-}
-
 export function isLiteMaaSConfigured(settings: LiteMaaSSettings): boolean {
-  return settings.apiKey.trim().length > 0 && normalizeBaseUrl(settings.baseUrl).length > 0;
+  return settings.apiKey.trim().length > 0 && normalizeLiteLLMBaseUrl(settings.baseUrl).length > 0;
 }
 
 export function getStoredLiteMaaSSettings(): LiteMaaSSettings {
@@ -31,7 +29,7 @@ export function getStoredLiteMaaSSettings(): LiteMaaSSettings {
     const parsed = JSON.parse(raw) as Partial<LiteMaaSSettings>;
     return {
       apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
-      baseUrl: typeof parsed.baseUrl === 'string' ? normalizeBaseUrl(parsed.baseUrl) : '',
+      baseUrl: typeof parsed.baseUrl === 'string' ? normalizeLiteLLMBaseUrl(parsed.baseUrl) : '',
       model:
         typeof parsed.model === 'string' && parsed.model.trim()
           ? parsed.model.trim()
@@ -46,7 +44,7 @@ export function setStoredLiteMaaSSettings(settings: LiteMaaSSettings): void {
   if (typeof localStorage === 'undefined') return;
   const normalized: LiteMaaSSettings = {
     apiKey: settings.apiKey.trim(),
-    baseUrl: normalizeBaseUrl(settings.baseUrl),
+    baseUrl: normalizeLiteLLMBaseUrl(settings.baseUrl),
     model: settings.model.trim() || DEFAULT_LITEMAAS_MODEL,
   };
   localStorage.setItem(LITEMAAS_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));

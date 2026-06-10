@@ -40,7 +40,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Halftime footage sync**: wall-clock elapsed during HT is banked on Resume match and added to video times (footage that does not cut at halftime)
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
+### Fixed
+- **LiteMaaS client** reads `reasoning_content` / multipart `content` from Qwen-style models so connection test and insights no longer fail with “empty response” when auth succeeded
+- **Settings** LiteMaaS test connection on localhost uses a built-in dev proxy to avoid browser CORS blocks; clearer errors when deployed without CORS
+
 ### Changed
+- **Settings** API key field includes show/hide toggle to verify pasted key
 - **Event timeline** and stat drill-down lists show footage time in parentheses beside match time when film sync is configured
 - **Inferred insights** expanded metrics: full-width mobile layout and dark-theme styling aligned with match stat cards
 - Team **Global stats**: Overview, Inferred insights, Penalties, and Negatives support tap-to-expand event lists (all games or single-match filter); multi-match lists show opponent label per event
