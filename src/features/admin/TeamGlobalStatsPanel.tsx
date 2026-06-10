@@ -2,7 +2,13 @@ import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { computeMatchAnalyticsSnapshot } from '@/domain/matchAnalytics';
 import type { MatchEventRecord } from '@/domain/matchEvent';
-import { playerInvolvement, ruckSpeedDistribution } from '@/domain/matchAnalyticsDeep';
+import {
+  aggregateMatchTimeBreakdown,
+  matchTimeBreakdown,
+  playerInvolvement,
+  ruckSpeedDistribution,
+} from '@/domain/matchAnalyticsDeep';
+import type { MatchSessionRecord } from '@/domain/match';
 import { computePlayerEfficiency, type PlayerEfficiencyRow } from '@/domain/lineupEfficiency';
 import type { MatchLiveLocationState } from '@/domain/matchNavigation';
 import { matchListSortKey, type MatchRecord } from '@/domain/match';
@@ -23,6 +29,7 @@ import {
   pooledScorersFromMatches,
 } from '@/domain/statsExport';
 import { AiInsightsSection } from '@/features/match/AiInsightsSection';
+import { MatchTimeBreakdownTable } from '@/features/match/MatchTimeBreakdownTable';
 import { TeamStatsExportDialog } from '@/features/stats/TeamStatsExportDialog';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
@@ -42,6 +49,7 @@ type MatchWithStats = {
   events: MatchEventRecord[];
   snapshot: ReturnType<typeof computeMatchAnalyticsSnapshot>;
   playerMinutesMs: Record<string, number> | undefined;
+  session: MatchSessionRecord | undefined;
   /** playerId -> stable key (teamMemberId preferred, jersey fallback). */
   playerIdToStableKey: Record<string, string>;
 };
@@ -49,7 +57,7 @@ type MatchWithStats = {
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
   { id: 'points', label: 'Points by match' },
-  { id: 'phase', label: 'Offense / Defense' },
+  { id: 'phase', label: 'Time & phases' },
   { id: 'zones', label: 'Zone heat map' },
   { id: 'ruck', label: 'Ruck speed' },
   { id: 'insights', label: 'Inferred insights' },
@@ -89,13 +97,6 @@ const HEAT_ROW_TONE: Record<string, 'bad' | undefined> = {
   negative: 'bad',
   penalty: 'bad',
 };
-
-function fmtMs(ms: number): string {
-  const totalSec = Math.round(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
 
 export function TeamGlobalStatsPanel({ team }: Props) {
   const [loading, setLoading] = useState(true);
@@ -145,6 +146,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             events,
             snapshot: computeMatchAnalyticsSnapshot(events, subs.length),
             playerMinutesMs: session?.playerMinutesMs,
+            session,
             playerIdToStableKey: stableKeyMap,
           } satisfies MatchWithStats;
         }),
@@ -225,6 +227,14 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     [filteredStats],
   );
 
+  const timeBreakdown = useMemo(() => {
+    const rows = filteredStats.map((r) => ({ events: r.events, session: r.session }));
+    if (isSingleMatch && selectedMatchRow) {
+      return matchTimeBreakdown(selectedMatchRow.events, selectedMatchRow.session);
+    }
+    return aggregateMatchTimeBreakdown(rows);
+  }, [filteredStats, isSingleMatch, selectedMatchRow]);
+
   const aiBrief = useMemo(
     () =>
       buildTeamStatsBrief({
@@ -295,12 +305,12 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       if (s.id === 'penalties') return deep.penaltyTypes.length > 0;
       if (s.id === 'negatives') return deep.negativeActions.length > 0;
       if (s.id === 'players') return deep.playerProfiles.size > 0;
-      if (s.id === 'phase') return deep.phaseTime != null;
+      if (s.id === 'phase') return deep.phaseTime != null || timeBreakdown != null;
       if (s.id === 'insights') return hasInferredStatsData(deep.inferred);
       if (s.id === 'lineup') return !isSingleMatch && efficiencyRows.length > 0;
       return true;
     });
-  }, [withStats.length, isSingleMatch, deep, efficiencyRows.length]);
+  }, [withStats.length, isSingleMatch, deep, timeBreakdown, efficiencyRows.length]);
 
   useEffect(() => {
     if (activeSection === 'all') return;
@@ -625,40 +635,15 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         </section>
       )}
 
-      {/* Offense / Defense time */}
-      {show('phase') && deep.phaseTime && (
+      {/* Time & phases */}
+      {show('phase') && timeBreakdown && (
         <section className="card tgs-card">
           {sectionTitle('phase')}
-          <div className="tgs-phase-bar-wrap">
-            <div className="tgs-phase-bar">
-              <div className="tgs-phase-seg tgs-phase-seg--off" style={{ flex: deep.phaseTime.offenseMs }} />
-              <div className="tgs-phase-seg tgs-phase-seg--def" style={{ flex: deep.phaseTime.defenseMs }} />
-            </div>
-          </div>
-          <div className="tgs-phase-legend">
-            <div className="tgs-phase-stat">
-              <span className="tgs-phase-dot tgs-phase-dot--off" />
-              <span className="tgs-phase-label">Offense</span>
-              <span className="tgs-phase-value tabular-nums">{deep.phaseTime.offensePct}%</span>
-              <span className="tgs-phase-time muted tabular-nums">{fmtMs(deep.phaseTime.offenseMs)}</span>
-            </div>
-            <div className="tgs-phase-stat">
-              <span className="tgs-phase-dot tgs-phase-dot--def" />
-              <span className="tgs-phase-label">Defense</span>
-              <span className="tgs-phase-value tabular-nums">{deep.phaseTime.defensePct}%</span>
-              <span className="tgs-phase-time muted tabular-nums">{fmtMs(deep.phaseTime.defenseMs)}</span>
-            </div>
-          </div>
-          <p className="muted tgs-card-sub mt-xs">
-            Playing time {fmtMs(deep.phaseTime.playingTimeMs)}
-            {deep.phaseTime.deadTimeMs > 0
-              ? ` · ${fmtMs(deep.phaseTime.deadTimeMs)} dead time excluded (try→conversion, conversion→restart)`
-              : ''}
-            .{' '}
-            {isSingleMatch
-              ? 'Estimated from event classification for this match. Gaps > 90 s are capped.'
-              : 'Estimated across selected matches. Gaps > 90 s are capped.'}
-          </p>
+          <MatchTimeBreakdownTable
+            breakdown={timeBreakdown}
+            phaseTime={deep.phaseTime}
+            pooled={!isSingleMatch}
+          />
         </section>
       )}
 

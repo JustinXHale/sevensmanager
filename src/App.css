@@ -6726,6 +6726,49 @@ button.live-stats-cell--btn.live-stats-cell--open {
   font-size: 0.72rem;
 }
 
+.tgs-time-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tgs-time-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tgs-time-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.tgs-time-table th,
+.tgs-time-table td {
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid var(--pf-v6-border-color--default, #e5e5e5);
+  text-align: left;
+}
+
+.tgs-time-table th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pf-v6-global--text--color--subtle, #6b7280);
+}
+
+.tgs-time-table th.num,
+.tgs-time-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tgs-time-table-total td {
+  font-weight: 700;
+  border-top: 2px solid var(--pf-v6-border-color--default, #d1d5db);
+}
+
 /* ---- Overview KPIs (reused) ---- */
 
 .team-global-kpi-row {

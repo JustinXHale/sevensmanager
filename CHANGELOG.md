@@ -40,6 +40,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Halftime footage sync**: wall-clock elapsed during HT is banked on Resume match and added to video times (footage that does not cut at halftime)
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
+### Added
+- Match **Stats** and team **Global stats** **Time & phases**: per-half clock, ball in play, BIP %, dead time, and stoppage (match timer + event-gap estimates)
+
 ### Changed
 - **Stats export** compact single-page layout; **Scoring log** (try/conversion times + kicker) and pooled scorers on global page
 - **AI coaching insights** stronger thinking-strip (uses last Key takeaways block); copy uses sanitized text

@@ -1,3 +1,4 @@
+import type { MatchSessionRecord } from '@/domain/match';
 import type {
   MatchEventKind,
   MatchEventRecord,
@@ -5,6 +6,10 @@ import type {
   PenaltyTypeId,
 } from '@/domain/matchEvent';
 import { penaltyTypeLabel } from '@/domain/matchEvent';
+import {
+  bankedMatchMsBeforeCurrentPeriod,
+  currentPeriodElapsedDisplayMs,
+} from '@/domain/matchClock';
 import { RUCK_SPEED_LOGGING_OFFSET_MS, sortMatchEventsByTime } from '@/domain/matchStats';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
 
@@ -458,29 +463,25 @@ export function isDeadTimeGap(curr: MatchEventRecord, next: MatchEventRecord): b
   return false;
 }
 
-/**
- * Estimate time spent on offense vs defense by classifying each event
- * and attributing the gap to the next event to the current phase.
- * Only gaps within the same period are counted (period transitions are ignored).
- * Gaps larger than 90s are capped to avoid skewing from long stoppages.
- * Dead time (try→conversion, conversion→restart) is tracked separately.
- */
-export function phaseTimeSplit(events: MatchEventRecord[]): PhaseTimeSplit | null {
-  const active = events.filter((e) => e.deletedAt == null);
-  const sorted = [...active].sort((a, b) => a.matchTimeMs - b.matchTimeMs || a.createdAt - b.createdAt);
+const PHASE_GAP_MAX_MS = 90_000;
+
+function buildPhaseTimeSplit(
+  sorted: MatchEventRecord[],
+  periodFilter?: number,
+): PhaseTimeSplit | null {
   if (sorted.length < 2) return null;
 
   let offenseMs = 0;
   let defenseMs = 0;
   let deadTimeMs = 0;
-  const MAX_GAP = 90_000;
 
   for (let i = 0; i < sorted.length - 1; i++) {
     const curr = sorted[i]!;
     const next = sorted[i + 1]!;
     if (curr.period !== next.period) continue;
+    if (periodFilter != null && curr.period !== periodFilter) continue;
 
-    const gap = Math.min(next.matchTimeMs - curr.matchTimeMs, MAX_GAP);
+    const gap = Math.min(next.matchTimeMs - curr.matchTimeMs, PHASE_GAP_MAX_MS);
     if (gap <= 0) continue;
 
     if (isDeadTimeGap(curr, next)) {
@@ -505,5 +506,296 @@ export function phaseTimeSplit(events: MatchEventRecord[]): PhaseTimeSplit | nul
     defensePct: total > 0 ? Math.round((defenseMs / total) * 100) : 0,
     deadTimeMs,
     playingTimeMs,
+  };
+}
+
+/**
+ * Estimate time spent on offense vs defense by classifying each event
+ * and attributing the gap to the next event to the current phase.
+ * Only gaps within the same period are counted (period transitions are ignored).
+ * Gaps larger than 90s are capped to avoid skewing from long stoppages.
+ * Dead time (try→conversion, conversion→restart) is tracked separately.
+ */
+export function phaseTimeSplit(
+  events: MatchEventRecord[],
+  opts?: { period?: number },
+): PhaseTimeSplit | null {
+  const active = events.filter(
+    (e) => e.deletedAt == null && (opts?.period == null || e.period === opts.period),
+  );
+  const sorted = [...active].sort((a, b) => a.matchTimeMs - b.matchTimeMs || a.createdAt - b.createdAt);
+  return buildPhaseTimeSplit(sorted, opts?.period);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Half clock & ball-in-play breakdown                                */
+/* ------------------------------------------------------------------ */
+
+export function periodDisplayLabel(period: number): string {
+  if (period === 1) return '1st half';
+  if (period === 2) return '2nd half';
+  return `Period ${period}`;
+}
+
+export function periodsWithEvents(events: MatchEventRecord[]): number[] {
+  const set = new Set<number>();
+  for (const e of events) {
+    if (e.deletedAt == null) set.add(e.period);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+export function periodEventSpanMs(events: MatchEventRecord[], period: number): number {
+  let max = 0;
+  for (const e of events) {
+    if (e.deletedAt != null || e.period !== period) continue;
+    if (e.matchTimeMs > max) max = e.matchTimeMs;
+  }
+  return max;
+}
+
+/** Match-clock elapsed per half from session (periods 1–2 for regulation sevens). */
+export function periodClockMsFromSession(
+  session: MatchSessionRecord,
+  nowMs: number,
+): { period: number; clockMs: number }[] {
+  const rows: { period: number; clockMs: number }[] = [];
+  const period = session.period;
+
+  if (period >= 2) {
+    const p1Ms = session.completedMsP1 ?? bankedMatchMsBeforeCurrentPeriod(session);
+    if (p1Ms > 0) rows.push({ period: 1, clockMs: p1Ms });
+    const p2Ms = currentPeriodElapsedDisplayMs(session, nowMs);
+    if (p2Ms > 0) rows.push({ period: 2, clockMs: p2Ms });
+  } else {
+    const p1Ms = currentPeriodElapsedDisplayMs(session, nowMs);
+    if (p1Ms > 0) rows.push({ period: 1, clockMs: p1Ms });
+  }
+
+  return rows;
+}
+
+export type HalfTimeStats = {
+  period: number;
+  label: string;
+  /** Match clock elapsed for the half (session preferred; else last logged event time). */
+  clockMs: number | null;
+  clockSource: 'match_clock' | 'event_span' | null;
+  eventSpanMs: number;
+  ballInPlayMs: number;
+  deadTimeMs: number;
+  offenseMs: number;
+  defenseMs: number;
+  /** Ball in play ÷ clock when clock is known. */
+  ballInPlayPct: number | null;
+  /** Clock minus ball in play minus scoring dead time (stoppages, halftime, uncaptured gaps). */
+  stoppageMs: number | null;
+};
+
+export type MatchTimeBreakdown = {
+  halves: HalfTimeStats[];
+  totals: {
+    clockMs: number | null;
+    ballInPlayMs: number;
+    deadTimeMs: number;
+    offenseMs: number;
+    defenseMs: number;
+    ballInPlayPct: number | null;
+    stoppageMs: number | null;
+  };
+};
+
+function pctOf(part: number, whole: number | null): number | null {
+  if (whole == null || whole <= 0) return null;
+  return Math.round((part / whole) * 1000) / 10;
+}
+
+function buildHalfRow(
+  period: number,
+  events: MatchEventRecord[],
+  clockMs: number | null,
+  clockSource: HalfTimeStats['clockSource'],
+): HalfTimeStats {
+  const eventSpanMs = periodEventSpanMs(events, period);
+  const resolvedClock = clockMs ?? (eventSpanMs > 0 ? eventSpanMs : null);
+  const resolvedSource =
+    clockSource ?? (eventSpanMs > 0 && clockMs == null ? 'event_span' : null);
+  const phase = phaseTimeSplit(events, { period });
+  const ballInPlayMs = phase?.playingTimeMs ?? 0;
+  const deadTimeMs = phase?.deadTimeMs ?? 0;
+  const offenseMs = phase?.offenseMs ?? 0;
+  const defenseMs = phase?.defenseMs ?? 0;
+  const stoppageMs =
+    resolvedClock != null
+      ? Math.max(0, resolvedClock - ballInPlayMs - deadTimeMs)
+      : null;
+
+  return {
+    period,
+    label: periodDisplayLabel(period),
+    clockMs: resolvedClock,
+    clockSource: resolvedSource,
+    eventSpanMs,
+    ballInPlayMs,
+    deadTimeMs,
+    offenseMs,
+    defenseMs,
+    ballInPlayPct: pctOf(ballInPlayMs, resolvedClock),
+    stoppageMs,
+  };
+}
+
+export function matchTimeBreakdown(
+  events: MatchEventRecord[],
+  session?: MatchSessionRecord | null,
+  nowMs: number = Date.now(),
+): MatchTimeBreakdown | null {
+  const clockByPeriod = new Map<number, number>();
+  if (session) {
+    for (const row of periodClockMsFromSession(session, nowMs)) {
+      clockByPeriod.set(row.period, row.clockMs);
+    }
+  }
+
+  const periods = new Set<number>([...periodsWithEvents(events), ...clockByPeriod.keys()]);
+  if (periods.size === 0) return null;
+
+  const halves = [...periods]
+    .sort((a, b) => a - b)
+    .map((period) =>
+      buildHalfRow(
+        period,
+        events,
+        clockByPeriod.get(period) ?? null,
+        clockByPeriod.has(period) ? 'match_clock' : null,
+      ),
+    )
+    .filter(
+      (h) =>
+        h.clockMs != null ||
+        h.ballInPlayMs > 0 ||
+        h.deadTimeMs > 0 ||
+        h.eventSpanMs > 0,
+    );
+
+  if (halves.length === 0) return null;
+
+  const totalClockMs = halves.reduce((s, h) => s + (h.clockMs ?? 0), 0) || null;
+  const totalBallInPlayMs = halves.reduce((s, h) => s + h.ballInPlayMs, 0);
+  const totalDeadTimeMs = halves.reduce((s, h) => s + h.deadTimeMs, 0);
+  const totalOffenseMs = halves.reduce((s, h) => s + h.offenseMs, 0);
+  const totalDefenseMs = halves.reduce((s, h) => s + h.defenseMs, 0);
+  const totalStoppageMs =
+    totalClockMs != null
+      ? Math.max(0, totalClockMs - totalBallInPlayMs - totalDeadTimeMs)
+      : null;
+
+  return {
+    halves,
+    totals: {
+      clockMs: totalClockMs,
+      ballInPlayMs: totalBallInPlayMs,
+      deadTimeMs: totalDeadTimeMs,
+      offenseMs: totalOffenseMs,
+      defenseMs: totalDefenseMs,
+      ballInPlayPct: pctOf(totalBallInPlayMs, totalClockMs),
+      stoppageMs: totalStoppageMs,
+    },
+  };
+}
+
+export function aggregateMatchTimeBreakdown(
+  rows: { events: MatchEventRecord[]; session?: MatchSessionRecord | null }[],
+  nowMs: number = Date.now(),
+): MatchTimeBreakdown | null {
+  const byPeriod = new Map<
+    number,
+    {
+      clockMs: number;
+      clockFromSession: boolean;
+      eventSpanMs: number;
+      ballInPlayMs: number;
+      deadTimeMs: number;
+      offenseMs: number;
+      defenseMs: number;
+    }
+  >();
+
+  for (const row of rows) {
+    const breakdown = matchTimeBreakdown(row.events, row.session, nowMs);
+    if (!breakdown) continue;
+    for (const h of breakdown.halves) {
+      const cur = byPeriod.get(h.period) ?? {
+        clockMs: 0,
+        clockFromSession: false,
+        eventSpanMs: 0,
+        ballInPlayMs: 0,
+        deadTimeMs: 0,
+        offenseMs: 0,
+        defenseMs: 0,
+      };
+      if (h.clockMs != null) {
+        cur.clockMs += h.clockMs;
+        if (h.clockSource === 'match_clock') cur.clockFromSession = true;
+      }
+      cur.eventSpanMs += h.eventSpanMs;
+      cur.ballInPlayMs += h.ballInPlayMs;
+      cur.deadTimeMs += h.deadTimeMs;
+      cur.offenseMs += h.offenseMs;
+      cur.defenseMs += h.defenseMs;
+      byPeriod.set(h.period, cur);
+    }
+  }
+
+  if (byPeriod.size === 0) return null;
+
+  const halves: HalfTimeStats[] = [...byPeriod.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([period, acc]) => {
+      const clockMs = acc.clockMs > 0 ? acc.clockMs : acc.eventSpanMs > 0 ? acc.eventSpanMs : null;
+      const clockSource: HalfTimeStats['clockSource'] =
+        acc.clockFromSession && acc.clockMs > 0
+          ? 'match_clock'
+          : acc.eventSpanMs > 0
+            ? 'event_span'
+            : null;
+      const stoppageMs =
+        clockMs != null ? Math.max(0, clockMs - acc.ballInPlayMs - acc.deadTimeMs) : null;
+      return {
+        period,
+        label: periodDisplayLabel(period),
+        clockMs,
+        clockSource,
+        eventSpanMs: acc.eventSpanMs,
+        ballInPlayMs: acc.ballInPlayMs,
+        deadTimeMs: acc.deadTimeMs,
+        offenseMs: acc.offenseMs,
+        defenseMs: acc.defenseMs,
+        ballInPlayPct: pctOf(acc.ballInPlayMs, clockMs),
+        stoppageMs,
+      };
+    });
+
+  const totalClockMs = halves.reduce((s, h) => s + (h.clockMs ?? 0), 0) || null;
+  const totalBallInPlayMs = halves.reduce((s, h) => s + h.ballInPlayMs, 0);
+  const totalDeadTimeMs = halves.reduce((s, h) => s + h.deadTimeMs, 0);
+  const totalOffenseMs = halves.reduce((s, h) => s + h.offenseMs, 0);
+  const totalDefenseMs = halves.reduce((s, h) => s + h.defenseMs, 0);
+  const totalStoppageMs =
+    totalClockMs != null
+      ? Math.max(0, totalClockMs - totalBallInPlayMs - totalDeadTimeMs)
+      : null;
+
+  return {
+    halves,
+    totals: {
+      clockMs: totalClockMs,
+      ballInPlayMs: totalBallInPlayMs,
+      deadTimeMs: totalDeadTimeMs,
+      offenseMs: totalOffenseMs,
+      defenseMs: totalDefenseMs,
+      ballInPlayPct: pctOf(totalBallInPlayMs, totalClockMs),
+      stoppageMs: totalStoppageMs,
+    },
   };
 }

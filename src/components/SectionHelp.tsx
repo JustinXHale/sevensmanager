@@ -107,9 +107,13 @@ const OVERVIEW_GLOBAL: GlossaryEntry[] = [
 ];
 
 const PHASE: GlossaryEntry[] = [
-  { abbr: 'Offense', full: 'Offense time', desc: 'Estimated playing time your team had possession or was attacking. Excludes dead time between try→conversion and conversion→restart.' },
-  { abbr: 'Defense', full: 'Defense time', desc: 'Estimated playing time on defense. Excludes scoring setup and walk-back gaps.' },
-  { abbr: 'Dead time', full: 'Dead time excluded', desc: 'Clock gaps from try to conversion kick and from conversion to restart — not counted in offense/defense split.' },
+  { abbr: 'Clock', full: 'Half clock', desc: 'Elapsed match time per half from the match timer (halftime advance freezes 1st half). Falls back to last logged event time if the clock was not used.' },
+  { abbr: 'Ball in play', full: 'Ball in play', desc: 'Estimated active time from gaps between logged events classified as offense or defense. Same method as the offense/defense bar.' },
+  { abbr: 'BIP %', full: 'Ball in play %', desc: 'Ball in play ÷ half clock — share of the half with attributable live play in your log.' },
+  { abbr: 'Dead time', full: 'Dead time', desc: 'Try→conversion and conversion→restart gaps — walk-back / kick setup, excluded from ball in play.' },
+  { abbr: 'Stoppage', full: 'Stoppage', desc: 'Clock minus ball in play minus dead time: halftime, long gaps (>90s capped), penalties, and time before/after logged events.' },
+  { abbr: 'Offense', full: 'Offense time', desc: 'Share of ball in play on attack (possession / attacking actions).' },
+  { abbr: 'Defense', full: 'Defense time', desc: 'Share of ball in play on defense.' },
 ];
 
 const INSIGHTS: GlossaryEntry[] = [

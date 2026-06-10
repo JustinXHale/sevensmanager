@@ -10,6 +10,7 @@ import {
   buildZoneHeatRows,
   negativeActionBreakdown,
   penaltyCountByType,
+  matchTimeBreakdown,
   phaseTimeSplit,
   playerInvolvement,
   ruckSpeedDistribution,
@@ -51,6 +52,7 @@ import {
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
 import { formatMatchKickoffInZone, getStoredDisplayTimeZone } from '@/utils/displayTimezone';
 import { AiInsightsSection } from '@/features/match/AiInsightsSection';
+import { MatchTimeBreakdownTable } from '@/features/match/MatchTimeBreakdownTable';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 import { SetPieceExpandBar, StatCard } from '@/features/match/statExpand';
@@ -77,7 +79,7 @@ type Props = {
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'phase', label: 'Offense / Defense' },
+  { id: 'phase', label: 'Time & phases' },
   { id: 'zones', label: 'Zone heat map' },
   { id: 'involvement', label: 'Involvement' },
   { id: 'ruck', label: 'Ruck speed' },
@@ -118,13 +120,6 @@ const ONE_TAP_ATTACK_KINDS: MatchEventKind[] = [
 const TALLY_DEFENSE_KINDS: MatchEventKind[] = ['team_penalty'];
 const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['restart', 'ruck', 'scrum', 'lineout'];
 const EXPANDABLE_SET_PIECE_KINDS: MatchEventKind[] = ['restart', 'scrum', 'lineout'];
-
-function fmtMs(ms: number): string {
-  const totalSec = Math.round(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
 
 function fmtMin(ms: number) {
   const m = Math.floor(ms / 60000);
@@ -319,6 +314,10 @@ export function MatchStatsPanel({
   const passToPassDurations = useMemo(() => passToPassDurationsMs(events), [events]);
   const passToPassMedian = useMemo(() => ruckSpeedMedianMs(passToPassDurations), [passToPassDurations]);
   const phaseTime = useMemo(() => phaseTimeSplit(events), [events]);
+  const timeBreakdown = useMemo(
+    () => matchTimeBreakdown(events, filmSession),
+    [events, filmSession],
+  );
   const inferred = useMemo(() => computeInferredMatchStats(events), [events]);
   const timeline = useMemo(() => scoringTimeline(events), [events]);
   const systemMoments = byKind.system_moment ?? 0;
@@ -397,7 +396,7 @@ export function MatchStatsPanel({
     }
     if (s.id === 'penalties') return penTypes.length > 0;
     if (s.id === 'negatives') return negActions.length > 0;
-    if (s.id === 'phase') return phaseTime != null;
+    if (s.id === 'phase') return phaseTime != null || timeBreakdown != null;
     if (s.id === 'insights') return hasInferredStatsData(inferred);
     if (s.id === 'scoring') return timeline.length > 0;
     return true;
@@ -559,37 +558,11 @@ export function MatchStatsPanel({
         </section>
       )}
 
-      {/* Offense / Defense */}
-      {show('phase') && phaseTime && (
+      {/* Time & phases */}
+      {show('phase') && timeBreakdown && (
         <section className="card tgs-card">
           {sectionTitle('phase')}
-          <div className="tgs-phase-bar-wrap">
-            <div className="tgs-phase-bar">
-              <div className="tgs-phase-seg tgs-phase-seg--off" style={{ flex: phaseTime.offenseMs }} />
-              <div className="tgs-phase-seg tgs-phase-seg--def" style={{ flex: phaseTime.defenseMs }} />
-            </div>
-          </div>
-          <div className="tgs-phase-legend">
-            <div className="tgs-phase-stat">
-              <span className="tgs-phase-dot tgs-phase-dot--off" />
-              <span className="tgs-phase-label">Offense</span>
-              <span className="tgs-phase-value tabular-nums">{phaseTime.offensePct}%</span>
-              <span className="tgs-phase-time muted tabular-nums">{fmtMs(phaseTime.offenseMs)}</span>
-            </div>
-            <div className="tgs-phase-stat">
-              <span className="tgs-phase-dot tgs-phase-dot--def" />
-              <span className="tgs-phase-label">Defense</span>
-              <span className="tgs-phase-value tabular-nums">{phaseTime.defensePct}%</span>
-              <span className="tgs-phase-time muted tabular-nums">{fmtMs(phaseTime.defenseMs)}</span>
-            </div>
-          </div>
-          <p className="muted tgs-card-sub mt-xs">
-            Playing time {fmtMs(phaseTime.playingTimeMs)}
-            {phaseTime.deadTimeMs > 0
-              ? ` · ${fmtMs(phaseTime.deadTimeMs)} dead time excluded (try→conversion, conversion→restart)`
-              : ''}
-            . Gaps &gt; 90s capped.
-          </p>
+          <MatchTimeBreakdownTable breakdown={timeBreakdown} phaseTime={phaseTime} />
         </section>
       )}
 

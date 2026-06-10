@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchEventRecord } from './matchEvent';
+import type { MatchSessionRecord } from './match';
 import {
+  aggregateMatchTimeBreakdown,
   buildPlayerProfiles,
   buildZoneHeatRows,
+  matchTimeBreakdown,
   negativeActionBreakdown,
   penaltyCountByType,
+  periodClockMsFromSession,
   playerInvolvement,
   ruckSpeedByPeriod,
   ruckSpeedDistribution,
@@ -213,6 +217,86 @@ describe('tempoByPeriod', () => {
     expect(t).toHaveLength(1);
     expect(t[0]!.events).toBe(3);
     expect(t[0]!.perMinute).toBe(1.5);
+  });
+});
+
+describe('matchTimeBreakdown', () => {
+  function session(over: Partial<MatchSessionRecord>): MatchSessionRecord {
+    return {
+      matchId: 'm1',
+      period: 1,
+      clockRunning: false,
+      anchorWallMs: 0,
+      elapsedMsInCurrentPeriod: 0,
+      cumulativeMsBeforeCurrentPeriod: 0,
+      gameClockRunning: false,
+      gameAnchorWallMs: 0,
+      gameElapsedMs: 0,
+      ...over,
+    };
+  }
+
+  it('reports per-half clock and ball in play', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: '1', kind: 'pass', matchTimeMs: 0, period: 1, playerId: 'a' }),
+      ev({ id: '2', kind: 'tackle', matchTimeMs: 30_000, period: 1, tackleOutcome: 'made' }),
+      ev({ id: '3', kind: 'pass', matchTimeMs: 0, period: 2, playerId: 'a' }),
+      ev({ id: '4', kind: 'tackle', matchTimeMs: 20_000, period: 2, tackleOutcome: 'made' }),
+    ];
+    const s = session({
+      period: 2,
+      completedMsP1: 420_000,
+      cumulativeMsBeforeCurrentPeriod: 420_000,
+      elapsedMsInCurrentPeriod: 360_000,
+    });
+    const breakdown = matchTimeBreakdown(events, s)!;
+    expect(breakdown.halves).toHaveLength(2);
+    expect(breakdown.halves[0]!.clockMs).toBe(420_000);
+    expect(breakdown.halves[1]!.clockMs).toBe(360_000);
+    expect(breakdown.halves[0]!.ballInPlayMs).toBe(30_000);
+    expect(breakdown.halves[1]!.ballInPlayMs).toBe(20_000);
+    expect(breakdown.totals.ballInPlayPct).toBe(6.4);
+  });
+
+  it('pools halves across matches', () => {
+    const m1 = [
+      ev({ id: '1', kind: 'pass', matchTimeMs: 0, period: 1, playerId: 'a' }),
+      ev({ id: '2', kind: 'pass', matchTimeMs: 10_000, period: 1, playerId: 'b' }),
+    ];
+    const m2 = [
+      ev({ id: '3', kind: 'tackle', matchTimeMs: 0, period: 1, tackleOutcome: 'made' }),
+      ev({ id: '4', kind: 'tackle', matchTimeMs: 15_000, period: 1, tackleOutcome: 'made' }),
+    ];
+    const pooled = aggregateMatchTimeBreakdown([
+      { events: m1, session: session({ period: 1, elapsedMsInCurrentPeriod: 300_000 }) },
+      { events: m2, session: session({ period: 1, elapsedMsInCurrentPeriod: 400_000 }) },
+    ])!;
+    expect(pooled.halves[0]!.clockMs).toBe(700_000);
+    expect(pooled.halves[0]!.ballInPlayMs).toBe(25_000);
+  });
+});
+
+describe('periodClockMsFromSession', () => {
+  it('reads frozen first half and current second half', () => {
+    const rows = periodClockMsFromSession(
+      {
+        matchId: 'm1',
+        period: 2,
+        clockRunning: false,
+        anchorWallMs: 0,
+        elapsedMsInCurrentPeriod: 180_000,
+        cumulativeMsBeforeCurrentPeriod: 420_000,
+        completedMsP1: 420_000,
+        gameClockRunning: false,
+        gameAnchorWallMs: 0,
+        gameElapsedMs: 0,
+      },
+      Date.now(),
+    );
+    expect(rows).toEqual([
+      { period: 1, clockMs: 420_000 },
+      { period: 2, clockMs: 180_000 },
+    ]);
   });
 });
 
