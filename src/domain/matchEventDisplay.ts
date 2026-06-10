@@ -54,13 +54,20 @@ function setPieceLineParts(e: MatchEventRecord, kindLabel: string): string {
   return parts.join(' · ') + zoneSuffix(e.zoneId);
 }
 
+export type MatchEventSummaryOptions = {
+  /** When false, omits inline film clock (e.g. timeline shows it beside match time). */
+  showFilmInSummary?: boolean;
+};
+
 export function formatMatchEventSummary(
   e: MatchEventRecord,
   playersById: Map<string, PlayerRecord>,
   filmSession?: MatchSessionRecord | null,
+  options?: MatchEventSummaryOptions,
 ): string {
+  const showFilmInSummary = options?.showFilmInSummary !== false;
   const filmClock = (raw: number | undefined) => {
-    if (raw == null) return '';
+    if (!showFilmInSummary || raw == null) return '';
     const ms = filmSession
       ? filmDisplayMsForSession(filmSession, raw)
       : filmTimeForDisplay(raw, 0);

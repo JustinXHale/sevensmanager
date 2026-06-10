@@ -41,6 +41,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- **Event timeline** and stat drill-down lists show footage time in parentheses beside match time when film sync is configured
 - **Inferred insights** expanded metrics: full-width mobile layout and dark-theme styling aligned with match stat cards
 - Team **Global stats**: Overview, Inferred insights, Penalties, and Negatives support tap-to-expand event lists (all games or single-match filter); multi-match lists show opponent label per event
 - **Inferred insights**: clearer labels (opp pass rate vs minutes defending, costly knock-ons, penalty breakdowns); expanded section glossary

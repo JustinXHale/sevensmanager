@@ -1,5 +1,5 @@
 import type { MatchSessionRecord } from '@/domain/match';
-import { formatClock, formatFilmClockForSession } from '@/domain/matchClock';
+import { formatClock, formatEventTimeWithFilm } from '@/domain/matchClock';
 import type { SetPieceSplit } from '@/domain/matchAnalytics';
 import type { MatchEventKind, MatchEventRecord, PenaltyTypeId, PlayPhaseContext } from '@/domain/matchEvent';
 import { resolvePenaltyDirection } from '@/domain/matchEvent';
@@ -287,27 +287,25 @@ export function StatExpandContent({
     if (payload.items.length === 0) return <p className="muted live-stats-expand-empty">{empty}</p>;
     return (
       <ul className="live-stats-expand-list">
-        {payload.items.map((e) => (
+        {payload.items.map((e) => {
+          const time = formatEventTimeWithFilm(filmSession, e);
+          return (
           <li key={e.id} className="live-stats-expand-row">
             <span className="live-stats-expand-time">
               {showMatch && matchLabelsByMatchId?.get(e.matchId) ? (
                 <span className="live-stats-expand-match">{matchLabelsByMatchId.get(e.matchId)} · </span>
               ) : null}
-              P{e.period} {formatClock(e.matchTimeMs)}
-              {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') &&
-              filmSession &&
-              formatFilmClockForSession(filmSession, e.filmTimeMs) != null ? (
-                <span className="live-stats-expand-film">
-                  {' '}
-                  · Film {formatFilmClockForSession(filmSession, e.filmTimeMs)}
-                </span>
+              {time.match}
+              {time.film ? (
+                <span className="live-stats-expand-film"> ({time.film})</span>
               ) : null}
             </span>
             <span className="live-stats-expand-text">
               {formatMatchEventSummary(e, playersById, filmSession)}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
     );
   }

@@ -3863,8 +3863,8 @@ button.live-stats-cell--btn.live-stats-cell--open {
 }
 
 .live-stats-expand-film {
-  color: #e8c547;
-  font-weight: 700;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .tgs-card-lead {

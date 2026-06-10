@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { MatchSessionRecord } from '@/domain/match';
-import { formatClock, formatFilmClockForSession } from '@/domain/matchClock';
+import { formatEventTimeWithFilm } from '@/domain/matchClock';
 import type { MatchEventKind, MatchEventRecord } from '@/domain/matchEvent';
 import type { PlayerRecord } from '@/domain/player';
 import { formatMatchEventSummary, timelineRowClassName } from '@/domain/matchEventDisplay';
@@ -97,21 +97,19 @@ export function MatchEventTimeline({
             ) : null
           ) : (
             <ul className="live-timeline-list">
-              {filteredEvents.map((e) => (
+              {filteredEvents.map((e) => {
+                const time = formatEventTimeWithFilm(filmSession, e);
+                return (
                 <li key={e.id} className={timelineRowClassName(e)}>
                   <div className="live-timeline-meta">
                     <span className="live-timeline-time">
-                      P{e.period} {formatClock(e.matchTimeMs)}
-                      {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') &&
-                      filmSession && formatFilmClockForSession(filmSession, e.filmTimeMs) != null ? (
-                        <span className="live-timeline-film-time">
-                          {' '}
-                          · Film {formatFilmClockForSession(filmSession, e.filmTimeMs)}
-                        </span>
+                      {time.match}
+                      {time.film ? (
+                        <span className="live-timeline-film-time"> ({time.film})</span>
                       ) : null}
                     </span>
                     <span className="live-timeline-label">
-                      {formatMatchEventSummary(e, playersById, filmSession)}
+                      {formatMatchEventSummary(e, playersById, filmSession, { showFilmInSummary: false })}
                     </span>
                   </div>
                   <div className="live-timeline-actions">
@@ -131,7 +129,8 @@ export function MatchEventTimeline({
                     </button>
                   </div>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           )}
         </>

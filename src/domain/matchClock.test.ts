@@ -14,6 +14,7 @@ import {
   filmTimeForDisplay,
   footageGapBeforeMatchMs,
   formatClock,
+  formatEventTimeWithFilm,
   formatFilmClock,
   normalizeMmSsInput,
   parseMmSsToMs,
@@ -261,6 +262,22 @@ describe('matchClock', () => {
     const p = pauseGameSession(s, 70_000);
     expect(p.gameClockRunning).toBe(false);
     expect(p.gameElapsedMs).toBe(60_000);
+  });
+
+  it('formatEventTimeWithFilm adds footage time in parentheses when film sync is set', () => {
+    const s = baseSession({ filmTimeOffsetMs: 48_000 });
+    expect(formatEventTimeWithFilm(s, { period: 1, matchTimeMs: 16_000 })).toEqual({
+      match: 'P1 0:16',
+      film: '1:04',
+    });
+    expect(formatEventTimeWithFilm(null, { period: 1, matchTimeMs: 16_000 })).toEqual({
+      match: 'P1 0:16',
+      film: null,
+    });
+    expect(formatEventTimeWithFilm(baseSession(), { period: 1, matchTimeMs: 16_000 })).toEqual({
+      match: 'P1 0:16',
+      film: null,
+    });
   });
 
   it('filmTimeForDisplay adds session offset for video scrubbing', () => {

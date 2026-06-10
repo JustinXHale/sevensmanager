@@ -442,6 +442,30 @@ export function formatFilmClockForSession(
   return formatClock(displayMs);
 }
 
+/** True when film offset or banked halftime gaps are configured. */
+export function sessionHasFilmSync(session: MatchSessionRecord): boolean {
+  return filmTimeOffsetMs(session) > 0 || totalFootageGapMs(session) > 0;
+}
+
+export type EventTimeParts = {
+  match: string;
+  film: string | null;
+};
+
+/** Match clock label plus optional footage time (uses stored filmTimeMs or matchTimeMs). */
+export function formatEventTimeWithFilm(
+  session: MatchSessionRecord | null | undefined,
+  event: { period: number; matchTimeMs: number; filmTimeMs?: number },
+): EventTimeParts {
+  const match = `P${event.period} ${formatClock(event.matchTimeMs)}`;
+  if (!session || !sessionHasFilmSync(session)) {
+    return { match, film: null };
+  }
+  const rawFilmMs = event.filmTimeMs ?? event.matchTimeMs;
+  const filmStr = formatFilmClockForSession(session, rawFilmMs);
+  return { match, film: filmStr };
+}
+
 /** Video player position now: match elapsed + offset + banked gaps + in-progress halftime wall time. */
 export function videoTimeDisplayMs(session: MatchSessionRecord, nowMs: number): number {
   const matchMs = cumulativeMatchTimeMs(session, nowMs);
