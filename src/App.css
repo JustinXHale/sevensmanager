@@ -6157,6 +6157,61 @@ button.live-stats-cell--btn.live-stats-cell--open {
   gap: 0.35rem;
 }
 
+.tgs-header-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.team-stats-export-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.team-stats-export-match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.team-stats-export-match-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.team-stats-export-match-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.team-stats-export-match-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.team-stats-export-match-list li:last-child .team-stats-export-match-item {
+  border-bottom: none;
+}
+
+.team-stats-export-match-item input {
+  flex-shrink: 0;
+}
+
 .tgs-header .team-global-stats-title {
   margin: 0;
   white-space: nowrap;

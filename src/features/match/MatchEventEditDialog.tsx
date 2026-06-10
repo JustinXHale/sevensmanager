@@ -29,10 +29,22 @@ import {
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
 import { formatClock, parseMmSsToMs } from '@/domain/matchClock';
 import type { PlayerRecord } from '@/domain/player';
+import { formatPlayerLabel } from '@/domain/rosterDisplay';
 import { ZONE_IDS, type ZoneId } from '@/domain/zone';
 import { updateMatchEvent } from '@/repos/matchEventsRepo';
 
 const SET_PIECE_KINDS = new Set(['scrum', 'lineout', 'ruck', 'restart']);
+
+const PLAYER_EDIT_KINDS = new Set([
+  'try',
+  'conversion',
+  'pass',
+  'tackle',
+  'line_break',
+  'team_penalty',
+]);
+
+const PLAYER_REQUIRED_KINDS = new Set(['try', 'conversion']);
 
 const SET_PIECE_OUTCOMES: { value: SetPieceOutcome; label: string }[] = [
   { value: 'won', label: 'Won' },
@@ -43,6 +55,7 @@ const SET_PIECE_OUTCOMES: { value: SetPieceOutcome; label: string }[] = [
 
 type Props = {
   event: MatchEventRecord | null;
+  players: PlayerRecord[];
   playersById: Map<string, PlayerRecord>;
   filmSession?: MatchSessionRecord | null;
   open: boolean;
@@ -52,6 +65,7 @@ type Props = {
 
 export function MatchEventEditDialog({
   event,
+  players,
   playersById,
   filmSession = null,
   open,
@@ -76,6 +90,7 @@ export function MatchEventEditDialog({
   const [tackleQualityValue, setTackleQualityValue] = useState<string>('neutral');
   const [negativeActionValue, setNegativeActionValue] = useState<string>('');
   const [penaltyDirectionValue, setPenaltyDirectionValue] = useState<string>('conceded');
+  const [playerValue, setPlayerValue] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -129,6 +144,7 @@ export function MatchEventEditDialog({
         : '',
     );
     setPenaltyDirectionValue(resolvePenaltyDirection(event));
+    setPlayerValue(event.playerId ?? '');
     setFormError(null);
   }, [open, event]);
 
@@ -174,6 +190,10 @@ export function MatchEventEditDialog({
     }
     if (event.kind === 'negative_action' && !negativeActionValue) {
       setFormError('Choose the negative play type.');
+      return;
+    }
+    if (PLAYER_REQUIRED_KINDS.has(event.kind) && !playerValue) {
+      setFormError('Choose a player.');
       return;
     }
 
@@ -253,6 +273,9 @@ export function MatchEventEditDialog({
                   : (playPhaseContextValue as PlayPhaseContext),
             }
           : {}),
+        ...(PLAYER_EDIT_KINDS.has(event.kind)
+          ? { playerId: playerValue === '' ? null : playerValue }
+          : {}),
       });
       onSaved();
       onClose();
@@ -277,8 +300,32 @@ export function MatchEventEditDialog({
           <p className="match-event-edit-current muted">{eventSummary}</p>
         ) : null}
         <p className="muted roster-dialog-lead">
-          Fix mistakes in the log — outcome, time, zone, and other details. Player assignments stay the same.
+          Fix mistakes in the log — player, outcome, time, zone, and other details.
         </p>
+
+        {event && PLAYER_EDIT_KINDS.has(event.kind) ? (
+          <div className="field">
+            <span>
+              Player
+              {PLAYER_REQUIRED_KINDS.has(event.kind) ? '' : ' (optional)'}
+            </span>
+            <select
+              className="filter-select"
+              value={playerValue}
+              onChange={(e) => setPlayerValue(e.target.value)}
+              aria-label="Player"
+            >
+              <option value="">
+                {PLAYER_REQUIRED_KINDS.has(event.kind) ? 'Select player…' : 'No player'}
+              </option>
+              {players.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {formatPlayerLabel(p)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {event && SET_PIECE_KINDS.has(event.kind) ? (
           <>

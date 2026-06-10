@@ -44,6 +44,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **LiteMaaS client** reads `reasoning_content` / multipart `content` from Qwen-style models so connection test and insights no longer fail with “empty response” when auth succeeded
 - **Settings** LiteMaaS test connection on localhost uses a built-in dev proxy to avoid browser CORS blocks; clearer errors when deployed without CORS
 
+### Added
+- **Stats export**: printable one-pager from match **Stats** (**Export**); team **Global stats** **Export** with pooled summary page plus optional per-match one-pagers (save as PDF from print dialog)
+- **Event timeline** Edit: change player on tries, conversions, passes, tackles, line breaks, and penalties
+
 ### Changed
 - **AI coaching insights** moved to the top of match **Stats** and team **Global stats** (above Overview / Inferred insights)
 - **Event timeline** Edit dialog: change set-piece outcome (W/L, penalized, free kick), restart depth, ruck contest, tackle result, negative play type, and penalty awarded/conceded — not just time and zone

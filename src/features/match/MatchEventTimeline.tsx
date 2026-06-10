@@ -9,6 +9,7 @@ import { MatchEventEditDialog } from './MatchEventEditDialog';
 
 type Props = {
   events: MatchEventRecord[];
+  players: PlayerRecord[];
   playersById: Map<string, PlayerRecord>;
   filmSession?: MatchSessionRecord | null;
   onDelete: (id: string) => void;
@@ -41,6 +42,7 @@ type FilterValue = 'all' | MatchEventKind;
 
 export function MatchEventTimeline({
   events,
+  players,
   playersById,
   filmSession = null,
   onDelete,
@@ -138,6 +140,7 @@ export function MatchEventTimeline({
 
       <MatchEventEditDialog
         event={editingEvent}
+        players={players}
         playersById={playersById}
         filmSession={filmSession}
         open={editingId !== null}

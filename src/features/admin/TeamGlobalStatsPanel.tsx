@@ -15,7 +15,14 @@ import { hasInferredStatsData, hasRuckBreakdownData } from '@/domain/inferredSta
 import { countEventsByKind } from '@/domain/matchStats';
 import { aggregateDeepAnalytics, aggregateTeamMatchSnapshots, tackleCompletionPct } from '@/domain/teamGlobalStats';
 import { buildTeamStatsBrief } from '@/domain/statsBrief';
+import {
+  buildGlobalOnePagerHtml,
+  buildMatchOnePagerHtml,
+  buildStatsExportDocument,
+  openStatsExport,
+} from '@/domain/statsExport';
 import { AiInsightsSection } from '@/features/match/AiInsightsSection';
+import { TeamStatsExportDialog } from '@/features/stats/TeamStatsExportDialog';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 import { StatCard, StatExpandContent, getPanelPayload } from '@/features/match/statExpand';
@@ -98,6 +105,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
   const [activeSection, setActiveSection] = useState<SectionId>('all');
   const [selectedMatchId, setSelectedMatchId] = useState<MatchFilterId>('all');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const idPrefix = useId().replace(/:/g, '');
 
   const load = useCallback(async () => {
@@ -303,6 +311,38 @@ export function TeamGlobalStatsPanel({ team }: Props) {
   const statsReturnPath = `/team/${team.id}?tab=stats`;
   const statsReturnEncoded = encodeURIComponent(statsReturnPath);
 
+  function onExportGlobalStats(selectedMatchIds: string[]) {
+    const globalPage = buildGlobalOnePagerHtml({
+      team,
+      competitionLabel: sortedWithStats[0]?.match.competition?.trim() ?? null,
+      aggregate,
+      tacklePct: pooledTacklePct,
+      inferred: deep.inferred,
+      phase: deep.phaseTime,
+      matchCount: sortedWithStats.length,
+    });
+    const matchPages = selectedMatchIds
+      .map((id) => {
+        const row = sortedWithStats.find((r) => r.match.id === id);
+        if (!row) return null;
+        const playersById = new Map<string, PlayerRecord>();
+        for (const p of globalPlayers.values()) {
+          if (p.matchId === id) playersById.set(p.id, p);
+        }
+        return buildMatchOnePagerHtml({
+          match: row.match,
+          events: row.events,
+          substitutionCount: row.snapshot.subsOurs,
+          playersById,
+          kickoffLabel: row.match.kickoffDate
+            ? formatMatchKickoffInZone(row.match.kickoffDate, displayTimeZone)
+            : null,
+        });
+      })
+      .filter((p): p is string => p != null);
+    openStatsExport(buildStatsExportDocument([globalPage, ...matchPages]));
+  }
+
   if (loading) {
     return (
       <section className="card team-global-stats">
@@ -363,7 +403,16 @@ export function TeamGlobalStatsPanel({ team }: Props) {
   return (
     <div className="tgs-root">
       <div className="tgs-header">
-        <h2 className="team-global-stats-title">Global stats</h2>
+        <div className="tgs-header-title-row">
+          <h2 className="team-global-stats-title">Global stats</h2>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setExportOpen(true)}
+          >
+            Export
+          </button>
+        </div>
         <div className="tgs-header-filters">
           <select
             className="filter-select tgs-section-select tgs-match-select"
@@ -1014,6 +1063,17 @@ export function TeamGlobalStatsPanel({ team }: Props) {
           </ul>
         </section>
       )}
+
+      <TeamStatsExportDialog
+        open={exportOpen}
+        teamName={team.name}
+        matches={sortedWithStats.map((r) => ({
+          id: r.match.id,
+          label: matchFilterOptionLabel(r, displayTimeZone),
+        }))}
+        onClose={() => setExportOpen(false)}
+        onExport={onExportGlobalStats}
+      />
     </div>
   );
 }

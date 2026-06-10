@@ -43,7 +43,13 @@ import {
 } from '@/domain/tallyStats';
 import type { MatchRecord } from '@/domain/match';
 import { buildMatchStatsBrief } from '@/domain/statsBrief';
+import {
+  buildMatchOnePagerHtml,
+  buildStatsExportDocument,
+  openStatsExport,
+} from '@/domain/statsExport';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
+import { formatMatchKickoffInZone, getStoredDisplayTimeZone } from '@/utils/displayTimezone';
 import { AiInsightsSection } from '@/features/match/AiInsightsSection';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
@@ -420,6 +426,21 @@ export function MatchStatsPanel({
     setExpandedKey((k) => (k === key ? null : key));
   }
 
+  function onExportMatchStats() {
+    if (!match) return;
+    const kickoffLabel = match.kickoffDate
+      ? formatMatchKickoffInZone(match.kickoffDate, getStoredDisplayTimeZone())
+      : null;
+    const page = buildMatchOnePagerHtml({
+      match,
+      events,
+      substitutionCount: substitutions.length,
+      playersById,
+      kickoffLabel,
+    });
+    openStatsExport(buildStatsExportDocument([page]));
+  }
+
   if (!hasAnyData) {
     return (
       <section className="card live-stats-card">
@@ -440,11 +461,18 @@ export function MatchStatsPanel({
             title="Stats modes"
             entries={STATS_MODE_HELP}
           />
-          {onCopySummary ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onCopySummary}>
-              Copy summary
-            </button>
-          ) : null}
+          <div className="tgs-header-export-actions">
+            {match ? (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onExportMatchStats}>
+                Export
+              </button>
+            ) : null}
+            {onCopySummary ? (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={onCopySummary}>
+                Copy summary
+              </button>
+            ) : null}
+          </div>
         </div>
         {onStatsDetailChange ? (
           <div className="tracking-mode-switch tracking-mode-switch--stats" role="radiogroup" aria-label="Stats detail level">

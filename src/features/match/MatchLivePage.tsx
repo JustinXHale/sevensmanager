@@ -1547,6 +1547,7 @@ export function MatchLivePage() {
         >
           <MatchEventTimeline
             events={events}
+            players={players}
             playersById={playersById}
             filmSession={session}
             onDelete={(id) => void onDeleteEvent(id)}

@@ -177,6 +177,7 @@ export async function updateMatchEvent(
     tackleQuality?: TackleQuality | null;
     negativeActionId?: NegativeActionId | null;
     penaltyDirection?: PenaltyDirection | null;
+    playerId?: string | null;
   },
 ): Promise<void> {
   const row = await db.matchEvents.get(id);
@@ -201,5 +202,6 @@ export async function updateMatchEvent(
   applyNullablePatch(next, 'tackleQuality', patch.tackleQuality);
   applyNullablePatch(next, 'negativeActionId', patch.negativeActionId);
   applyNullablePatch(next, 'penaltyDirection', patch.penaltyDirection);
+  applyNullablePatch(next, 'playerId', patch.playerId);
   await db.matchEvents.put(next);
 }
