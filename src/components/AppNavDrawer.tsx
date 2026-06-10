@@ -324,10 +324,9 @@ export function AppNavDrawer() {
               </Link>
             </li>
             <li>
-              <span className="app-nav-drawer-link app-nav-drawer-link--disabled" aria-disabled="true">
+              <Link to="/settings" className="app-nav-drawer-link" onClick={close}>
                 <IconGear /> Settings
-                <span className="app-nav-coming-soon">Coming soon</span>
-              </span>
+              </Link>
             </li>
             <li>
               <span className="app-nav-drawer-link app-nav-drawer-link--disabled" aria-disabled="true">

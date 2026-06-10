@@ -41,10 +41,13 @@ import {
   sortFilmBookmarksByFilmTime,
   tallySetPieceKinds,
 } from '@/domain/tallyStats';
+import type { MatchRecord } from '@/domain/match';
+import { buildMatchStatsBrief } from '@/domain/statsBrief';
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
+import { AiInsightsSection } from '@/features/match/AiInsightsSection';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
-import { StatCard } from '@/features/match/statExpand';
+import { SetPieceExpandBar, StatCard } from '@/features/match/statExpand';
 import { hasRuckBreakdownData } from '@/domain/inferredStats';
 
 type StatsDetail = 'full' | 'one_tap' | 'tally';
@@ -56,6 +59,7 @@ const STATS_MODE_HELP: GlossaryEntry[] = [
 ];
 
 type Props = {
+  match?: MatchRecord | null;
   events: MatchEventRecord[];
   substitutions: SubstitutionRecord[];
   playersById: Map<string, PlayerRecord>;
@@ -107,6 +111,7 @@ const ONE_TAP_ATTACK_KINDS: MatchEventKind[] = [
 ];
 const TALLY_DEFENSE_KINDS: MatchEventKind[] = ['team_penalty'];
 const TALLY_SET_PIECE_KINDS: MatchEventKind[] = ['restart', 'ruck', 'scrum', 'lineout'];
+const EXPANDABLE_SET_PIECE_KINDS: MatchEventKind[] = ['restart', 'scrum', 'lineout'];
 
 function fmtMs(ms: number): string {
   const totalSec = Math.round(ms / 1000);
@@ -272,6 +277,7 @@ const SET_PIECE_LABEL: Record<string, string> = {
 };
 
 export function MatchStatsPanel({
+  match = null,
   events,
   substitutions,
   playersById,
@@ -309,6 +315,7 @@ export function MatchStatsPanel({
   const phaseTime = useMemo(() => phaseTimeSplit(events), [events]);
   const inferred = useMemo(() => computeInferredMatchStats(events), [events]);
   const timeline = useMemo(() => scoringTimeline(events), [events]);
+  const systemMoments = byKind.system_moment ?? 0;
 
   const scrumPhase = useMemo(() => setPieceByPhase(events, 'scrum'), [events]);
   const scrumAtk = scrumPhase.attack;
@@ -334,6 +341,37 @@ export function MatchStatsPanel({
   const tacklePct = tt > 0 ? Math.round((snapshot.tackles.made / tt) * 1000) / 10 : null;
   const ownKickPct = kickDecidedSuccessPct(snapshot.ownKick.made, snapshot.ownKick.missed);
   const oppKickPct = kickDecidedSuccessPct(snapshot.oppKick.made, snapshot.oppKick.missed);
+
+  const aiBrief = useMemo(() => {
+    if (!match) return null;
+    return buildMatchStatsBrief({
+      match,
+      snapshot,
+      inferred,
+      phase: phaseTime,
+      tackleCompletionPct: tacklePct,
+      ruckMedianMs: ruckMedian,
+      ruckAttackMedianMs: ruckAttackMedian,
+      ruckDefenseMedianMs: ruckDefenseMedian,
+      passToPassMedianMs: passToPassMedian,
+      penaltyTypes: penTypes,
+      negativeActions: negActions,
+      systemMoments,
+    });
+  }, [
+    match,
+    snapshot,
+    inferred,
+    phaseTime,
+    tacklePct,
+    ruckMedian,
+    ruckAttackMedian,
+    ruckDefenseMedian,
+    passToPassMedian,
+    penTypes,
+    negActions,
+    systemMoments,
+  ]);
 
   const visibleSections = SECTIONS.filter((s) => {
     if (statsDetail === 'tally') {
@@ -531,6 +569,9 @@ export function MatchStatsPanel({
             playersById={playersById}
             filmSession={filmSession}
           />
+          {aiBrief ? (
+            <AiInsightsSection cacheKey={`match:${match!.id}`} brief={aiBrief} />
+          ) : null}
         </section>
       )}
 
@@ -645,6 +686,7 @@ export function MatchStatsPanel({
       {show('setpieces') && (
         <section className="card tgs-card">
           {sectionTitle('setpieces')}
+          <p className="muted tgs-card-sub">Tap scrums, lineouts, or restarts to see match timestamps (rucks are summary only).</p>
 
           {scrumTotal > 0 && (
             <>
@@ -663,19 +705,63 @@ export function MatchStatsPanel({
                   <span className="team-global-kpi-value tabular-nums">{scrumTotal}</span>
                 </div>
               </div>
-              <SetPieceBar label="Attack (our ball)" split={scrumAtk} />
-              <SetPieceBar label="Defense (their ball)" split={scrumDef} />
+              <SetPieceExpandBar
+                label="Attack (our ball)"
+                split={scrumAtk}
+                statKey="setpiece:scrum:attack"
+                expandedKey={expandedKey}
+                onToggle={toggleExpand}
+                idPrefix={idPrefix}
+                events={events}
+                substitutions={substitutions}
+                playersById={playersById}
+                filmSession={filmSession}
+              />
+              <SetPieceExpandBar
+                label="Defense (their ball)"
+                split={scrumDef}
+                statKey="setpiece:scrum:defense"
+                expandedKey={expandedKey}
+                onToggle={toggleExpand}
+                idPrefix={idPrefix}
+                events={events}
+                substitutions={substitutions}
+                playersById={playersById}
+                filmSession={filmSession}
+              />
             </>
           )}
 
           <h4 className={`tgs-card-subtitle${scrumTotal > 0 ? ' mt-md' : ''}`}>Lineouts</h4>
-          <SetPieceBar label="Lineouts" split={snapshot.lineouts} />
+          <SetPieceExpandBar
+            label="Lineouts"
+            split={snapshot.lineouts}
+            statKey="setpiece:lineout"
+            expandedKey={expandedKey}
+            onToggle={toggleExpand}
+            idPrefix={idPrefix}
+            events={events}
+            substitutions={substitutions}
+            playersById={playersById}
+            filmSession={filmSession}
+          />
 
           <h4 className="tgs-card-subtitle mt-md">Rucks</h4>
           <SetPieceBar label="Rucks (from chip)" split={snapshot.rucks} />
 
           <h4 className="tgs-card-subtitle mt-md">Restarts</h4>
-          <SetPieceBar label="Restarts (kick / receive)" split={snapshot.restarts} />
+          <SetPieceExpandBar
+            label="Restarts (kick / receive)"
+            split={snapshot.restarts}
+            statKey="setpiece:restart"
+            expandedKey={expandedKey}
+            onToggle={toggleExpand}
+            idPrefix={idPrefix}
+            events={events}
+            substitutions={substitutions}
+            playersById={playersById}
+            filmSession={filmSession}
+          />
         </section>
       )}
 
@@ -809,9 +895,25 @@ export function MatchStatsPanel({
                 <StatCard statKey="kind:system_moment" value={byKind.system_moment ?? 0} label="System moments" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
               </div>
               <h4 className="tgs-card-subtitle">Set pieces (attack)</h4>
-              {tallySetPieceKinds().map((kind) => (
-                <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'attack')} />
-              ))}
+              {tallySetPieceKinds().map((kind) =>
+                EXPANDABLE_SET_PIECE_KINDS.includes(kind) ? (
+                  <SetPieceExpandBar
+                    key={kind}
+                    label={SET_PIECE_LABEL[kind] ?? kind}
+                    split={setPieceSplitForPhase(events, kind, 'attack')}
+                    statKey={`setpiece:${kind}:attack`}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={events}
+                    substitutions={substitutions}
+                    playersById={playersById}
+                    filmSession={filmSession}
+                  />
+                ) : (
+                  <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'attack')} />
+                ),
+              )}
             </section>
             <section className="card tgs-card">
               <h3 className="tgs-card-title">Defense</h3>
@@ -826,9 +928,25 @@ export function MatchStatsPanel({
                 <StatCard statKey="kind:forced_turnover" value={byKind.forced_turnover ?? 0} label="Forced turnovers" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
               </div>
               <h4 className="tgs-card-subtitle">Set pieces (defense)</h4>
-              {tallySetPieceKinds().map((kind) => (
-                <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'defense')} />
-              ))}
+              {tallySetPieceKinds().map((kind) =>
+                EXPANDABLE_SET_PIECE_KINDS.includes(kind) ? (
+                  <SetPieceExpandBar
+                    key={kind}
+                    label={SET_PIECE_LABEL[kind] ?? kind}
+                    split={setPieceSplitForPhase(events, kind, 'defense')}
+                    statKey={`setpiece:${kind}:defense`}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={events}
+                    substitutions={substitutions}
+                    playersById={playersById}
+                    filmSession={filmSession}
+                  />
+                ) : (
+                  <SetPieceBar key={kind} label={SET_PIECE_LABEL[kind] ?? kind} split={setPieceSplitForPhase(events, kind, 'defense')} />
+                ),
+              )}
             </section>
             <FilmBookmarksSection
               events={events}
@@ -871,9 +989,28 @@ export function MatchStatsPanel({
           <section className="card tgs-card">
             <h3 className="tgs-card-title">Set pieces</h3>
             <div className="live-stats-grid">
-              {TALLY_SET_PIECE_KINDS.map((kind) => (
-                <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
-              ))}
+              {TALLY_SET_PIECE_KINDS.map((kind) =>
+                kind === 'ruck' ? (
+                  <div key={kind} className="live-stats-cell">
+                    <span className="live-stats-num">{byKind[kind] ?? 0}</span>
+                    <span className="live-stats-label">{kindLabel(kind)}</span>
+                  </div>
+                ) : (
+                  <StatCard
+                    key={kind}
+                    statKey={`setpiece:${kind}`}
+                    value={byKind[kind] ?? 0}
+                    label={kindLabel(kind)}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={events}
+                    substitutions={substitutions}
+                    playersById={playersById}
+                    filmSession={filmSession}
+                  />
+                ),
+              )}
             </div>
           </section>
           {statsDetail === 'one_tap' && scoringRows.length > 0 && (

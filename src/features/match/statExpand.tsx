@@ -1,5 +1,6 @@
 import type { MatchSessionRecord } from '@/domain/match';
 import { formatClock, formatFilmClockForSession } from '@/domain/matchClock';
+import type { SetPieceSplit } from '@/domain/matchAnalytics';
 import type { MatchEventKind, MatchEventRecord, PenaltyTypeId, PlayPhaseContext } from '@/domain/matchEvent';
 import { resolvePenaltyDirection } from '@/domain/matchEvent';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
@@ -196,6 +197,21 @@ export function getPanelPayload(
       ),
     };
   }
+  if (key.startsWith('setpiece:')) {
+    const [, kind, phase] = key.split(':') as [string, MatchEventKind, PlayPhaseContext | undefined];
+    if (kind === 'restart' || kind === 'scrum' || kind === 'lineout') {
+      return {
+        type: 'events',
+        items: sortEvents(
+          events.filter((e) => {
+            if (e.deletedAt != null || e.kind !== kind || !e.setPieceOutcome) return false;
+            if (phase != null && e.playPhaseContext !== phase) return false;
+            return true;
+          }),
+        ),
+      };
+    }
+  }
   if (key.startsWith('zone:')) {
     const zoneId = key.slice(5) as ZoneId;
     return { type: 'events', items: sortEvents(tryEventsInZone(events, zoneId)) };
@@ -240,6 +256,13 @@ export function expandPanelTitle(key: string): string {
   if (key.startsWith('pen:type:')) return 'Penalties';
   if (key.startsWith('pen:')) return 'Penalties';
   if (key === 'restart:attack') return 'Restart receive';
+  if (key.startsWith('setpiece:')) {
+    const [, kind, phase] = key.split(':');
+    const name = kindLabel(kind as MatchEventKind);
+    if (phase === 'attack') return `${name} (attack)`;
+    if (phase === 'defense') return `${name} (defense)`;
+    return name;
+  }
   if (key.startsWith('kind:')) return kindLabel(key.slice(5) as MatchEventKind);
   if (key.startsWith('zone:')) return `Tries \u00b7 ${key.slice(5)}`;
   return 'Events';
@@ -297,6 +320,97 @@ export function StatExpandContent({
         </li>
       ))}
     </ul>
+  );
+}
+
+function setPieceSliceTotal(split: SetPieceSplit): number {
+  return split.won + split.lost + split.penalized + split.freeKick;
+}
+
+export function SetPieceExpandBar({
+  label,
+  split,
+  statKey,
+  expandedKey,
+  onToggle,
+  idPrefix,
+  events,
+  substitutions,
+  playersById,
+  filmSession = null,
+}: {
+  label: string;
+  split: SetPieceSplit;
+  statKey: string;
+  expandedKey: string | null;
+  onToggle: (key: string) => void;
+  idPrefix: string;
+  events: MatchEventRecord[];
+  substitutions: SubstitutionRecord[];
+  playersById: Map<string, PlayerRecord>;
+  filmSession?: MatchSessionRecord | null;
+}) {
+  const n = setPieceSliceTotal(split);
+  const open = expandedKey === statKey;
+  const panelId = `${idPrefix}-${statKey.replace(/:/g, '-')}`;
+  const payload = open ? getPanelPayload(statKey, events, substitutions) : null;
+  const nums = (
+    <span className="live-analytics-setpiece-nums tabular-nums">
+      W {split.won}
+      {' \u00b7 '}
+      L {split.lost}
+      {split.freeKick > 0 ? (
+        <>
+          {' \u00b7 '}
+          FK {split.freeKick}
+        </>
+      ) : null}
+      {' \u00b7 '}
+      Pen {split.penalized}
+    </span>
+  );
+
+  return (
+    <div className={`live-analytics-setpiece-wrap${open ? ' live-analytics-setpiece-wrap--open' : ''}`}>
+      <button
+        type="button"
+        className={`live-analytics-setpiece-row live-analytics-setpiece-row--btn${open ? ' live-analytics-setpiece-row--open' : ''}${n === 0 ? ' live-analytics-setpiece-row--empty' : ''}`}
+        aria-expanded={n > 0 ? open : undefined}
+        aria-controls={open ? panelId : undefined}
+        disabled={n === 0}
+        onClick={() => n > 0 && onToggle(statKey)}
+      >
+        <div className="live-analytics-setpiece-top">
+          <span className="live-analytics-setpiece-name">{label}</span>
+          {n === 0 ? (
+            <span className="live-analytics-setpiece-empty muted">{'\u2014'}</span>
+          ) : (
+            nums
+          )}
+        </div>
+        {n > 0 ? (
+          <div
+            className="live-analytics-setpiece-bar"
+            aria-hidden
+          >
+            <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--won" style={{ flex: Math.max(0, split.won) }} />
+            <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--lost" style={{ flex: Math.max(0, split.lost) }} />
+            <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--fk" style={{ flex: Math.max(0, split.freeKick) }} />
+            <div className="live-analytics-setpiece-seg live-analytics-setpiece-seg--pen" style={{ flex: Math.max(0, split.penalized) }} />
+          </div>
+        ) : null}
+      </button>
+      {open && payload ? (
+        <div id={panelId} className="live-analytics-setpiece-body" role="region" aria-label={expandPanelTitle(statKey)}>
+          <StatExpandContent
+            payload={payload}
+            playersById={playersById}
+            filmSession={filmSession}
+            empty="No matching log entries."
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

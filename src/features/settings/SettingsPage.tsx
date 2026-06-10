@@ -1,23 +1,150 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppChrome } from '@/context/AppChromeContext';
+import { LiteMaaSClientError, testLiteMaaSConnection } from '@/services/litemaasClient';
+import {
+  clearStoredLiteMaaSSettings,
+  DEFAULT_LITEMAAS_MODEL,
+  DEFAULT_LITEMAAS_SETTINGS,
+  getStoredLiteMaaSSettings,
+  isLiteMaaSConfigured,
+  setStoredLiteMaaSSettings,
+  type LiteMaaSSettings,
+} from '@/utils/litemaasSettings';
 
 export function SettingsPage() {
   const { setTeamHeader } = useAppChrome();
+  const [settings, setSettings] = useState<LiteMaaSSettings>(() => getStoredLiteMaaSSettings());
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
 
   useEffect(() => {
     setTeamHeader({ backTo: '/', title: 'Settings' });
     return () => setTeamHeader(null);
   }, [setTeamHeader]);
 
+  const onSave = () => {
+    setStoredLiteMaaSSettings(settings);
+    setSaved(true);
+    setTestResult(null);
+    setTestError(null);
+    window.setTimeout(() => setSaved(false), 2000);
+  };
+
+  const onClear = () => {
+    clearStoredLiteMaaSSettings();
+    setSettings({ ...DEFAULT_LITEMAAS_SETTINGS });
+    setTestResult(null);
+    setTestError(null);
+  };
+
+  const onTest = async () => {
+    const draft = {
+      apiKey: settings.apiKey.trim(),
+      baseUrl: settings.baseUrl.trim().replace(/\/+$/, ''),
+      model: settings.model.trim() || DEFAULT_LITEMAAS_MODEL,
+    };
+    if (!isLiteMaaSConfigured(draft)) {
+      setTestError('Enter API key and base URL first.');
+      setTestResult(null);
+      return;
+    }
+    setTesting(true);
+    setTestError(null);
+    setTestResult(null);
+    try {
+      const reply = await testLiteMaaSConnection(draft);
+      setTestResult(`Connected. Model replied: ${reply.slice(0, 80)}`);
+    } catch (e) {
+      setTestResult(null);
+      setTestError(
+        e instanceof LiteMaaSClientError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Connection test failed.',
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <div className="settings-page">
       <h1 className="sr-only">Settings</h1>
-      <section className="card settings-stub">
-        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="settings-stub-icon">
-          <path fillRule="evenodd" d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.331 1.652a6.993 6.993 0 0 1 1.929 1.115l1.598-.54a1 1 0 0 1 1.186.447l1.18 2.044a1 1 0 0 1-.205 1.251l-1.267 1.113a7.047 7.047 0 0 1 0 2.228l1.267 1.113a1 1 0 0 1 .206 1.25l-1.18 2.045a1 1 0 0 1-1.187.447l-1.598-.54a6.993 6.993 0 0 1-1.929 1.115l-.33 1.652a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.331-1.652a6.993 6.993 0 0 1-1.929-1.115l-1.598.54a1 1 0 0 1-1.186-.447l-1.18-2.044a1 1 0 0 1 .205-1.251l1.267-1.114a7.05 7.05 0 0 1 0-2.227L1.821 7.773a1 1 0 0 1-.206-1.25l1.18-2.045a1 1 0 0 1 1.187-.447l1.598.54A6.993 6.993 0 0 1 7.51 3.456l.33-1.652ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
-        </svg>
-        <h2 className="settings-stub-title">Settings</h2>
-        <p className="muted">App preferences, theme, data export, and more — coming soon.</p>
+
+      <section className="card settings-section">
+        <h2 className="settings-section-title">LiteMaaS / LiteLLM</h2>
+        <p className="muted settings-section-lead">
+          Connect your LiteMaaS subscription to generate AI coaching insights on match and team stats.
+          Credentials are stored only in this browser.
+        </p>
+
+        <label className="settings-field">
+          <span className="settings-field-label">LiteLLM base URL</span>
+          <input
+            type="url"
+            className="settings-input"
+            placeholder="https://litellm-your-namespace.apps.cluster.example.com"
+            value={settings.baseUrl}
+            onChange={(e) => setSettings((s) => ({ ...s, baseUrl: e.target.value }))}
+            autoComplete="off"
+          />
+          <span className="settings-field-hint muted">
+            Your LiteMaaS LiteLLM route — no trailing slash.
+          </span>
+        </label>
+
+        <label className="settings-field">
+          <span className="settings-field-label">API key</span>
+          <input
+            type="password"
+            className="settings-input"
+            placeholder="sk-…"
+            value={settings.apiKey}
+            onChange={(e) => setSettings((s) => ({ ...s, apiKey: e.target.value }))}
+            autoComplete="off"
+          />
+          <span className="settings-field-hint muted">
+            From your LiteMaaS subscription. Paste once — used for Generate insights on stats pages.
+          </span>
+        </label>
+
+        <label className="settings-field">
+          <span className="settings-field-label">Model</span>
+          <input
+            type="text"
+            className="settings-input"
+            placeholder={DEFAULT_LITEMAAS_MODEL}
+            value={settings.model}
+            onChange={(e) => setSettings((s) => ({ ...s, model: e.target.value }))}
+            autoComplete="off"
+          />
+          <span className="settings-field-hint muted">
+            Exact model name from LiteMaaS (default: {DEFAULT_LITEMAAS_MODEL}).
+          </span>
+        </label>
+
+        <div className="settings-actions">
+          <button type="button" className="btn btn-primary" onClick={onSave}>
+            {saved ? 'Saved' : 'Save'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={testing}
+            onClick={() => void onTest()}
+          >
+            {testing ? 'Testing…' : 'Test connection'}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={onClear}>
+            Clear
+          </button>
+        </div>
+
+        {testResult ? <p className="settings-feedback settings-feedback--ok">{testResult}</p> : null}
+        {testError ? <p className="settings-feedback settings-feedback--err" role="alert">{testError}</p> : null}
       </section>
     </div>
   );

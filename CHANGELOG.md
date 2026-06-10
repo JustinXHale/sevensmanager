@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Match **Stats** set pieces: tap scrums, lineouts, and restarts (not rucks) to expand event timestamps in Full, Tally, and One Tap views
+- **AI coaching insights**: LiteMaaS / LiteLLM connection in **Settings** (API key, base URL, model); **Generate insights** on match **Stats** and team **Global stats** Inferred insights sections with cached results
 - **Inferred insights**: tap any metric for plain-language meaning, formula, how to read it, and underlying log entries (single match)
 - Match **Stats** (Full / One Tap) and team **Global stats**: attack pass count and opponent pass count in Overview, Event counts, and Inferred insights
 - Match and team **Inferred insights**: ruck contest speed, line-break→try %, attack ruck won %, system moment rate, turnover balance, penalty net by phase, pass chain length, opp pass pressure, possession swings, scoring drought/burst, restart receive %, and error clusters
@@ -39,6 +41,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- **Inferred insights** expanded metrics: full-width mobile layout and dark-theme styling aligned with match stat cards
 - Team **Global stats**: Overview, Inferred insights, Penalties, and Negatives support tap-to-expand event lists (all games or single-match filter); multi-match lists show opponent label per event
 - **Inferred insights**: clearer labels (opp pass rate vs minutes defending, costly knock-ons, penalty breakdowns); expanded section glossary
 - **Ruck speed**: attack and defense tables show total rucks, contested/uncontested, W/L, won %, and median speed per contest type

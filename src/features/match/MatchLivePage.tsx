@@ -1314,6 +1314,7 @@ export function MatchLivePage() {
           className="live-tab-panel live-tab-panel-stats"
         >
           <MatchStatsPanel
+            match={match}
             events={events}
             substitutions={substitutions}
             playersById={playersById}

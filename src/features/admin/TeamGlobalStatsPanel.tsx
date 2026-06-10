@@ -14,6 +14,8 @@ import { SectionHelp, GLOBAL_GLOSSARY } from '@/components/SectionHelp';
 import { hasInferredStatsData, hasRuckBreakdownData } from '@/domain/inferredStats';
 import { countEventsByKind } from '@/domain/matchStats';
 import { aggregateDeepAnalytics, aggregateTeamMatchSnapshots, tackleCompletionPct } from '@/domain/teamGlobalStats';
+import { buildTeamStatsBrief } from '@/domain/statsBrief';
+import { AiInsightsSection } from '@/features/match/AiInsightsSection';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 import { StatCard, StatExpandContent, getPanelPayload } from '@/features/match/statExpand';
@@ -213,6 +215,38 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     () => aggregateDeepAnalytics(filteredStats.map((r) => r.events)),
     [filteredStats],
   );
+
+  const aiBrief = useMemo(
+    () =>
+      buildTeamStatsBrief({
+        team,
+        aggregate,
+        tackleCompletionPct: pooledTacklePct,
+        inferred: deep.inferred,
+        phase: deep.phaseTime,
+        ruckMedianMs: deep.ruckMedianMs,
+        ruckAttackMedianMs: deep.ruckAttackMedianMs,
+        ruckDefenseMedianMs: deep.ruckDefenseMedianMs,
+        passToPassMedianMs: deep.passToPassMedianMs,
+        penaltyTypes: deep.penaltyTypes,
+        negativeActions: deep.negativeActions,
+        isSingleMatch,
+        matchLabel: selectedMatchRow ? matchFilterOptionLabel(selectedMatchRow, displayTimeZone) : null,
+      }),
+    [
+      team,
+      aggregate,
+      pooledTacklePct,
+      deep,
+      isSingleMatch,
+      selectedMatchRow,
+      displayTimeZone,
+    ],
+  );
+
+  const aiCacheKey = isSingleMatch && selectedMatchId !== 'all'
+    ? `match:${selectedMatchId}`
+    : `team:${team.id}:all`;
 
   const efficiencyRows = useMemo(
     () =>
@@ -579,6 +613,7 @@ export function TeamGlobalStatsPanel({ team }: Props) {
             matchLabelsByMatchId={matchLabelsByMatchId}
             matchOrder={matchOrder}
           />
+          <AiInsightsSection cacheKey={aiCacheKey} brief={aiBrief} />
         </section>
       )}
 
