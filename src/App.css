@@ -7836,6 +7836,65 @@ button.competitions-sticky-dropdown-item:hover {
   min-width: 6.5rem;
 }
 
+.inferred-stats-intro {
+  margin-bottom: 0.5rem;
+}
+
+.inferred-kpi-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 6.5rem;
+}
+
+.inferred-kpi-btn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: inherit;
+  font: inherit;
+  padding: 0.5rem 0.55rem;
+  border-radius: 0.5rem;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.inferred-kpi-btn:hover,
+.inferred-kpi-btn--open {
+  border-color: var(--pf-v6-global--BorderColor--100, #d2d2d2);
+  background: var(--pf-v6-global--BackgroundColor--100, #fff);
+}
+
+.inferred-kpi-detail {
+  padding: 0.5rem 0.55rem 0.65rem;
+  border-left: 2px solid var(--pf-v6-global--BorderColor--200, #c7c7c7);
+  margin-left: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+}
+
+.inferred-kpi-meaning {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.inferred-kpi-formula,
+.inferred-kpi-read {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.inferred-kpi-events {
+  margin-top: 0.25rem;
+}
+
+.inferred-kpi-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
 .ruck-phase-breakdown {
   display: flex;
   flex-direction: column;
@@ -7997,6 +8056,41 @@ button.competitions-sticky-dropdown-item:hover {
 
 .deep-penalty-bar-fill--neg {
   background: rgba(248, 113, 113, 0.55);
+}
+
+.deep-penalty-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.deep-penalty-row--btn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: inherit;
+  font: inherit;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.35rem;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.deep-penalty-row--btn:hover,
+.deep-penalty-row--open {
+  border-color: var(--pf-v6-global--BorderColor--100, #d2d2d2);
+  background: var(--pf-v6-global--BackgroundColor--100, #fff);
+}
+
+.deep-penalty-expand {
+  padding: 0.25rem 0.35rem 0.5rem;
+  margin-left: 0.25rem;
+  border-left: 2px solid var(--pf-v6-global--BorderColor--200, #c7c7c7);
+}
+
+.live-stats-expand-match {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .deep-penalty-count {

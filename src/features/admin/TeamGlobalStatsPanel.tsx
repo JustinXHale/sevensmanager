@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { computeMatchAnalyticsSnapshot } from '@/domain/matchAnalytics';
 import type { MatchEventRecord } from '@/domain/matchEvent';
@@ -16,6 +16,7 @@ import { countEventsByKind } from '@/domain/matchStats';
 import { aggregateDeepAnalytics, aggregateTeamMatchSnapshots, tackleCompletionPct } from '@/domain/teamGlobalStats';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
+import { StatCard, StatExpandContent, getPanelPayload } from '@/features/match/statExpand';
 import { countActiveEventsForMatch, listMatchEvents } from '@/repos/matchEventsRepo';
 import { getSession, listMatchesForTeam } from '@/repos/matchesRepo';
 import { listPlayers, listSubstitutions } from '@/repos/rosterRepo';
@@ -94,6 +95,8 @@ export function TeamGlobalStatsPanel({ team }: Props) {
   const [displayTimeZone] = useState(() => getStoredDisplayTimeZone());
   const [activeSection, setActiveSection] = useState<SectionId>('all');
   const [selectedMatchId, setSelectedMatchId] = useState<MatchFilterId>('all');
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const idPrefix = useId().replace(/:/g, '');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,6 +178,26 @@ export function TeamGlobalStatsPanel({ team }: Props) {
   const selectedMatchRow = isSingleMatch
     ? filteredStats.find((r) => r.match.id === selectedMatchId)
     : undefined;
+
+  const filteredEvents = useMemo(
+    () => filteredStats.flatMap((r) => r.events),
+    [filteredStats],
+  );
+
+  const matchOrder = useMemo(
+    () => filteredStats.map((r) => r.match.id),
+    [filteredStats],
+  );
+
+  const matchLabelsByMatchId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of filteredStats) {
+      m.set(r.match.id, opponentLabel(r.match));
+    }
+    return m;
+  }, [filteredStats]);
+
+  const toggleExpand = (key: string) => setExpandedKey((k) => (k === key ? null : key));
 
   const aggregate = useMemo(
     () =>
@@ -378,18 +401,94 @@ export function TeamGlobalStatsPanel({ team }: Props) {
                 {aggregate.tacklesMade}{'M \u00b7 '}{aggregate.tacklesMissed}X
               </span>
             </div>
-            {deep.systemMoments > 0 && (
-              <div className="team-global-kpi">
-                <span className="team-global-kpi-label">{isSingleMatch ? 'System moments' : 'System moments (\u03a3)'}</span>
-                <span className="team-global-kpi-value tabular-nums">{deep.systemMoments}</span>
-                {!isSingleMatch && aggregate.gameCount > 1 ? (
-                  <span className="team-global-kpi-sub muted">
-                    {(deep.systemMoments / aggregate.gameCount).toFixed(1)} / game
-                  </span>
-                ) : null}
-              </div>
-            )}
           </div>
+          {(deep.systemMoments > 0 ||
+            deep.inferred.attackPasses > 0 ||
+            deep.inferred.defensePasses > 0 ||
+            aggregate.tacklesMade > 0 ||
+            aggregate.tacklesMissed > 0) && (
+            <>
+              <h4 className="tgs-card-subtitle mt-md">Event drill-down</h4>
+              <p className="muted tgs-card-sub">Tap a count to see every matching log entry{isSingleMatch ? '' : ' across selected matches'}.</p>
+              <div className="live-stats-grid">
+                {deep.systemMoments > 0 && (
+                  <StatCard
+                    statKey="kind:system_moment"
+                    value={deep.systemMoments}
+                    label={isSingleMatch ? 'System moments' : 'System moments (\u03a3)'}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={filteredEvents}
+                    substitutions={[]}
+                    playersById={globalPlayers}
+                    matchLabelsByMatchId={matchLabelsByMatchId}
+                    matchOrder={matchOrder}
+                  />
+                )}
+                {deep.inferred.attackPasses > 0 && (
+                  <StatCard
+                    statKey="pass:standard"
+                    value={deep.inferred.attackPasses}
+                    label={isSingleMatch ? 'Attack passes' : 'Attack passes (\u03a3)'}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={filteredEvents}
+                    substitutions={[]}
+                    playersById={globalPlayers}
+                    matchLabelsByMatchId={matchLabelsByMatchId}
+                    matchOrder={matchOrder}
+                  />
+                )}
+                {deep.inferred.defensePasses > 0 && (
+                  <StatCard
+                    statKey="pass:defense"
+                    value={deep.inferred.defensePasses}
+                    label={isSingleMatch ? 'Opp passes' : 'Opp passes (\u03a3)'}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={filteredEvents}
+                    substitutions={[]}
+                    playersById={globalPlayers}
+                    matchLabelsByMatchId={matchLabelsByMatchId}
+                    matchOrder={matchOrder}
+                  />
+                )}
+                {aggregate.tacklesMade > 0 && (
+                  <StatCard
+                    statKey="tackle:made"
+                    value={aggregate.tacklesMade}
+                    label={isSingleMatch ? 'Tackles made' : 'Tackles made (\u03a3)'}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={filteredEvents}
+                    substitutions={[]}
+                    playersById={globalPlayers}
+                    matchLabelsByMatchId={matchLabelsByMatchId}
+                    matchOrder={matchOrder}
+                  />
+                )}
+                {aggregate.tacklesMissed > 0 && (
+                  <StatCard
+                    statKey="tackle:missed"
+                    value={aggregate.tacklesMissed}
+                    label={isSingleMatch ? 'Tackles missed' : 'Tackles missed (\u03a3)'}
+                    expandedKey={expandedKey}
+                    onToggle={toggleExpand}
+                    idPrefix={idPrefix}
+                    events={filteredEvents}
+                    substitutions={[]}
+                    playersById={globalPlayers}
+                    matchLabelsByMatchId={matchLabelsByMatchId}
+                    matchOrder={matchOrder}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </section>
       )}
 
@@ -473,7 +572,13 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       {show('insights') && hasInferredStatsData(deep.inferred) && (
         <section className="card tgs-card">
           {sectionTitle('insights')}
-          <InferredStatsSection stats={deep.inferred} />
+          <InferredStatsSection
+            stats={deep.inferred}
+            events={filteredEvents}
+            playersById={globalPlayers}
+            matchLabelsByMatchId={matchLabelsByMatchId}
+            matchOrder={matchOrder}
+          />
         </section>
       )}
 
@@ -586,16 +691,44 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         return (
           <section className="card tgs-card">
             {sectionTitle('penalties')}
+            <p className="muted tgs-card-sub">Tap a row to see matching penalty events.</p>
             <div className="deep-penalty-list">
-              {deep.penaltyTypes.map((r) => (
-                <div key={r.type} className="deep-penalty-row">
-                  <span className="deep-penalty-label">{r.label}</span>
-                  <div className="deep-penalty-bar-track">
-                    <div className="deep-penalty-bar-fill" style={{ width: `${Math.round((r.count / max) * 100)}%` }} />
+              {deep.penaltyTypes.map((r) => {
+                const statKey = `pen:type:${r.type}`;
+                const open = expandedKey === statKey;
+                const panelId = `${idPrefix}-pen-${r.type}`;
+                const payload = open
+                  ? getPanelPayload(statKey, filteredEvents, [], matchOrder)
+                  : null;
+                return (
+                  <div key={r.type} className={`deep-penalty-row-wrap${open ? ' deep-penalty-row-wrap--open' : ''}`}>
+                    <button
+                      type="button"
+                      className={`deep-penalty-row deep-penalty-row--btn${open ? ' deep-penalty-row--open' : ''}`}
+                      aria-expanded={open}
+                      aria-controls={open ? panelId : undefined}
+                      onClick={() => toggleExpand(statKey)}
+                    >
+                      <span className="deep-penalty-label">{r.label}</span>
+                      <div className="deep-penalty-bar-track" aria-hidden>
+                        <div className="deep-penalty-bar-fill" style={{ width: `${Math.round((r.count / max) * 100)}%` }} />
+                      </div>
+                      <span className="deep-penalty-count tabular-nums">{r.count}</span>
+                    </button>
+                    {open && payload ? (
+                      <div id={panelId} className="deep-penalty-expand" role="region" aria-label={r.label}>
+                        <StatExpandContent
+                          payload={payload}
+                          playersById={globalPlayers}
+                          filmSession={null}
+                          empty="No matching log entries."
+                          matchLabelsByMatchId={matchLabelsByMatchId}
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                  <span className="deep-penalty-count tabular-nums">{r.count}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         );
@@ -607,16 +740,44 @@ export function TeamGlobalStatsPanel({ team }: Props) {
         return (
           <section className="card tgs-card">
             {sectionTitle('negatives')}
+            <p className="muted tgs-card-sub">Tap a row to see matching negative events.</p>
             <div className="deep-penalty-list">
-              {deep.negativeActions.map((r) => (
-                <div key={r.id} className="deep-penalty-row">
-                  <span className="deep-penalty-label">{r.label}</span>
-                  <div className="deep-penalty-bar-track">
-                    <div className="deep-penalty-bar-fill deep-penalty-bar-fill--neg" style={{ width: `${Math.round((r.count / max) * 100)}%` }} />
+              {deep.negativeActions.map((r) => {
+                const statKey = `neg:type:${r.id}`;
+                const open = expandedKey === statKey;
+                const panelId = `${idPrefix}-neg-${r.id}`;
+                const payload = open
+                  ? getPanelPayload(statKey, filteredEvents, [], matchOrder)
+                  : null;
+                return (
+                  <div key={r.id} className={`deep-penalty-row-wrap${open ? ' deep-penalty-row-wrap--open' : ''}`}>
+                    <button
+                      type="button"
+                      className={`deep-penalty-row deep-penalty-row--btn${open ? ' deep-penalty-row--open' : ''}`}
+                      aria-expanded={open}
+                      aria-controls={open ? panelId : undefined}
+                      onClick={() => toggleExpand(statKey)}
+                    >
+                      <span className="deep-penalty-label">{r.label}</span>
+                      <div className="deep-penalty-bar-track" aria-hidden>
+                        <div className="deep-penalty-bar-fill deep-penalty-bar-fill--neg" style={{ width: `${Math.round((r.count / max) * 100)}%` }} />
+                      </div>
+                      <span className="deep-penalty-count tabular-nums">{r.count}</span>
+                    </button>
+                    {open && payload ? (
+                      <div id={panelId} className="deep-penalty-expand" role="region" aria-label={r.label}>
+                        <StatExpandContent
+                          payload={payload}
+                          playersById={globalPlayers}
+                          filmSession={null}
+                          empty="No matching log entries."
+                          matchLabelsByMatchId={matchLabelsByMatchId}
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                  <span className="deep-penalty-count tabular-nums">{r.count}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         );

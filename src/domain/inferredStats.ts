@@ -7,7 +7,7 @@ import {
   ruckToFirstPassDurationsMs,
   sortMatchEventsByTime,
 } from '@/domain/matchStats';
-import { countDefensePasses } from '@/domain/tallyStats';
+import { countDefensePasses, countPassesAndOffloads } from '@/domain/tallyStats';
 
 const ERROR_CLUSTER_WINDOW_MS = 90_000;
 const POSSESSION_SWING_WINDOW_MS = 45_000;
@@ -105,8 +105,15 @@ export type InferredMatchStats = {
   turnoverBalance: number;
   penaltyNetAttack: number;
   penaltyNetDefense: number;
+  penAttackAwarded: number;
+  penAttackConceded: number;
+  penDefenseAwarded: number;
+  penDefenseConceded: number;
   avgPassChainLength: number | null;
   maxPassChainLength: number;
+  attackPasses: number;
+  attackOffloads: number;
+  defensePasses: number;
   oppPassesPerDefenseMin: number | null;
   possessionSwings: number;
   defenseRucksWon: number;
@@ -116,6 +123,8 @@ export type InferredMatchStats = {
   maxPointsIn2Min: number;
   attackRestartWonPct: number | null;
   attackRestarts: number;
+  attackRestartsWon: number;
+  attackRestartsLost: number;
   errorClusters: number;
   knockOns: number;
 };
@@ -335,6 +344,8 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
   const penDefConceded = countPenaltiesConceded(events, 'defense');
 
   const ruckByPhase = computeRuckBreakdownByPhase(events);
+  const { pass: attackPasses, offload: attackOffloads } = countPassesAndOffloads(events);
+  const defensePasses = countDefensePasses(events);
 
   return {
     ruckContest: computeRuckContestStats(events),
@@ -350,13 +361,20 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
     turnoverBalance: forcedTurnovers - (negatives + penaltiesConceded),
     penaltyNetAttack: penAtkAwarded - penAtkConceded,
     penaltyNetDefense: penDefAwarded - penDefConceded,
+    penAttackAwarded: penAtkAwarded,
+    penAttackConceded: penAtkConceded,
+    penDefenseAwarded: penDefAwarded,
+    penDefenseConceded: penDefConceded,
     avgPassChainLength:
       chains.length > 0
         ? Math.round((chains.reduce((a, b) => a + b, 0) / chains.length) * 10) / 10
         : null,
     maxPassChainLength: chains.length > 0 ? Math.max(...chains) : 0,
+    attackPasses,
+    attackOffloads,
+    defensePasses,
     oppPassesPerDefenseMin:
-      defenseMs > 0 ? Math.round((countDefensePasses(events) / (defenseMs / 60_000)) * 10) / 10 : null,
+      defenseMs > 0 ? Math.round((defensePasses / (defenseMs / 60_000)) * 10) / 10 : null,
     possessionSwings,
     defenseRucksWon,
     possessionSwingPct: pct(possessionSwings, defenseRucksWon),
@@ -365,6 +383,8 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
     maxPointsIn2Min,
     attackRestartWonPct: pct(attackRestarts.won, attackRestartDecided),
     attackRestarts: attackRestartDecided,
+    attackRestartsWon: attackRestarts.won,
+    attackRestartsLost: attackRestarts.lost,
     errorClusters,
     knockOns,
   };
@@ -410,6 +430,8 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
   let penDefAwarded = 0;
   let penDefConceded = 0;
   let defensePasses = 0;
+  let attackPasses = 0;
+  let attackOffloads = 0;
 
   const tryTimes: number[] = [];
   const pointsByWindow = new Map<number, number>();
@@ -433,6 +455,9 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
     defenseRucksWon += s.defenseRucksWon;
     errorClusters += s.errorClusters;
     allChains.push(...passChainLengths(batch));
+    const passCounts = countPassesAndOffloads(batch);
+    attackPasses += passCounts.pass;
+    attackOffloads += passCounts.offload;
     defensePasses += countDefensePasses(batch);
     penAtkAwarded += countPenaltiesAwarded(batch, 'attack');
     penAtkConceded += countPenaltiesConceded(batch, 'attack');
@@ -504,11 +529,18 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
     turnoverBalance: forcedTurnovers - (negatives + penaltiesConceded),
     penaltyNetAttack: penAtkAwarded - penAtkConceded,
     penaltyNetDefense: penDefAwarded - penDefConceded,
+    penAttackAwarded: penAtkAwarded,
+    penAttackConceded: penAtkConceded,
+    penDefenseAwarded: penDefAwarded,
+    penDefenseConceded: penDefConceded,
     avgPassChainLength:
       allChains.length > 0
         ? Math.round((allChains.reduce((a, b) => a + b, 0) / allChains.length) * 10) / 10
         : null,
     maxPassChainLength: allChains.length > 0 ? Math.max(...allChains) : 0,
+    attackPasses,
+    attackOffloads,
+    defensePasses,
     oppPassesPerDefenseMin:
       defenseMs > 0 ? Math.round((defensePasses / (defenseMs / 60_000)) * 10) / 10 : null,
     possessionSwings,
@@ -519,6 +551,8 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
     maxPointsIn2Min: pointsByWindow.size > 0 ? Math.max(...pointsByWindow.values()) : 0,
     attackRestartWonPct: pct(attackRestartsWon, attackRestartDecided),
     attackRestarts: attackRestartDecided,
+    attackRestartsWon,
+    attackRestartsLost,
     errorClusters,
     knockOns,
   };
@@ -538,6 +572,8 @@ export function hasInferredStatsData(s: InferredMatchStats): boolean {
     s.negatives > 0 ||
     s.penaltiesConceded > 0 ||
     s.avgPassChainLength != null ||
+    s.attackPasses > 0 ||
+    s.defensePasses > 0 ||
     s.oppPassesPerDefenseMin != null ||
     s.possessionSwings > 0 ||
     s.longestTryDroughtMs != null ||

@@ -3,8 +3,7 @@ import { computeMatchAnalyticsSnapshot } from '@/domain/matchAnalytics';
 import { kickDecidedSuccessPct, type SetPieceSplit } from '@/domain/matchAnalytics';
 import type { MatchSessionRecord } from '@/domain/match';
 import { formatClock, formatFilmClockForSession } from '@/domain/matchClock';
-import type { MatchEventKind, MatchEventRecord, PlayPhaseContext } from '@/domain/matchEvent';
-import { resolvePenaltyDirection } from '@/domain/matchEvent';
+import type { MatchEventKind, MatchEventRecord } from '@/domain/matchEvent';
 import { formatMatchEventSummary } from '@/domain/matchEventDisplay';
 import {
   buildPlayerProfiles,
@@ -21,23 +20,17 @@ import {
 } from '@/domain/matchAnalyticsDeep';
 import {
   countEventsByKind,
-  eventsOfKind,
   kindLabel,
   passToPassDurationsMs,
   ruckSpeedSplit,
-  sortMatchEventsByTime,
-  sortSubstitutionsByTime,
-  tackleEventsMadeList,
-  tackleEventsMissedList,
   tackleMadeMissed,
   triesByZone,
   triesAndConversionsByPlayer,
-  tryEventsInZone,
 } from '@/domain/matchStats';
 import { computeInferredMatchStats, hasInferredStatsData } from '@/domain/inferredStats';
 import type { PlayerRecord, SubstitutionRecord } from '@/domain/player';
 import { formatPlayerLabel } from '@/domain/rosterDisplay';
-import { ZONE_IDS, type ZoneId } from '@/domain/zone';
+import { ZONE_IDS } from '@/domain/zone';
 import {
   countConversionsMadeMissed,
   countDefensePasses,
@@ -51,6 +44,7 @@ import {
 import { SectionHelp, MATCH_GLOSSARY, type GlossaryEntry } from '@/components/SectionHelp';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
+import { StatCard } from '@/features/match/statExpand';
 import { hasRuckBreakdownData } from '@/domain/inferredStats';
 
 type StatsDetail = 'full' | 'one_tap' | 'tally';
@@ -127,171 +121,6 @@ function fmtMin(ms: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-
-type PanelPayload =
-  | { type: 'events'; items: MatchEventRecord[] }
-  | { type: 'subs'; items: SubstitutionRecord[] };
-
-function getPanelPayload(
-  key: string,
-  events: MatchEventRecord[],
-  substitutions: SubstitutionRecord[],
-): PanelPayload {
-  if (key === 'subs') return { type: 'subs', items: sortSubstitutionsByTime(substitutions) };
-  if (key.startsWith('kind:')) {
-    const kind = key.slice(5) as MatchEventKind;
-    return { type: 'events', items: sortMatchEventsByTime(eventsOfKind(events, kind)) };
-  }
-  if (key === 'tackle:made') return { type: 'events', items: sortMatchEventsByTime(tackleEventsMadeList(events)) };
-  if (key === 'tackle:missed') return { type: 'events', items: sortMatchEventsByTime(tackleEventsMissedList(events)) };
-  if (key === 'pass:offload') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter(
-          (e) =>
-            e.deletedAt == null &&
-            e.kind === 'pass' &&
-            e.playPhaseContext !== 'defense' &&
-            e.passVariant === 'offload',
-        ),
-      ),
-    };
-  }
-  if (key === 'pass:standard') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter(
-          (e) =>
-            e.deletedAt == null &&
-            e.kind === 'pass' &&
-            e.playPhaseContext !== 'defense' &&
-            e.passVariant !== 'offload',
-        ),
-      ),
-    };
-  }
-  if (key === 'pass:defense') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter((e) => e.deletedAt == null && e.kind === 'pass' && e.playPhaseContext === 'defense'),
-      ),
-    };
-  }
-  if (key === 'conv:made') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter((e) => e.deletedAt == null && e.kind === 'conversion' && e.conversionOutcome !== 'missed'),
-      ),
-    };
-  }
-  if (key === 'conv:missed') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter((e) => e.deletedAt == null && e.kind === 'conversion' && e.conversionOutcome === 'missed'),
-      ),
-    };
-  }
-  if (key === 'neg:knock_on') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter(
-          (e) => e.deletedAt == null && e.kind === 'negative_action' && e.negativeActionId === 'knock_on',
-        ),
-      ),
-    };
-  }
-  if (key === 'neg:other') {
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter(
-          (e) => e.deletedAt == null && e.kind === 'negative_action' && e.negativeActionId !== 'knock_on',
-        ),
-      ),
-    };
-  }
-  if (key.startsWith('pen:')) {
-    const [, dir, phase] = key.split(':') as [string, 'conceded' | 'awarded', PlayPhaseContext];
-    return {
-      type: 'events',
-      items: sortMatchEventsByTime(
-        events.filter(
-          (e) =>
-            e.deletedAt == null &&
-            e.kind === 'team_penalty' &&
-            resolvePenaltyDirection(e) === dir &&
-            e.playPhaseContext === phase,
-        ),
-      ),
-    };
-  }
-  if (key.startsWith('zone:')) {
-    const zoneId = key.slice(5) as ZoneId;
-    return { type: 'events', items: sortMatchEventsByTime(tryEventsInZone(events, zoneId)) };
-  }
-  return { type: 'events', items: [] };
-}
-
-function formatSubLine(s: SubstitutionRecord, playersById: Map<string, PlayerRecord>): string {
-  const offP = playersById.get(s.playerOffId);
-  const onP = playersById.get(s.playerOnId);
-  const off = offP ? formatPlayerLabel(offP) : 'Off';
-  const on = onP ? formatPlayerLabel(onP) : 'On';
-  return `P${s.period} ${formatClock(s.matchTimeMs)} \u00b7 ${off} \u2192 ${on}`;
-}
-
-function StatExpandContent({
-  payload,
-  playersById,
-  filmSession,
-  empty,
-}: {
-  payload: PanelPayload;
-  playersById: Map<string, PlayerRecord>;
-  filmSession: MatchSessionRecord | null;
-  empty: string;
-}) {
-  if (payload.type === 'events') {
-    if (payload.items.length === 0) return <p className="muted live-stats-expand-empty">{empty}</p>;
-    return (
-      <ul className="live-stats-expand-list">
-        {payload.items.map((e) => (
-          <li key={e.id} className="live-stats-expand-row">
-            <span className="live-stats-expand-time">
-              P{e.period} {formatClock(e.matchTimeMs)}
-              {(e.kind === 'film_star' || e.kind === 'system_moment' || e.kind === 'forced_turnover') &&
-              filmSession && formatFilmClockForSession(filmSession, e.filmTimeMs) != null ? (
-                <span className="live-stats-expand-film">
-                  {' '}
-                  · Film {formatFilmClockForSession(filmSession, e.filmTimeMs)}
-                </span>
-              ) : null}
-            </span>
-            <span className="live-stats-expand-text">
-              {formatMatchEventSummary(e, playersById, filmSession)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  if (payload.items.length === 0) return <p className="muted live-stats-expand-empty">{empty}</p>;
-  return (
-    <ul className="live-stats-expand-list">
-      {payload.items.map((s) => (
-        <li key={s.id} className="live-stats-expand-row">
-          <span className="live-stats-expand-text">{formatSubLine(s, playersById)}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 function FilmBookmarksQuickList({
   events,
@@ -385,76 +214,6 @@ function FilmBookmarksSection({
         filmSession={filmSession}
       />
     </section>
-  );
-}
-
-function expandPanelTitle(key: string): string {
-  if (key === 'subs') return 'Substitutions';
-  if (key === 'tackle:made') return 'Tackles made';
-  if (key === 'tackle:missed') return 'Tackles missed';
-  if (key === 'pass:offload') return 'Offloads';
-  if (key === 'pass:standard') return 'Passes';
-  if (key === 'pass:defense') return 'Opp passes';
-  if (key === 'neg:knock_on') return 'Knock-ons';
-  if (key === 'neg:other') return 'Other negatives';
-  if (key.startsWith('pen:')) return 'Penalties';
-  if (key.startsWith('kind:')) return kindLabel(key.slice(5) as MatchEventKind);
-  if (key.startsWith('zone:')) return `Tries \u00b7 ${key.slice(5)}`;
-  return 'Events';
-}
-
-function StatCard({
-  statKey,
-  value,
-  label,
-  wide,
-  expandedKey,
-  onToggle,
-  idPrefix,
-  events,
-  substitutions,
-  playersById,
-  filmSession = null,
-}: {
-  statKey: string;
-  value: number;
-  label: string;
-  wide?: boolean;
-  expandedKey: string | null;
-  onToggle: (key: string) => void;
-  idPrefix: string;
-  events: MatchEventRecord[];
-  substitutions: SubstitutionRecord[];
-  playersById: Map<string, PlayerRecord>;
-  filmSession?: MatchSessionRecord | null;
-}) {
-  const open = expandedKey === statKey;
-  const panelId = `${idPrefix}-${statKey.replace(/:/g, '-')}`;
-  const payload = open ? getPanelPayload(statKey, events, substitutions) : null;
-
-  return (
-    <div className={`live-stats-cell-wrap${open ? ' live-stats-cell-wrap--expanded' : ''}${wide ? ' live-stats-cell-wrap--wide' : ''}`}>
-      <button
-        type="button"
-        className={`live-stats-cell live-stats-cell--btn${open ? ' live-stats-cell--open' : ''}`}
-        aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        onClick={() => onToggle(statKey)}
-      >
-        <span className="live-stats-num">{value}</span>
-        <span className="live-stats-label">{label}</span>
-      </button>
-      {open && payload ? (
-        <div id={panelId} className="live-stats-cell-body" role="region" aria-label={expandPanelTitle(statKey)}>
-          <StatExpandContent
-            payload={payload}
-            playersById={playersById}
-            filmSession={filmSession}
-            empty="No matching log entries."
-          />
-        </div>
-      ) : null}
-    </div>
   );
 }
 
@@ -709,6 +468,15 @@ export function MatchStatsPanel({
                 {snapshot.tackles.made}{'M \u00b7 '}{snapshot.tackles.missed}X
               </span>
             </div>
+            {(inferred.attackPasses > 0 || inferred.defensePasses > 0) && (
+              <div className="team-global-kpi">
+                <span className="team-global-kpi-label">Passes</span>
+                <span className="team-global-kpi-value tabular-nums">
+                  {inferred.attackPasses}{' \u00b7 '}{inferred.defensePasses}
+                </span>
+                <span className="team-global-kpi-sub muted">Attack \u00b7 Opp</span>
+              </div>
+            )}
           </div>
 
           <div className="live-analytics-compare mt-md" aria-label="Subs and discipline">
@@ -757,7 +525,12 @@ export function MatchStatsPanel({
       {show('insights') && hasInferredStatsData(inferred) && (
         <section className="card tgs-card">
           {sectionTitle('insights')}
-          <InferredStatsSection stats={inferred} />
+          <InferredStatsSection
+            stats={inferred}
+            events={events}
+            playersById={playersById}
+            filmSession={filmSession}
+          />
         </section>
       )}
 
@@ -1075,6 +848,10 @@ export function MatchStatsPanel({
           <section className="card tgs-card">
             <h3 className="tgs-card-title">Attack</h3>
             <div className="live-stats-grid">
+              <StatCard statKey="pass:standard" value={inferred.attackPasses} label="Passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
+              {inferred.attackOffloads > 0 && (
+                <StatCard statKey="pass:offload" value={inferred.attackOffloads} label="Offloads" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
+              )}
               {ONE_TAP_ATTACK_KINDS.map((kind) => (
                 <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
               ))}
@@ -1085,6 +862,7 @@ export function MatchStatsPanel({
             <div className="live-stats-grid">
               <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
               <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
+              <StatCard statKey="pass:defense" value={inferred.defensePasses} label="Opp passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
               {TALLY_DEFENSE_KINDS.map((kind) => (
                 <StatCard key={kind} statKey={`kind:${kind}`} value={byKind[kind] ?? 0} label={kindLabel(kind)} expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
               ))}
@@ -1137,6 +915,11 @@ export function MatchStatsPanel({
             ))}
             <StatCard statKey="tackle:made" value={tacklesMade} label="Tackles made" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
             <StatCard statKey="tackle:missed" value={tacklesMissed} label="Tackles missed" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
+            <StatCard statKey="pass:standard" value={inferred.attackPasses} label="Passes (attack)" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
+            {inferred.attackOffloads > 0 && (
+              <StatCard statKey="pass:offload" value={inferred.attackOffloads} label="Offloads" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
+            )}
+            <StatCard statKey="pass:defense" value={inferred.defensePasses} label="Opp passes" expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
             <StatCard statKey="subs" value={substitutions.length} label="Substitutions" wide expandedKey={expandedKey} onToggle={toggleExpand} idPrefix={idPrefix} events={events} substitutions={substitutions} playersById={playersById} filmSession={filmSession} />
           </div>
 

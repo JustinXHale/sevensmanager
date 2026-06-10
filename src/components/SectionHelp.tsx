@@ -113,14 +113,21 @@ const PHASE: GlossaryEntry[] = [
 ];
 
 const INSIGHTS: GlossaryEntry[] = [
-  { abbr: 'Con / Unc speed', full: 'Ruck speed by contest', desc: 'Median ruck-to-pass time for contested vs uncontested rucks (+2s logging offset).' },
-  { abbr: 'LB → try %', full: 'Line break conversion', desc: 'Tries divided by line breaks — how often breaks finish.' },
-  { abbr: 'Pass chain', full: 'Pass chain length', desc: 'Average consecutive our-team passes before a non-pass event.' },
-  { abbr: 'Sys / off min', full: 'System moment rate', desc: 'System moments per minute of estimated offense playing time.' },
-  { abbr: 'Opp passes/min', full: 'Opponent pass pressure', desc: 'Opponent passes logged per minute of defense playing time.' },
-  { abbr: 'Swings', full: 'Possession swings', desc: 'Defense ruck won followed by our pass within 45s — turnover to attack.' },
-  { abbr: 'Turnover balance', full: 'Turnover balance', desc: 'Forced turnovers minus (negatives + penalties conceded).' },
-  { abbr: 'Error clusters', full: 'Error clusters', desc: 'Knock-ons followed within 90s by opponent try or our set-piece lost.' },
+  { abbr: 'Ruck tables', full: 'Ruck breakdown by phase', desc: 'Attack vs defense ruck counts, contest type, W/L, won %, and median ruck-to-pass speed (+2s logging offset).', group: 'Ruck' },
+  { abbr: 'Con / Unc speed', full: 'Ruck speed by contest', desc: 'Median ruck-to-pass time for contested vs uncontested rucks (+2s logging offset).', group: 'Ruck' },
+  { abbr: 'Attack passes', full: 'Attack passes', desc: 'Our passes logged on the Attack tab (standard passes; offloads separate).', group: 'Ball speed' },
+  { abbr: 'Opp passes logged', full: 'Opponent passes logged', desc: 'Each opponent pass you tracked on the Defense tab. Subtitle rate is passes per minute while defending — not total minutes.', group: 'Ball speed' },
+  { abbr: 'LB → try %', full: 'Line break conversion', desc: 'Tries ÷ line breaks. Higher = more breaks finished with tries.', group: 'Ball speed' },
+  { abbr: 'Pass chain', full: 'Pass chain length', desc: 'Average consecutive our-team passes before a non-pass event ends the chain.', group: 'Ball speed' },
+  { abbr: 'System moments', full: 'System moments', desc: 'Gold System Moment button taps in Attack. Rate = per minute of offense playing time.', group: 'Structure' },
+  { abbr: 'Possession swings', full: 'Possession swings', desc: 'Defense ruck won, then our pass within 45s — steal that immediately turns into attack.', group: 'Structure' },
+  { abbr: 'Restart receive won %', full: 'Restart receive won %', desc: 'When receiving in Attack: restart W ÷ (W + L). Penalized/free-kick restarts excluded. ~40% means winning 4 in 10 clear receive restarts.', group: 'Structure' },
+  { abbr: 'Turnover balance', full: 'Turnover balance', desc: 'Forced turnovers − (all negatives + all penalties conceded). Positive or zero is good; negative (e.g. −11) means too many giveaways.', group: 'Discipline' },
+  { abbr: 'Pen net (attack)', full: 'Penalty net — attack', desc: 'Pen + minus Pen − while on Attack. +6 = six more attack penalties drawn than conceded (good).', group: 'Discipline' },
+  { abbr: 'Pen net (defense)', full: 'Penalty net — defense', desc: 'Pen + minus Pen − while on Defense. Negative = conceded more than awarded (bad).', group: 'Discipline' },
+  { abbr: 'Costly knock-ons', full: 'Costly knock-ons', desc: 'Knock-ons punished within 90s (opponent try or our set-piece lost). 6/10 = six of ten knock-ons hurt immediately — lower is better.', group: 'Discipline' },
+  { abbr: 'Try drought / gap', full: 'Try timing', desc: 'Longest and average gaps between your tries (needs 2+ tries logged).', group: 'Discipline' },
+  { abbr: 'Max pts / 2 min', full: 'Scoring burst', desc: 'Most points scored in any rolling 2-minute window.', group: 'Discipline' },
 ];
 
 const ZONES: GlossaryEntry[] = [

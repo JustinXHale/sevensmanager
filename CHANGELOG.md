@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Inferred insights**: tap any metric for plain-language meaning, formula, how to read it, and underlying log entries (single match)
+- Match **Stats** (Full / One Tap) and team **Global stats**: attack pass count and opponent pass count in Overview, Event counts, and Inferred insights
 - Match and team **Inferred insights**: ruck contest speed, line-break→try %, attack ruck won %, system moment rate, turnover balance, penalty net by phase, pass chain length, opp pass pressure, possession swings, scoring drought/burst, restart receive %, and error clusters
 - **Offense / Defense** playing time excludes dead time between try→conversion and conversion→restart
 - Team **Global stats**: **System moments** total in Overview (and per-match count on Points by match); respects match filter
@@ -37,6 +39,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- Team **Global stats**: Overview, Inferred insights, Penalties, and Negatives support tap-to-expand event lists (all games or single-match filter); multi-match lists show opponent label per event
+- **Inferred insights**: clearer labels (opp pass rate vs minutes defending, costly knock-ons, penalty breakdowns); expanded section glossary
 - **Ruck speed**: attack and defense tables show total rucks, contested/uncontested, W/L, won %, and median speed per contest type
 - **Pass to pass**: +1s added to every pass-to-pass pair (catch + pass logging offset)
 - **Ruck speed**: +2s added to each ruck-to-pass duration to offset multi-step ruck logging before the event is stamped

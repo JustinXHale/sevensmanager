@@ -79,6 +79,19 @@ describe('computeInferredMatchStats', () => {
     expect(s.ruckByPhase.attack.total).toBe(2);
   });
 
+  it('counts attack and defense passes separately', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: '1', kind: 'pass', playerId: 'a' }),
+      ev({ id: '2', kind: 'pass', playerId: 'b', passVariant: 'offload' }),
+      ev({ id: '3', kind: 'pass', playPhaseContext: 'defense' }),
+      ev({ id: '4', kind: 'pass', playPhaseContext: 'defense' }),
+    ];
+    const s = computeInferredMatchStats(events);
+    expect(s.attackPasses).toBe(1);
+    expect(s.attackOffloads).toBe(1);
+    expect(s.defensePasses).toBe(2);
+  });
+
   it('counts possession swing after defense ruck won', () => {
     const events: MatchEventRecord[] = [
       ev({ id: '1', kind: 'ruck', matchTimeMs: 0, playPhaseContext: 'defense', setPieceOutcome: 'won' }),
