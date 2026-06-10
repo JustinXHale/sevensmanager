@@ -41,9 +41,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Changed
+- **Stats export** compact single-page layout; **Scoring log** (try/conversion times + kicker) and pooled scorers on global page
+- **AI coaching insights** stronger thinking-strip (uses last Key takeaways block); copy uses sanitized text
 - **Inferred insights** shows **Forced turnovers** as a direct button-log count; removed turnover balance formula from UI, exports, and AI brief
 
 ### Fixed
+- **AI coaching insights** picks coaching text from `content` or `reasoning_content` (Qwen-style models); re-sanitizes cached insights on load
 - **AI coaching insights** renders formatted sections (bold titles, bullets) instead of raw markdown; strips model thinking/reasoning from displayed output
 - **Defense ruck speed** no longer pairs defensive rucks with a later attack pass after possession changes (fixes inflated ~40s medians); gaps over 12s excluded
 - **Stats brief for AI** clarifies forced turnovers as a defensive metric; ruck speeds exported in seconds with phase-specific medians

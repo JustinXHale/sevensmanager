@@ -20,6 +20,7 @@ import {
   buildMatchOnePagerHtml,
   buildStatsExportDocument,
   openStatsExport,
+  pooledScorersFromMatches,
 } from '@/domain/statsExport';
 import { AiInsightsSection } from '@/features/match/AiInsightsSection';
 import { TeamStatsExportDialog } from '@/features/stats/TeamStatsExportDialog';
@@ -320,6 +321,12 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       inferred: deep.inferred,
       phase: deep.phaseTime,
       matchCount: sortedWithStats.length,
+      pooledScorers: pooledScorersFromMatches(
+        sortedWithStats.map((r) => ({
+          events: r.events,
+          players: [...globalPlayers.values()].filter((p) => p.matchId === r.match.id),
+        })),
+      ),
     });
     const matchPages = selectedMatchIds
       .map((id) => {

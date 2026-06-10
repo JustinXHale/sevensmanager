@@ -7,7 +7,7 @@ import {
   getCachedInsights,
   setCachedInsights,
 } from '@/services/aiInsights';
-import { formatAiInsightsHtml } from '@/services/aiInsightsFormat';
+import { formatAiInsightsHtml, sanitizeAiInsights } from '@/services/aiInsightsFormat';
 import { LiteMaaSClientError } from '@/services/litemaasClient';
 import {
   getStoredLiteMaaSSettings,
@@ -27,7 +27,18 @@ export function AiInsightsSection({ cacheKey, brief, disabled = false }: Props) 
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setText(getCachedInsights(cacheKey));
+    const cached = getCachedInsights(cacheKey);
+    if (cached) {
+      const cleaned = sanitizeAiInsights(cached);
+      if (cleaned && cleaned !== cached) {
+        setCachedInsights(cacheKey, cleaned);
+        setText(cleaned);
+      } else {
+        setText(cached);
+      }
+    } else {
+      setText(null);
+    }
     setError(null);
     setCopied(false);
   }, [cacheKey]);
@@ -69,8 +80,9 @@ export function AiInsightsSection({ cacheKey, brief, disabled = false }: Props) 
 
   const onCopy = async () => {
     if (!text) return;
+    const copyText = sanitizeAiInsights(text) || text;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(copyText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {

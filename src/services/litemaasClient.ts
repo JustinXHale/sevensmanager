@@ -26,27 +26,40 @@ type ChatCompletionResponse = {
   error?: { message?: string };
 };
 
+export type AssistantMessageTexts = {
+  content: string;
+  reasoning: string;
+};
+
+function extractContentField(message: ChatCompletionChoice['message']): string {
+  if (!message) return '';
+  const direct = message.content;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  if (Array.isArray(direct)) {
+    return direct
+      .map((part) => (typeof part?.text === 'string' ? part.text.trim() : ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+  return '';
+}
+
+export function parseAssistantMessage(
+  message: ChatCompletionChoice['message'],
+): AssistantMessageTexts {
+  const reasoning =
+    (typeof message?.reasoning_content === 'string' ? message.reasoning_content.trim() : '') ||
+    (typeof message?.reasoning === 'string' ? message.reasoning.trim() : '');
+  return { content: extractContentField(message), reasoning };
+}
+
 function extractMessageText(
   message: ChatCompletionChoice['message'],
   contentOnly = false,
 ): string {
-  if (!message) return '';
-
-  const direct = message.content;
-  if (typeof direct === 'string' && direct.trim()) return direct.trim();
-  if (Array.isArray(direct)) {
-    const fromParts = direct
-      .map((part) => (typeof part?.text === 'string' ? part.text.trim() : ''))
-      .filter(Boolean)
-      .join('\n');
-    if (fromParts) return fromParts;
-  }
-
+  const { content, reasoning } = parseAssistantMessage(message);
+  if (content) return content;
   if (contentOnly) return '';
-
-  const reasoning =
-    (typeof message.reasoning_content === 'string' ? message.reasoning_content.trim() : '') ||
-    (typeof message.reasoning === 'string' ? message.reasoning.trim() : '');
   return reasoning;
 }
 
@@ -71,11 +84,11 @@ function corsHelpMessage(): string {
   );
 }
 
-export async function chatCompletion(
+async function postChatCompletion(
   settings: LiteMaaSSettings,
   messages: ChatMessage[],
-  options?: { maxTokens?: number; temperature?: number; contentOnly?: boolean },
-): Promise<string> {
+  options?: { maxTokens?: number; temperature?: number },
+): Promise<ChatCompletionChoice> {
   const baseUrl = normalizeLiteLLMBaseUrl(settings.baseUrl);
   const apiKey = settings.apiKey.trim();
   const model = settings.model.trim();
@@ -125,7 +138,15 @@ export async function chatCompletion(
     throw new LiteMaaSClientError(msg);
   }
 
-  const choice = body.choices?.[0];
+  return body.choices?.[0] ?? {};
+}
+
+export async function chatCompletion(
+  settings: LiteMaaSSettings,
+  messages: ChatMessage[],
+  options?: { maxTokens?: number; temperature?: number; contentOnly?: boolean },
+): Promise<string> {
+  const choice = await postChatCompletion(settings, messages, options);
   const content = extractMessageText(choice?.message, options?.contentOnly);
   if (!content) {
     const finish = choice?.finish_reason?.trim();
@@ -136,6 +157,16 @@ export async function chatCompletion(
     );
   }
   return content;
+}
+
+/** Returns both `content` and `reasoning_content` for models that split thinking vs answer. */
+export async function chatCompletionAssistant(
+  settings: LiteMaaSSettings,
+  messages: ChatMessage[],
+  options?: { maxTokens?: number; temperature?: number },
+): Promise<AssistantMessageTexts> {
+  const choice = await postChatCompletion(settings, messages, options);
+  return parseAssistantMessage(choice?.message);
 }
 
 export async function testLiteMaaSConnection(settings: LiteMaaSSettings): Promise<string> {

@@ -10,36 +10,69 @@ function inlineMarkdown(text: string): string {
   return escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
+const ANALYSIS_LINE =
+  /^(here'?s a thinking|thinking process|\d+\.\s+\*?\*?(analyze|extract|map|check|draft)|\*+draft|role:|task:|rules:|output format:|- use only|- if a metric|- do not)/i;
+
+const ANALYSIS_INLINE = /analyze (user input|request)|extract key data|map to rugby|mental refinement/i;
+
+function findCoachingStart(text: string): number {
+  const markers = [
+    /\*\*key takeaways\*\*/gi,
+    /(?:^|\n)\s*key takeaways\s*:\s*(?:\n|$)/gi,
+  ];
+  let last = -1;
+  for (const marker of markers) {
+    for (const m of text.matchAll(marker)) {
+      if (m.index != null) last = Math.max(last, m.index);
+    }
+  }
+  return last;
+}
+
+function isAnalysisLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (ANALYSIS_LINE.test(t)) return true;
+  if (ANALYSIS_INLINE.test(t)) return true;
+  if (/^\d+\.\s+\*\*/.test(t)) return true;
+  if (/^-\s+\*\*(role|task|rules)\*\*/i.test(t)) return true;
+  return false;
+}
+
 /** Drop chain-of-thought preamble; keep coaching output only. */
 export function sanitizeAiInsights(raw: string): string {
   let text = raw.trim();
   if (!text) return text;
 
-  const takeawayIdx = text.search(/\*\*?\s*key takeaways\s*\*\*?/i);
-  if (takeawayIdx > 0) {
-    text = text.slice(takeawayIdx);
+  if (/thinking process/i.test(text) || /analyze user input/i.test(text)) {
+    const start = findCoachingStart(text);
+    if (start >= 0) {
+      text = text.slice(start);
+    } else {
+      return '';
+    }
   }
 
-  text = text.replace(/^here'?s a thinking process:?[\s\S]*?(?=\*\*?\s*key takeaways)/i, '');
-  text = text.replace(/^\d+\.\s*analyze[\s\S]*?(?=\*\*?\s*key takeaways)/i, '');
-
   const lines = text.split('\n');
-  const filtered = lines.filter((line) => {
-    const t = line.trim().toLowerCase();
-    if (!t) return true;
-    if (t.startsWith("here's a thinking process")) return false;
-    if (/^\d+\.\s*(analyze|extract|map|check|draft)/i.test(line.trim())) return false;
-    if (t.startsWith('*draft')) return false;
-    return true;
-  });
+  const filtered = lines.filter((line) => !isAnalysisLine(line));
 
-  return filtered.join('\n').trim();
+  text = filtered.join('\n').trim();
+
+  text = text.replace(/^key takeaways\s*:?\s*\n?/i, '**Key takeaways**\n');
+
+  if (/thinking process/i.test(text) || /analyze user input/i.test(text)) {
+    return '';
+  }
+
+  return text;
 }
 
 /** Render sanitized plain-text / light markdown insights for display. */
 export function formatAiInsightsHtml(raw: string): string {
   const text = sanitizeAiInsights(raw);
-  if (!text) return '';
+  if (!text) {
+    return '<p class="ai-insights-para muted">Could not extract coaching text — tap Regenerate insights.</p>';
+  }
 
   const blocks: string[] = [];
   let listItems: string[] = [];
@@ -56,6 +89,7 @@ export function formatAiInsightsHtml(raw: string): string {
       flushList();
       continue;
     }
+    if (isAnalysisLine(trimmed)) continue;
 
     const bullet = trimmed.match(/^[-*•]\s+(.*)$/);
     if (bullet) {
@@ -68,6 +102,14 @@ export function formatAiInsightsHtml(raw: string): string {
     const heading = trimmed.match(/^\*\*([^*]+)\*\*:?\s*$/);
     if (heading) {
       blocks.push(`<h5 class="ai-insights-section-title">${escapeHtml(heading[1]!)}</h5>`);
+      continue;
+    }
+
+    const plainHeading = trimmed.match(/^(key takeaways|strengths|areas to address)\s*:?\s*$/i);
+    if (plainHeading) {
+      blocks.push(
+        `<h5 class="ai-insights-section-title">${escapeHtml(plainHeading[1]!.replace(/\b\w/g, (c) => c.toUpperCase()))}</h5>`,
+      );
       continue;
     }
 

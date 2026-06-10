@@ -1,6 +1,6 @@
 import { statsBriefToJson, type StatsBrief } from '@/domain/statsBrief';
 import { sanitizeAiInsights } from '@/services/aiInsightsFormat';
-import { chatCompletion, type ChatMessage } from '@/services/litemaasClient';
+import { chatCompletionAssistant, type ChatMessage } from '@/services/litemaasClient';
 import type { LiteMaaSSettings } from '@/utils/litemaasSettings';
 
 const INSIGHTS_CACHE_PREFIX = 'sevensmanager.aiInsights.';
@@ -52,7 +52,9 @@ function buildUserPrompt(brief: StatsBrief): string {
   return `Analyze these rugby sevens stats for ${scopeLabel(brief)}.
 
 Stats JSON:
-${statsBriefToJson(brief)}`;
+${statsBriefToJson(brief)}
+
+Reply with ONLY the three sections (**Key takeaways**, **Strengths**, **Areas to address**) plus one closing sentence. No thinking process, no numbered steps, no drafts.`;
 }
 
 export function insightsCacheKey(key: string): string {
@@ -86,6 +88,35 @@ export function clearCachedInsights(key: string): void {
   }
 }
 
+function coachingTextScore(text: string): number {
+  let score = 0;
+  if (/\*\*strengths\*\*/i.test(text)) score += 12;
+  if (/\*\*areas to address\*\*/i.test(text)) score += 12;
+  if (/\*\*key takeaways\*\*/i.test(text)) score += 8;
+  if (/thinking process/i.test(text)) score -= 40;
+  if (/analyze user input/i.test(text)) score -= 25;
+  if (/^\d+\.\s+\*\*/m.test(text)) score -= 15;
+  return score + Math.min(text.length / 200, 5);
+}
+
+function pickCoachingText(parts: string[]): string {
+  const candidates = parts.map((p) => p.trim()).filter(Boolean);
+  if (candidates.length === 0) return '';
+
+  let best = '';
+  let bestScore = -Infinity;
+  for (const raw of candidates) {
+    const cleaned = sanitizeAiInsights(raw);
+    if (!cleaned) continue;
+    const score = coachingTextScore(cleaned);
+    if (score > bestScore) {
+      bestScore = score;
+      best = cleaned;
+    }
+  }
+  return best;
+}
+
 export async function generateAiInsights(
   settings: LiteMaaSSettings,
   brief: StatsBrief,
@@ -94,14 +125,15 @@ export async function generateAiInsights(
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: buildUserPrompt(brief) },
   ];
-  const raw = await chatCompletion(settings, messages, {
-    maxTokens: 1200,
-    temperature: 0.35,
-    contentOnly: true,
+  const { content, reasoning } = await chatCompletionAssistant(settings, messages, {
+    maxTokens: 900,
+    temperature: 0.25,
   });
-  const cleaned = sanitizeAiInsights(raw);
+  const cleaned = pickCoachingText([content, reasoning]);
   if (!cleaned.trim()) {
-    throw new Error('Model returned no coaching text. Try Regenerate or check your model in Settings.');
+    throw new Error(
+      'Model returned analysis steps instead of coaching text. Try Regenerate, or use a non-reasoning model in Settings.',
+    );
   }
   return cleaned;
 }
