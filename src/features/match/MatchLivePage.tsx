@@ -85,6 +85,7 @@ import { MatchEventTimeline } from './MatchEventTimeline';
 import { OnFieldPlayerActions } from './OnFieldPlayerActions';
 import { SimplePlayerActions, type SimpleActionKind } from './SimplePlayerActions';
 import { TallyPlayerActions, type TallyActionKind } from './TallyPlayerActions';
+import { TallyReorderToggle } from './TallyReorderToggle';
 import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 import type { TallySetPieceChoice, TallySetPieceLogExtras } from './TallySetPieceStrip';
 import { buildMatchSummaryText } from '@/domain/matchSummary';
@@ -130,7 +131,8 @@ function readStoredTrackingMode(matchId: string | undefined): TrackingMode {
   if (!matchId || typeof sessionStorage === 'undefined') return 'tally';
   try {
     const v = sessionStorage.getItem(`${TRACKING_MODE_STORAGE_PREFIX}${matchId}`);
-    if (v === 'one_tap' || v === 'full' || v === 'tally') return v;
+    if (v === 'one_tap' || v === 'tally') return v;
+    if (v === 'full') return 'tally';
   } catch {
     /* ignore */
   }
@@ -1427,30 +1429,17 @@ export function MatchLivePage() {
                   >
                     One Tap
                   </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={trackingMode === 'full'}
-                    className={`tracking-mode-opt${trackingMode === 'full' ? ' tracking-mode-opt--active' : ''}`}
-                    onClick={() => setTrackingMode('full')}
-                  >
-                    Full
-                  </button>
                 </div>
                 {trackingMode === 'tally' ? (
-                  <button
-                    type="button"
-                    className={`btn btn-secondary btn-sm tracking-reorder-btn${tallyReorderMode ? ' tracking-reorder-btn--active' : ''}`}
-                    aria-pressed={tallyReorderMode}
-                    onClick={() => setTallyReorderMode((v) => !v)}
-                  >
-                    {tallyReorderMode ? 'Done reordering' : 'Reorder'}
-                  </button>
+                  <TallyReorderToggle
+                    active={tallyReorderMode}
+                    onToggle={() => setTallyReorderMode((v) => !v)}
+                  />
                 ) : null}
               </div>
             </div>
             {tallyReorderMode ? (
-              <p className="muted tracking-reorder-hint">Drag tally circles to rearrange. Logging is paused until you tap Done reordering.</p>
+              <p className="muted tracking-reorder-hint">Drag circles to swap — highlighted slot is where the button will land. Tap ✓ when done.</p>
             ) : null}
             {trackingMode === 'tally' ? (
               <TallyPlayerActions

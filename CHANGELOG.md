@@ -46,6 +46,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Match **Stats** and team **Global stats** **Time & phases**: per-half clock, ball in play, BIP %, dead time, and stoppage (match timer + event-gap estimates)
 
 ### Changed
+- Live **Tracking** mode switch hides **Full** (Tally + One Tap only); Tally **Reorder** is a compact grip/check icon with green highlight on drop target while dragging
 - **Stats export** compact single-page layout; **Scoring log** (try/conversion times + kicker) and pooled scorers on global page
 - **AI coaching insights** stronger thinking-strip (uses last Key takeaways block); copy uses sanitized text
 - **Inferred insights** shows **Forced turnovers** as a direct button-log count; removed turnover balance formula from UI, exports, and AI brief

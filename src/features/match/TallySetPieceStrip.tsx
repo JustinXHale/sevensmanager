@@ -135,6 +135,7 @@ export function TallySetPieceStrip({
   onPenaltyChoice,
 }: Props) {
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
   const [selectedKind, setSelectedKind] = useState<SetPiecePenaltyContext | null>(null);
   const [pendingRuck, setPendingRuck] = useState<PendingRuck | null>(null);
   const [pendingFk, setPendingFk] = useState<PendingFk | null>(null);
@@ -237,12 +238,18 @@ export function TallySetPieceStrip({
           {orderedKinds.map(({ kind, label, short }, index) => {
             const displayShort = kind === 'restart' ? 'RST' : short;
             const active = !reorderMode && selectedKind === kind;
+            let circleCls = circleClass(undefined, active);
+            if (reorderMode) {
+              circleCls += ' tally-counter-btn--drag';
+              if (dragFrom === index) circleCls += ' tally-counter-btn--drag-source';
+              if (dragOver === index && dragFrom !== index) circleCls += ' tally-counter-btn--drag-over';
+            }
             return (
               <button
                 key={kind}
                 type="button"
                 draggable={reorderMode}
-                className={circleClass(undefined, active) + (reorderMode ? ' tally-counter-btn--drag' : '')}
+                className={circleCls}
                 title={reorderMode ? 'Drag to reorder' : setPieceKindLabel(kind, phase, label)}
                 aria-label={setPieceKindLabel(kind, phase, label)}
                 aria-pressed={active}
@@ -254,20 +261,31 @@ export function TallySetPieceStrip({
                 onDragStart={(e) => {
                   if (!reorderMode) return;
                   setDragFrom(index);
+                  setDragOver(index);
                   e.dataTransfer.effectAllowed = 'move';
                 }}
                 onDragOver={(e) => {
                   if (!reorderMode) return;
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
+                  if (dragOver !== index) setDragOver(index);
+                }}
+                onDragEnter={(e) => {
+                  if (!reorderMode) return;
+                  e.preventDefault();
+                  setDragOver(index);
                 }}
                 onDrop={(e) => {
                   if (!reorderMode || dragFrom == null) return;
                   e.preventDefault();
-                  onSetPieceReorder?.(dragFrom, index);
+                  if (dragFrom !== index) onSetPieceReorder?.(dragFrom, index);
                   setDragFrom(null);
+                  setDragOver(null);
                 }}
-                onDragEnd={() => setDragFrom(null)}
+                onDragEnd={() => {
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
               >
                 <span className="tally-setpiece-circle-text">{displayShort}</span>
               </button>

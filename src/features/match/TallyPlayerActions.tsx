@@ -160,6 +160,46 @@ export function TallyPlayerActions({
     phase: PlayPhaseContext;
   } | null>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  function dragReorderClass(index: number, base: string): string {
+    if (!reorderMode) return base;
+    let cls = `${base} tally-counter-btn--drag`;
+    if (dragFrom === index) cls += ' tally-counter-btn--drag-source';
+    if (dragOver === index && dragFrom !== index) cls += ' tally-counter-btn--drag-over';
+    return cls;
+  }
+
+  function gridDragProps(index: number) {
+    if (!reorderMode) return {};
+    return {
+      draggable: true as const,
+      onDragStart: (e: React.DragEvent) => {
+        setDragFrom(index);
+        setDragOver(index);
+        e.dataTransfer.effectAllowed = 'move';
+      },
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragOver !== index) setDragOver(index);
+      },
+      onDragEnter: (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(index);
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        if (dragFrom != null && dragFrom !== index) reorderGrid(dragFrom, index);
+        setDragFrom(null);
+        setDragOver(null);
+      },
+      onDragEnd: () => {
+        setDragFrom(null);
+        setDragOver(null);
+      },
+    };
+  }
 
   const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
 
@@ -190,25 +230,7 @@ export function TallyPlayerActions({
   }
 
   function renderGridButton(id: TallyGridButtonId, index: number) {
-    const dragProps = reorderMode
-      ? {
-          draggable: true as const,
-          onDragStart: (e: React.DragEvent) => {
-            setDragFrom(index);
-            e.dataTransfer.effectAllowed = 'move';
-          },
-          onDragOver: (e: React.DragEvent) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-          },
-          onDrop: (e: React.DragEvent) => {
-            e.preventDefault();
-            if (dragFrom != null) reorderGrid(dragFrom, index);
-            setDragFrom(null);
-          },
-          onDragEnd: () => setDragFrom(null),
-        }
-      : {};
+    const dragProps = gridDragProps(index);
 
     if (id === 'penalty_conceded') {
       return (
@@ -216,7 +238,7 @@ export function TallyPlayerActions({
           key={id}
           type="button"
           {...dragProps}
-          className={`tally-counter-btn tally-counter-btn--pen-minus${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          className={dragReorderClass(index, `tally-counter-btn tally-counter-btn--pen-minus`)}
           onClick={(e) => {
             if (reorderMode) return;
             tapThenBlur(e, () => setPendingGridPenalty({ direction: 'conceded', phase: phaseContext }));
@@ -233,7 +255,7 @@ export function TallyPlayerActions({
           key={id}
           type="button"
           {...dragProps}
-          className={`tally-counter-btn tally-counter-btn--pen-plus${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          className={dragReorderClass(index, 'tally-counter-btn tally-counter-btn--pen-plus')}
           onClick={(e) => {
             if (reorderMode) return;
             tapThenBlur(e, () => setPendingGridPenalty({ direction: 'awarded', phase: phaseContext }));
@@ -250,7 +272,7 @@ export function TallyPlayerActions({
           key={id}
           type="button"
           {...dragProps}
-          className={`tally-counter-btn tally-counter-btn--gold-filled${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          className={dragReorderClass(index, 'tally-counter-btn tally-counter-btn--gold-filled')}
           title={reorderMode ? 'Drag to reorder' : 'Mark a positive system moment in attack'}
           aria-label="System moment — positive attack play"
           onClick={(e) => {
@@ -274,7 +296,10 @@ export function TallyPlayerActions({
           key={id}
           type="button"
           {...dragProps}
-          className={`tally-counter-btn${b.className ? ` ${b.className}` : ''}${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          className={dragReorderClass(
+            index,
+            `tally-counter-btn${b.className ? ` ${b.className}` : ''}${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}`,
+          )}
           disabled={!reorderMode && b.kind === 'try' && owesConversion}
           onClick={(e) => {
             if (reorderMode) return;
@@ -309,7 +334,7 @@ export function TallyPlayerActions({
           key={id}
           type="button"
           {...dragProps}
-          className={`tally-counter-btn${b.className ? ` ${b.className}` : ''}${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          className={dragReorderClass(index, `tally-counter-btn${b.className ? ` ${b.className}` : ''}`)}
           title={b.special === 'defense_pass' ? 'Opponent pass while we defend' : undefined}
           aria-label={b.special === 'defense_pass' ? 'Opponent pass against us' : undefined}
           onClick={(e) => {

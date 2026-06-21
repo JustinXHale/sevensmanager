@@ -4751,14 +4751,41 @@ button.live-stats-cell--btn.live-stats-cell--open {
   justify-content: flex-end;
 }
 
-.tracking-reorder-btn--active {
+.tracking-reorder-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tracking-reorder-icon-btn:hover {
+  color: var(--text);
+  background: rgba(124, 179, 66, 0.1);
+}
+
+.tracking-reorder-icon-btn--active {
   border-color: var(--accent, #1a3a2a);
-  background: color-mix(in srgb, var(--accent, #1a3a2a) 12%, transparent);
+  background: color-mix(in srgb, var(--accent, #1a3a2a) 14%, transparent);
+  color: var(--accent, #1a3a2a);
+}
+
+.tracking-reorder-icon-svg {
+  display: block;
 }
 
 .tracking-reorder-hint {
-  margin: 0 0 0.5rem;
-  font-size: 0.78rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .tally-grid--reorder,
@@ -4776,7 +4803,20 @@ button.live-stats-cell--btn.live-stats-cell--open {
 
 .tally-counter-btn--drag:active {
   cursor: grabbing;
-  opacity: 0.85;
+}
+
+.tally-counter-btn--drag-source {
+  opacity: 0.42;
+  transform: scale(0.94);
+}
+
+.tally-counter-btn--drag-over {
+  outline: 2px solid var(--accent, #7cb342);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #7cb342) 25%, transparent);
+  transform: scale(1.05);
+  z-index: 1;
+  position: relative;
 }
 
 .tracking-mode-switch {
