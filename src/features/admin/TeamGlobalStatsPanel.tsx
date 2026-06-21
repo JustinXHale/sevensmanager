@@ -32,6 +32,7 @@ import { AiInsightsSection } from '@/features/match/AiInsightsSection';
 import { MatchTimeBreakdownTable } from '@/features/match/MatchTimeBreakdownTable';
 import { TeamStatsExportDialog } from '@/features/stats/TeamStatsExportDialog';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
+import { PossessionsStatsSection } from '@/features/match/PossessionsStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 import { StatCard, StatExpandContent, getPanelPayload } from '@/features/match/statExpand';
 import { countActiveEventsForMatch, listMatchEvents } from '@/repos/matchEventsRepo';
@@ -209,6 +210,11 @@ export function TeamGlobalStatsPanel({ team }: Props) {
     }
     return m;
   }, [filteredStats]);
+
+  const eventBatches = useMemo(
+    () => filteredStats.map((r) => r.events),
+    [filteredStats],
+  );
 
   const toggleExpand = (key: string) => setExpandedKey((k) => (k === key ? null : key));
 
@@ -470,6 +476,15 @@ export function TeamGlobalStatsPanel({ team }: Props) {
       <section className="card tgs-card tgs-card--ai-insights">
         <AiInsightsSection cacheKey={aiCacheKey} brief={aiBrief} />
       </section>
+
+      <PossessionsStatsSection
+        eventBatches={eventBatches}
+        matchLabelsByMatchId={!isSingleMatch ? matchLabelsByMatchId : undefined}
+        pooled={!isSingleMatch}
+        expandedKey={expandedKey}
+        onToggle={toggleExpand}
+        idPrefix={idPrefix}
+      />
 
       {/* Overview KPIs */}
       {show('overview') && (

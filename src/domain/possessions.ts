@@ -12,6 +12,7 @@ export type PossessionSegment = {
   startReason: string;
   endReason: string;
   eventCount: number;
+  matchId?: string;
 };
 
 export type PossessionStats = {
@@ -66,6 +67,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
   let oppPassesInSeg = 0;
   let totalUsPasses = 0;
   let totalOppPasses = 0;
+  let segMatchId: string | undefined = sorted[0]?.matchId;
 
   const closePossession = (side: PossessionSide, endMs: number, reason: string) => {
     segments.push({
@@ -76,6 +78,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
       startReason: segStartReason,
       endReason: reason,
       eventCount: segEvents,
+      matchId: segMatchId,
     });
     if (side === 'us') totalUsPasses += usPassesInSeg;
     else totalOppPasses += oppPassesInSeg;
@@ -86,12 +89,19 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
     oppPassesInSeg = 0;
   };
 
-  const openPossession = (side: PossessionSide, ms: number, period: number, startReason: string) => {
+  const openPossession = (
+    side: PossessionSide,
+    ms: number,
+    period: number,
+    startReason: string,
+    matchId?: string,
+  ) => {
     holder = side;
     pendingScore = null;
     segStartMs = ms;
     segPeriod = period;
     segStartReason = startReason;
+    segMatchId = matchId ?? segMatchId;
     segEvents = 0;
     usPassesInSeg = 0;
     oppPassesInSeg = 0;
@@ -110,7 +120,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
     if (holder != null && holder !== side) {
       closePossession(holder, e.matchTimeMs, closeReason);
     }
-    openPossession(side, e.matchTimeMs, e.period, startReason);
+    openPossession(side, e.matchTimeMs, e.period, startReason, e.matchId);
   };
 
   const handleRestart = (e: MatchEventRecord, outcome: 'won' | 'lost') => {
@@ -124,9 +134,9 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
       }
       // Receiving kick and losing it: our brief possession, then opponent ball.
       if (holder === 'opp') closePossession('opp', e.matchTimeMs, 'restart');
-      if (holder !== 'us') openPossession('us', e.matchTimeMs, e.period, 'restart_receive');
+      if (holder !== 'us') openPossession('us', e.matchTimeMs, e.period, 'restart_receive', e.matchId);
       closePossession('us', e.matchTimeMs, 'restart_receive_lost');
-      openPossession('opp', e.matchTimeMs, e.period, 'restart_receive_lost');
+      openPossession('opp', e.matchTimeMs, e.period, 'restart_receive_lost', e.matchId);
       return;
     }
 
@@ -150,7 +160,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
 
     if (e.kind === 'try') {
       if (holder === 'us' || holder == null) {
-        if (holder == null) openPossession('us', e.matchTimeMs, e.period, 'try');
+        if (holder == null) openPossession('us', e.matchTimeMs, e.period, 'try', e.matchId);
         pendingScore = 'us';
       }
       continue;
@@ -158,7 +168,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
 
     if (e.kind === 'opponent_try') {
       if (holder !== 'us') {
-        if (holder == null) openPossession('opp', e.matchTimeMs, e.period, 'opponent_try');
+        if (holder == null) openPossession('opp', e.matchTimeMs, e.period, 'opponent_try', e.matchId);
         pendingScore = 'opp';
       }
       continue;
@@ -229,7 +239,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
         if (sideHolding() === 'opp') {
           closePossession('opp', e.matchTimeMs, 'set_piece_lost');
         } else if (holder == null && pendingScore == null) {
-          openPossession('opp', e.matchTimeMs, e.period, 'set_piece_lost');
+          openPossession('opp', e.matchTimeMs, e.period, 'set_piece_lost', e.matchId);
         }
       }
       continue;
@@ -237,7 +247,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
 
     if (holder == null && pendingScore == null) {
       const inferred = inferHolderFromEvent(e);
-      if (inferred != null) openPossession(inferred, e.matchTimeMs, e.period, 'inferred');
+      if (inferred != null) openPossession(inferred, e.matchTimeMs, e.period, 'inferred', e.matchId);
     }
   }
 

@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import type { MatchSessionRecord } from '@/domain/match';
-import { formatClock } from '@/domain/matchClock';
 import type { MatchEventRecord } from '@/domain/matchEvent';
+import { formatClock } from '@/domain/matchClock';
 import {
+  aggregatePossessionStats,
   computePossessionStats,
   possessionReasonLabel,
   type PossessionSegment,
+  type PossessionStats,
 } from '@/domain/possessions';
 import { SectionHelp, type GlossaryEntry } from '@/components/SectionHelp';
 
@@ -32,7 +33,16 @@ const POSSESSIONS_GLOSSARY: GlossaryEntry[] = [
   },
 ];
 
-const STAT_KEY = 'possessions:segments';
+export const POSSESSIONS_EXPAND_KEY = 'possessions:segments';
+
+const EMPTY_POSSESSION_STATS: PossessionStats = {
+  us: 0,
+  opp: 0,
+  total: 0,
+  segments: [],
+  passesPerPossessionUs: null,
+  passesPerPossessionOpp: null,
+};
 
 function formatDuration(ms: number): string {
   const sec = Math.max(0, Math.round(ms / 1000));
@@ -41,7 +51,15 @@ function formatDuration(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function SegmentRow({ seg, index }: { seg: PossessionSegment; index: number }) {
+function SegmentRow({
+  seg,
+  index,
+  matchLabel,
+}: {
+  seg: PossessionSegment;
+  index: number;
+  matchLabel?: string;
+}) {
   const durationMs = Math.max(0, seg.endMs - seg.startMs);
   return (
     <li className="live-stats-expand-row possessions-segment-row">
@@ -52,6 +70,9 @@ function SegmentRow({ seg, index }: { seg: PossessionSegment; index: number }) {
         </span>
         <span className="possessions-segment-duration muted"> ({formatDuration(durationMs)})</span>
       </span>
+      {matchLabel ? (
+        <span className="live-stats-expand-match possessions-segment-match">{matchLabel}</span>
+      ) : null}
       <span className="live-stats-expand-label">
         <span className={`possessions-segment-side possessions-segment-side--${seg.side}`}>
           {seg.side === 'us' ? 'Attack' : 'Opposition'}
@@ -68,18 +89,28 @@ function SegmentGroup({
   title,
   segments,
   offset,
+  matchLabelsByMatchId,
 }: {
   title: string;
   segments: PossessionSegment[];
   offset: number;
+  matchLabelsByMatchId?: Map<string, string>;
 }) {
   if (segments.length === 0) return null;
+  const showMatch = (matchLabelsByMatchId?.size ?? 0) > 0;
   return (
     <div className="possessions-segment-group">
       <h4 className="possessions-segment-group-title">{title}</h4>
       <ul className="live-stats-expand-list">
         {segments.map((seg, i) => (
-          <SegmentRow key={`${seg.side}-${seg.startMs}-${i}`} seg={seg} index={offset + i} />
+          <SegmentRow
+            key={`${seg.matchId ?? 'm'}-${seg.side}-${seg.startMs}-${i}`}
+            seg={seg}
+            index={offset + i}
+            matchLabel={
+              showMatch && seg.matchId ? matchLabelsByMatchId?.get(seg.matchId) : undefined
+            }
+          />
         ))}
       </ul>
     </div>
@@ -87,24 +118,38 @@ function SegmentGroup({
 }
 
 type Props = {
-  events: MatchEventRecord[];
-  filmSession?: MatchSessionRecord | null;
+  /** Single match or pooled flat list — use `eventBatches` when aggregating multiple games. */
+  events?: MatchEventRecord[];
+  /** Per-match event lists (correct for global stats — avoids cross-game possession chains). */
+  eventBatches?: MatchEventRecord[][];
+  matchLabelsByMatchId?: Map<string, string>;
+  /** When true, KPI labels show pooled (Σ) suffix. */
+  pooled?: boolean;
   expandedKey: string | null;
   onToggle: (key: string) => void;
   idPrefix: string;
 };
 
 export function PossessionsStatsSection({
-  events,
+  events = [],
+  eventBatches,
+  matchLabelsByMatchId,
+  pooled = false,
   expandedKey,
   onToggle,
   idPrefix,
 }: Props) {
-  const stats = useMemo(() => computePossessionStats(events), [events]);
-  const open = expandedKey === STAT_KEY;
+  const stats = useMemo(() => {
+    if (eventBatches?.length) return aggregatePossessionStats(eventBatches);
+    if (events.length > 0) return computePossessionStats(events);
+    return EMPTY_POSSESSION_STATS;
+  }, [events, eventBatches]);
+
+  const open = expandedKey === POSSESSIONS_EXPAND_KEY;
   const panelId = `${idPrefix}-possessions-segments`;
   const usSegments = stats.segments.filter((s) => s.side === 'us');
   const oppSegments = stats.segments.filter((s) => s.side === 'opp');
+  const sigma = pooled ? ' (Σ)' : '';
 
   return (
     <section className={`card tgs-card possessions-card${open ? ' possessions-card--open' : ''}`}>
@@ -113,7 +158,9 @@ export function PossessionsStatsSection({
         <SectionHelp title="Possessions" entries={POSSESSIONS_GLOSSARY} />
       </div>
       <p className="muted tgs-card-lead">
-        Attack phases per team — tap the counts to see when each possession started and ended.
+        {pooled
+          ? 'Pooled attack phases across selected games — tap the counts for start/end times per possession.'
+          : 'Attack phases per team — tap the counts to see when each possession started and ended.'}
       </p>
       <div className="team-global-kpi-row possessions-kpi-row">
         <button
@@ -121,9 +168,9 @@ export function PossessionsStatsSection({
           className={`team-global-kpi possessions-kpi-btn${open ? ' possessions-kpi-btn--open' : ''}`}
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => onToggle(STAT_KEY)}
+          onClick={() => onToggle(POSSESSIONS_EXPAND_KEY)}
         >
-          <span className="team-global-kpi-label">Us</span>
+          <span className="team-global-kpi-label">Us{sigma}</span>
           <span className="team-global-kpi-value tabular-nums">{stats.us}</span>
           {stats.passesPerPossessionUs != null ? (
             <span className="team-global-kpi-sub muted">{stats.passesPerPossessionUs} passes / poss</span>
@@ -134,9 +181,9 @@ export function PossessionsStatsSection({
           className={`team-global-kpi possessions-kpi-btn${open ? ' possessions-kpi-btn--open' : ''}`}
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => onToggle(STAT_KEY)}
+          onClick={() => onToggle(POSSESSIONS_EXPAND_KEY)}
         >
-          <span className="team-global-kpi-label">Opp</span>
+          <span className="team-global-kpi-label">Opp{sigma}</span>
           <span className="team-global-kpi-value tabular-nums">{stats.opp}</span>
           {stats.passesPerPossessionOpp != null ? (
             <span className="team-global-kpi-sub muted">{stats.passesPerPossessionOpp} opp passes / poss</span>
@@ -147,9 +194,9 @@ export function PossessionsStatsSection({
           className={`team-global-kpi possessions-kpi-btn${open ? ' possessions-kpi-btn--open' : ''}`}
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => onToggle(STAT_KEY)}
+          onClick={() => onToggle(POSSESSIONS_EXPAND_KEY)}
         >
-          <span className="team-global-kpi-label">Total</span>
+          <span className="team-global-kpi-label">Total{sigma}</span>
           <span className="team-global-kpi-value tabular-nums">{stats.total}</span>
           <span className="team-global-kpi-sub muted">
             {stats.us} us · {stats.opp} opp
@@ -163,11 +210,17 @@ export function PossessionsStatsSection({
       ) : null}
       {open && stats.total > 0 ? (
         <div id={panelId} className="possessions-expand-body" role="region" aria-label="Possession segments">
-          <SegmentGroup title={`Attack (${usSegments.length})`} segments={usSegments} offset={0} />
+          <SegmentGroup
+            title={`Attack (${usSegments.length})`}
+            segments={usSegments}
+            offset={0}
+            matchLabelsByMatchId={matchLabelsByMatchId}
+          />
           <SegmentGroup
             title={`Opposition (${oppSegments.length})`}
             segments={oppSegments}
             offset={usSegments.length}
+            matchLabelsByMatchId={matchLabelsByMatchId}
           />
         </div>
       ) : null}

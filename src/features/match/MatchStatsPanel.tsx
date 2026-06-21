@@ -504,7 +504,6 @@ export function MatchStatsPanel({
 
       <PossessionsStatsSection
         events={events}
-        filmSession={filmSession}
         expandedKey={expandedKey}
         onToggle={toggleExpand}
         idPrefix={idPrefix}

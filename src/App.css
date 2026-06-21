@@ -4009,6 +4009,11 @@ button.live-stats-cell--btn.live-stats-cell--open {
   line-height: 1.35;
 }
 
+.possessions-segment-match {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .possessions-segment-side--us {
   font-weight: 600;
   color: #4ade80;
