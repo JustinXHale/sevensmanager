@@ -548,6 +548,15 @@ export function MatchStatsPanel({
                 <span className="team-global-kpi-sub muted">Attack \u00b7 Opp</span>
               </div>
             )}
+            {inferred.possessionsTotal > 0 && (
+              <div className="team-global-kpi">
+                <span className="team-global-kpi-label">Possessions</span>
+                <span className="team-global-kpi-value tabular-nums">
+                  {inferred.possessionsUs}{' \u00b7 '}{inferred.possessionsOpp}
+                </span>
+                <span className="team-global-kpi-sub muted">Us \u00b7 Opp · {inferred.possessionsTotal} total</span>
+              </div>
+            )}
           </div>
 
           <div className="live-analytics-compare mt-md" aria-label="Subs and discipline">

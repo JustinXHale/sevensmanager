@@ -4747,6 +4747,36 @@ button.live-stats-cell--btn.live-stats-cell--open {
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tracking-reorder-btn--active {
+  border-color: var(--accent, #1a3a2a);
+  background: color-mix(in srgb, var(--accent, #1a3a2a) 12%, transparent);
+}
+
+.tracking-reorder-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+}
+
+.tally-grid--reorder,
+.tally-setpiece-strip--reorder {
+  outline: 1px dashed var(--border-strong);
+  outline-offset: 4px;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.tally-counter-btn--drag {
+  cursor: grab;
+  touch-action: none;
+}
+
+.tally-counter-btn--drag:active {
+  cursor: grabbing;
+  opacity: 0.85;
 }
 
 .tracking-mode-switch {

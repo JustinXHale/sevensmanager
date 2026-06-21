@@ -76,6 +76,7 @@ import {
   rugbyPointsFromOwnTeamEvents,
 } from '@/domain/matchStats';
 import { derivedPlayerMinutesMs, flushPlayerMinutes } from '@/domain/playerMinutes';
+import { loadTallyLayout, saveTallyLayout, type TallyLayout } from '@/domain/tallyLayout';
 import { addMatchEvent, deleteMatchEvent, listMatchEvents, restoreMatchEvent } from '@/repos/matchEventsRepo';
 import { getMatch, getSession, saveSession } from '@/repos/matchesRepo';
 import { listPlayers, listSubstitutions, recordSubstitution, syncMatchRosterFromTeam } from '@/repos/rosterRepo';
@@ -155,7 +156,18 @@ export function MatchLivePage() {
   const [onFieldDisplayOrder, setOnFieldDisplayOrder] = useState<string[] | null>(null);
   const [clockSettingsOpen, setClockSettingsOpen] = useState(false);
   const [trackingMode, setTrackingMode] = useState<TrackingMode>(() => readStoredTrackingMode(matchId));
+  const [tallyLayout, setTallyLayout] = useState<TallyLayout>(() => loadTallyLayout());
+  const [tallyReorderMode, setTallyReorderMode] = useState(false);
   const [livePhaseMode, setLivePhaseMode] = useState<LivePhaseMode>('attack');
+  useEffect(() => {
+    if (trackingMode !== 'tally') setTallyReorderMode(false);
+  }, [trackingMode]);
+
+  const onTallyLayoutChange = useCallback((layout: TallyLayout) => {
+    setTallyLayout(layout);
+    saveTallyLayout(layout);
+  }, []);
+
   const liveTab = useMemo((): 'live' | 'timeline' | 'stats' | 'roster' => {
     const t = searchParams.get('tab');
     if (t === 'roster' || t === 'timeline' || t === 'stats' || t === 'live') return t;
@@ -1425,8 +1437,21 @@ export function MatchLivePage() {
                     Full
                   </button>
                 </div>
+                {trackingMode === 'tally' ? (
+                  <button
+                    type="button"
+                    className={`btn btn-secondary btn-sm tracking-reorder-btn${tallyReorderMode ? ' tracking-reorder-btn--active' : ''}`}
+                    aria-pressed={tallyReorderMode}
+                    onClick={() => setTallyReorderMode((v) => !v)}
+                  >
+                    {tallyReorderMode ? 'Done reordering' : 'Reorder'}
+                  </button>
+                ) : null}
               </div>
             </div>
+            {tallyReorderMode ? (
+              <p className="muted tracking-reorder-hint">Drag tally circles to rearrange. Logging is paused until you tap Done reordering.</p>
+            ) : null}
             {trackingMode === 'tally' ? (
               <TallyPlayerActions
                 phaseMode={livePhaseMode}
@@ -1435,6 +1460,9 @@ export function MatchLivePage() {
                 counts={tallyCounts}
                 owesConversion={owesConversion}
                 owesOpponentConversion={owesOpponentConversion}
+                layout={tallyLayout}
+                reorderMode={tallyReorderMode}
+                onLayoutChange={onTallyLayoutChange}
                 onTallyAction={(kind) => void logTallyAction(kind)}
                 onTallyTry={(playerId) => void logTallyTry(playerId)}
                 onTallyTackle={(outcome) => void logTallyTackle(outcome)}

@@ -276,6 +276,49 @@ export function InferredStatsSection({
   ];
 
   const structure: KpiDef[] = [
+    ...(stats.possessionsTotal > 0
+      ? [
+          {
+            id: 'possessions-us',
+            label: 'Possessions (us)',
+            value: String(stats.possessionsUs),
+            sub:
+              stats.passesPerPossessionUs != null
+                ? `${stats.passesPerPossessionUs} passes / poss`
+                : undefined,
+            help: {
+              meaning:
+                'Attack spells from gaining the ball (restart won, steal, penalty) through conversion, turnover, or set-piece lost.',
+              readAs:
+                'Higher count = more times you had the ball. Ends after conversion (not at try alone), knock-on, penalty conceded, or set-piece lost.',
+            },
+          } satisfies KpiDef,
+          {
+            id: 'possessions-opp',
+            label: 'Possessions (opp)',
+            value: String(stats.possessionsOpp),
+            sub:
+              stats.passesPerPossessionOpp != null
+                ? `${stats.passesPerPossessionOpp} opp passes / poss`
+                : undefined,
+            help: {
+              meaning:
+                'Opponent attack spells inferred from their try/conversion sequences, opp passes logged, and restart/set-piece outcomes.',
+              readAs: 'Lower is often better — fewer times they held the ball through a full phase.',
+            },
+          } satisfies KpiDef,
+          {
+            id: 'possessions-total',
+            label: 'Total possessions',
+            value: String(stats.possessionsTotal),
+            sub: `${stats.possessionsUs} us · ${stats.possessionsOpp} opp`,
+            help: {
+              meaning: 'Combined attack possessions for both teams in the match.',
+              readAs: 'Use with Time & phases to estimate how long each team had the ball per possession.',
+            },
+          } satisfies KpiDef,
+        ]
+      : []),
     {
       id: 'system-moments',
       label: 'System moments',

@@ -1,3 +1,4 @@
+import { computePossessionStats, aggregatePossessionStats } from '@/domain/possessions';
 import { phaseTimeSplit, ruckSpeedMedianMs, scoringTimeline, setPieceByPhase } from '@/domain/matchAnalyticsDeep';
 import type { MatchEventRecord, PlayPhaseContext } from '@/domain/matchEvent';
 import { resolvePenaltyDirection } from '@/domain/matchEvent';
@@ -127,6 +128,11 @@ export type InferredMatchStats = {
   attackRestartsLost: number;
   errorClusters: number;
   knockOns: number;
+  possessionsUs: number;
+  possessionsOpp: number;
+  possessionsTotal: number;
+  passesPerPossessionUs: number | null;
+  passesPerPossessionOpp: number | null;
 };
 
 function emptyRuckPhaseDetail(): RuckPhaseDetail {
@@ -346,6 +352,7 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
   const ruckByPhase = computeRuckBreakdownByPhase(events);
   const { pass: attackPasses, offload: attackOffloads } = countPassesAndOffloads(events);
   const defensePasses = countDefensePasses(events);
+  const possessions = computePossessionStats(events);
 
   return {
     ruckContest: computeRuckContestStats(events),
@@ -387,6 +394,11 @@ export function computeInferredMatchStats(events: MatchEventRecord[]): InferredM
     attackRestartsLost: attackRestarts.lost,
     errorClusters,
     knockOns,
+    possessionsUs: possessions.us,
+    possessionsOpp: possessions.opp,
+    possessionsTotal: possessions.total,
+    passesPerPossessionUs: possessions.passesPerPossessionUs,
+    passesPerPossessionOpp: possessions.passesPerPossessionOpp,
   };
 }
 
@@ -508,6 +520,7 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
     attack: aggregateRuckPhaseDetail(attackPhaseParts, atkConDur, atkUncDur, atkAllDur),
     defense: aggregateRuckPhaseDetail(defensePhaseParts, defConDur, defUncDur, defAllDur),
   };
+  const possessions = aggregatePossessionStats(batches);
 
   return {
     ruckContest: {
@@ -555,6 +568,11 @@ export function aggregateInferredStats(batches: MatchEventRecord[][]): InferredM
     attackRestartsLost,
     errorClusters,
     knockOns,
+    possessionsUs: possessions.us,
+    possessionsOpp: possessions.opp,
+    possessionsTotal: possessions.total,
+    passesPerPossessionUs: possessions.passesPerPossessionUs,
+    passesPerPossessionOpp: possessions.passesPerPossessionOpp,
   };
 }
 
@@ -579,6 +597,7 @@ export function hasInferredStatsData(s: InferredMatchStats): boolean {
     s.longestTryDroughtMs != null ||
     s.maxPointsIn2Min > 0 ||
     s.attackRestarts > 0 ||
-    s.errorClusters > 0
+    s.errorClusters > 0 ||
+    s.possessionsTotal > 0
   );
 }

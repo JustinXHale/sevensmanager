@@ -6,6 +6,8 @@ import type {
   RuckContest,
   SetPiecePenaltyContext,
 } from '@/domain/matchEvent';
+import type { TallySetPieceId } from '@/domain/tallyLayout';
+import { DEFAULT_TALLY_SETPIECE_ORDER } from '@/domain/tallyLayout';
 import {
   TallyPenaltyInfractionPicker,
   type TallyPenaltyInfractionPick,
@@ -85,6 +87,9 @@ type PendingPenalty = {
 
 type Props = {
   phase: PlayPhaseContext;
+  setPieceOrder?: TallySetPieceId[];
+  reorderMode?: boolean;
+  onSetPieceReorder?: (fromIndex: number, toIndex: number) => void;
   onChoice: (
     kind: SetPiecePenaltyContext,
     choice: TallySetPieceChoice,
@@ -121,7 +126,15 @@ function circleClass(extra?: string, active?: boolean): string {
   return `tally-setpiece-circle${active ? ' tally-setpiece-circle--active' : ''}${extra ? ` ${extra}` : ''}`;
 }
 
-export function TallySetPieceStrip({ phase, onChoice, onPenaltyChoice }: Props) {
+export function TallySetPieceStrip({
+  phase,
+  setPieceOrder = DEFAULT_TALLY_SETPIECE_ORDER,
+  reorderMode = false,
+  onSetPieceReorder,
+  onChoice,
+  onPenaltyChoice,
+}: Props) {
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [selectedKind, setSelectedKind] = useState<SetPiecePenaltyContext | null>(null);
   const [pendingRuck, setPendingRuck] = useState<PendingRuck | null>(null);
   const [pendingFk, setPendingFk] = useState<PendingFk | null>(null);
@@ -213,22 +226,48 @@ export function TallySetPieceStrip({ phase, onChoice, onPenaltyChoice }: Props) 
       />
     ) : null;
 
+  const orderedKinds = setPieceOrder
+    .map((kind) => SET_PIECE_KINDS.find((k) => k.kind === kind))
+    .filter((k): k is (typeof SET_PIECE_KINDS)[number] => k != null);
+
   return (
     <div className="tally-setpiece-wrap">
-      <div className="tally-setpiece-strip" aria-label={`Set pieces (${phase})`}>
+      <div className={`tally-setpiece-strip${reorderMode ? ' tally-setpiece-strip--reorder' : ''}`} aria-label={`Set pieces (${phase})`}>
         <div className="tally-setpiece-kind-row" role="group" aria-label="Set piece type">
-          {SET_PIECE_KINDS.map(({ kind, label, short }) => {
+          {orderedKinds.map(({ kind, label, short }, index) => {
             const displayShort = kind === 'restart' ? 'RST' : short;
-            const active = selectedKind === kind;
+            const active = !reorderMode && selectedKind === kind;
             return (
               <button
                 key={kind}
                 type="button"
-                className={circleClass(undefined, active)}
-                title={setPieceKindLabel(kind, phase, label)}
+                draggable={reorderMode}
+                className={circleClass(undefined, active) + (reorderMode ? ' tally-counter-btn--drag' : '')}
+                title={reorderMode ? 'Drag to reorder' : setPieceKindLabel(kind, phase, label)}
                 aria-label={setPieceKindLabel(kind, phase, label)}
                 aria-pressed={active}
-                onClick={(e) => tapThenBlur(e, () => selectKind(kind))}
+                disabled={reorderMode ? false : undefined}
+                onClick={(e) => {
+                  if (reorderMode) return;
+                  tapThenBlur(e, () => selectKind(kind));
+                }}
+                onDragStart={(e) => {
+                  if (!reorderMode) return;
+                  setDragFrom(index);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  if (!reorderMode) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(e) => {
+                  if (!reorderMode || dragFrom == null) return;
+                  e.preventDefault();
+                  onSetPieceReorder?.(dragFrom, index);
+                  setDragFrom(null);
+                }}
+                onDragEnd={() => setDragFrom(null)}
               >
                 <span className="tally-setpiece-circle-text">{displayShort}</span>
               </button>

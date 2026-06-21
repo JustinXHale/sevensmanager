@@ -41,6 +41,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Clock settings **Video time right now** and **Apply film sync** — set player time (e.g. type `1014` for 10:14) without touching match clock; fixes parentheses and film bookmarks
 
 ### Added
+- **Possessions** inferred stat: attack phases per team (restart/steal through conversion or turnover); us, opp, and total counts in Overview and Inferred insights
+- Tally **Reorder** mode: drag-and-drop tally circles and set-piece strip order; layout saved in browser storage for all matches
 - Match **Stats** and team **Global stats** **Time & phases**: per-half clock, ball in play, BIP %, dead time, and stoppage (match timer + event-gap estimates)
 
 ### Changed

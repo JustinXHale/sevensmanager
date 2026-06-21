@@ -16,6 +16,8 @@ import {
 } from './TallySetPieceStrip';
 import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker';
 import type { LivePhaseMode } from '@/domain/livePhaseMode';
+import type { TallyAttackButtonId, TallyDefenseButtonId, TallyGridButtonId, TallyLayout } from '@/domain/tallyLayout';
+import { reorderList, tallyLayoutForPhase } from '@/domain/tallyLayout';
 
 export type TallyActionKind = 'pass' | 'offload' | 'line_break' | 'try' | 'negative_action' | 'knock_on';
 
@@ -82,6 +84,9 @@ type Props = {
     oppConvs: number;
   };
   onOpponentStatAdjust: (row: 'subs' | 'yc' | 'rc', delta: 1 | -1) => void;
+  layout: TallyLayout;
+  reorderMode?: boolean;
+  onLayoutChange: (layout: TallyLayout) => void;
 };
 
 function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
@@ -89,25 +94,40 @@ function tapThenBlur(ev: React.MouseEvent<HTMLButtonElement>, run: () => void) {
   requestAnimationFrame(() => ev.currentTarget.blur());
 }
 
-const ATTACK_BUTTONS: {
-  kind: TallyActionKind;
-  label: string;
-  stackedLabel?: [string, string];
-  countKey: keyof TallyCounts;
-  className?: string;
-}[] = [
-  { kind: 'pass', label: 'Pass', countKey: 'pass' },
-  { kind: 'offload', label: 'Offload', countKey: 'offload' },
-  { kind: 'line_break', label: 'Line Brk', countKey: 'line_break' },
-  { kind: 'try', label: 'Try', countKey: 'try' },
-  { kind: 'negative_action', label: 'Neg', countKey: 'negative_action', className: 'tally-counter-btn--negative' },
-  { kind: 'knock_on', label: 'Knock On', stackedLabel: ['Knock', 'On'], countKey: 'knock_on', className: 'tally-counter-btn--negative' },
-];
+const ATTACK_BUTTON_DEFS: Record<
+  TallyAttackButtonId,
+  {
+    kind: TallyActionKind;
+    label: string;
+    stackedLabel?: [string, string];
+    countKey: keyof TallyCounts;
+    className?: string;
+  }
+> = {
+  pass: { kind: 'pass', label: 'Pass', countKey: 'pass' },
+  offload: { kind: 'offload', label: 'Offload', countKey: 'offload' },
+  line_break: { kind: 'line_break', label: 'Line Brk', countKey: 'line_break' },
+  try: { kind: 'try', label: 'Try', countKey: 'try' },
+  negative_action: { kind: 'negative_action', label: 'Neg', countKey: 'negative_action', className: 'tally-counter-btn--negative' },
+  knock_on: { kind: 'knock_on', label: 'Knock On', stackedLabel: ['Knock', 'On'], countKey: 'knock_on', className: 'tally-counter-btn--negative' },
+};
 
-const DEFENSE_BUTTONS: { outcome: TackleOutcome; label: string; countKey: keyof TallyCounts }[] = [
-  { outcome: 'made', label: 'Tackle M', countKey: 'tackle_made' },
-  { outcome: 'missed', label: 'Tackle X', countKey: 'tackle_missed' },
-];
+const DEFENSE_BUTTON_DEFS: Record<
+  TallyDefenseButtonId,
+  { outcome?: TackleOutcome; label: string; stackedLabel?: [string, string]; countKey: keyof TallyCounts; className?: string; special?: 'defense_pass' | 'try_conceded' | 'forced_turnover' }
+> = {
+  tackle_made: { outcome: 'made', label: 'Tackle M', countKey: 'tackle_made' },
+  tackle_missed: { outcome: 'missed', label: 'Tackle X', countKey: 'tackle_missed', className: 'tally-counter-btn--miss' },
+  defense_pass: { label: 'Pass', countKey: 'defense_pass', special: 'defense_pass' },
+  try_conceded: { label: 'Try −', countKey: 'try_conceded', className: 'tally-counter-btn--try-conceded', special: 'try_conceded' },
+  forced_turnover: {
+    label: 'Forced',
+    stackedLabel: ['Forced', 'Turnover'],
+    countKey: 'forced_turnover',
+    className: 'tally-counter-btn--gold-filled',
+    special: 'forced_turnover',
+  },
+};
 
 export function TallyPlayerActions({
   phaseMode: mode,
@@ -130,12 +150,16 @@ export function TallyPlayerActions({
   onTallyOpponentConversion,
   opponentStatBoard,
   onOpponentStatAdjust,
+  layout,
+  reorderMode = false,
+  onLayoutChange,
 }: Props) {
   const [scorerPick, setScorerPick] = useState<ScorerPick | null>(null);
   const [pendingGridPenalty, setPendingGridPenalty] = useState<{
     direction: PenaltyDirection;
     phase: PlayPhaseContext;
   } | null>(null);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
 
   const phaseContext: PlayPhaseContext = mode === 'defense' ? 'defense' : 'attack';
 
@@ -155,6 +179,167 @@ export function TallyPlayerActions({
     setScorerPick(null);
   }
 
+  function reorderGrid(from: number, to: number) {
+    const key = mode === 'attack' ? 'attack' : 'defense';
+    const nextOrder = reorderList(tallyLayoutForPhase(layout, mode === 'attack' ? 'attack' : 'defense'), from, to);
+    onLayoutChange({ ...layout, [key]: nextOrder });
+  }
+
+  function reorderSetPieces(from: number, to: number) {
+    onLayoutChange({ ...layout, setPieces: reorderList(layout.setPieces, from, to) });
+  }
+
+  function renderGridButton(id: TallyGridButtonId, index: number) {
+    const dragProps = reorderMode
+      ? {
+          draggable: true as const,
+          onDragStart: (e: React.DragEvent) => {
+            setDragFrom(index);
+            e.dataTransfer.effectAllowed = 'move';
+          },
+          onDragOver: (e: React.DragEvent) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          },
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            if (dragFrom != null) reorderGrid(dragFrom, index);
+            setDragFrom(null);
+          },
+          onDragEnd: () => setDragFrom(null),
+        }
+      : {};
+
+    if (id === 'penalty_conceded') {
+      return (
+        <button
+          key={id}
+          type="button"
+          {...dragProps}
+          className={`tally-counter-btn tally-counter-btn--pen-minus${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          onClick={(e) => {
+            if (reorderMode) return;
+            tapThenBlur(e, () => setPendingGridPenalty({ direction: 'conceded', phase: phaseContext }));
+          }}
+        >
+          <span className="tally-counter-label">Pen −</span>
+          <span className="tally-counter-badge">{counts.penalty_conceded}</span>
+        </button>
+      );
+    }
+    if (id === 'penalty_awarded') {
+      return (
+        <button
+          key={id}
+          type="button"
+          {...dragProps}
+          className={`tally-counter-btn tally-counter-btn--pen-plus${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          onClick={(e) => {
+            if (reorderMode) return;
+            tapThenBlur(e, () => setPendingGridPenalty({ direction: 'awarded', phase: phaseContext }));
+          }}
+        >
+          <span className="tally-counter-label">Pen +</span>
+          <span className="tally-counter-badge">{counts.penalty_awarded}</span>
+        </button>
+      );
+    }
+    if (id === 'system_moment' && mode === 'attack') {
+      return (
+        <button
+          key={id}
+          type="button"
+          {...dragProps}
+          className={`tally-counter-btn tally-counter-btn--gold-filled${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          title={reorderMode ? 'Drag to reorder' : 'Mark a positive system moment in attack'}
+          aria-label="System moment — positive attack play"
+          onClick={(e) => {
+            if (reorderMode) return;
+            tapThenBlur(e, () => onTallySystemMoment());
+          }}
+        >
+          <span className="tally-counter-label tally-counter-label--stacked">
+            <span>System</span>
+            <span>Moment</span>
+          </span>
+          <span className="tally-counter-badge">{counts.system_moment}</span>
+        </button>
+      );
+    }
+
+    if (mode === 'attack' && id in ATTACK_BUTTON_DEFS) {
+      const b = ATTACK_BUTTON_DEFS[id as TallyAttackButtonId];
+      return (
+        <button
+          key={id}
+          type="button"
+          {...dragProps}
+          className={`tally-counter-btn${b.className ? ` ${b.className}` : ''}${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          disabled={!reorderMode && b.kind === 'try' && owesConversion}
+          onClick={(e) => {
+            if (reorderMode) return;
+            tapThenBlur(e, () => {
+              if (b.kind === 'try') {
+                setScorerPick({ type: 'try' });
+                return;
+              }
+              setScorerPick(null);
+              onTallyAction(b.kind);
+            });
+          }}
+        >
+          {b.stackedLabel ? (
+            <span className="tally-counter-label tally-counter-label--stacked">
+              <span>{b.stackedLabel[0]}</span>
+              <span>{b.stackedLabel[1]}</span>
+            </span>
+          ) : (
+            <span className="tally-counter-label">{b.label}</span>
+          )}
+          <span className="tally-counter-badge">{counts[b.countKey]}</span>
+        </button>
+      );
+    }
+
+    if (mode === 'defense' && id in DEFENSE_BUTTON_DEFS) {
+      const b = DEFENSE_BUTTON_DEFS[id as TallyDefenseButtonId];
+      if (b.special === 'try_conceded' && owesOpponentConversion) return null;
+      return (
+        <button
+          key={id}
+          type="button"
+          {...dragProps}
+          className={`tally-counter-btn${b.className ? ` ${b.className}` : ''}${reorderMode ? ' tally-counter-btn--drag' : ''}`}
+          title={b.special === 'defense_pass' ? 'Opponent pass while we defend' : undefined}
+          aria-label={b.special === 'defense_pass' ? 'Opponent pass against us' : undefined}
+          onClick={(e) => {
+            if (reorderMode) return;
+            tapThenBlur(e, () => {
+              if (b.special === 'defense_pass') onTallyDefensePass();
+              else if (b.special === 'try_conceded') onTallyTryConceded();
+              else if (b.special === 'forced_turnover') onTallyForcedTurnover();
+              else if (b.outcome) onTallyTackle(b.outcome);
+            });
+          }}
+        >
+          {b.stackedLabel ? (
+            <span className="tally-counter-label tally-counter-label--stacked">
+              <span>{b.stackedLabel[0]}</span>
+              <span>{b.stackedLabel[1]}</span>
+            </span>
+          ) : (
+            <span className="tally-counter-label">{b.label}</span>
+          )}
+          <span className="tally-counter-badge">{counts[b.countKey]}</span>
+        </button>
+      );
+    }
+
+    return null;
+  }
+
+  const gridOrder = tallyLayoutForPhase(layout, mode === 'attack' ? 'attack' : 'defense');
+
   return (
     <div className="on-field-actions-wrap">
       <div className="live-phase-switch" role="group" aria-label="Tally: attack, defense, or opponent">
@@ -166,6 +351,9 @@ export function TallyPlayerActions({
       {mode !== 'opponent' ? (
         <TallySetPieceStrip
           phase={phaseContext}
+          setPieceOrder={layout.setPieces}
+          reorderMode={reorderMode}
+          onSetPieceReorder={reorderSetPieces}
           onChoice={onTallySetPieceChoice}
           onPenaltyChoice={onTallySetPiecePenalty}
         />
@@ -262,118 +450,8 @@ export function TallyPlayerActions({
             </div>
           ) : null}
 
-          <div className="tally-grid">
-            {mode === 'attack' ? (
-              <>
-                {ATTACK_BUTTONS.map((b) => (
-                  <button
-                    key={b.kind}
-                    type="button"
-                    className={`tally-counter-btn${b.className ? ` ${b.className}` : ''}${b.kind === 'try' && scorerPick?.type === 'try' ? ' tally-counter-btn--active' : ''}`}
-                    disabled={b.kind === 'try' && owesConversion}
-                    onClick={(e) =>
-                      tapThenBlur(e, () => {
-                        if (b.kind === 'try') {
-                          setScorerPick({ type: 'try' });
-                          return;
-                        }
-                        setScorerPick(null);
-                        onTallyAction(b.kind);
-                      })
-                    }
-                  >
-                    {b.stackedLabel ? (
-                      <span className="tally-counter-label tally-counter-label--stacked">
-                        <span>{b.stackedLabel[0]}</span>
-                        <span>{b.stackedLabel[1]}</span>
-                      </span>
-                    ) : (
-                      <span className="tally-counter-label">{b.label}</span>
-                    )}
-                    <span className="tally-counter-badge">{counts[b.countKey]}</span>
-                  </button>
-                ))}
-              </>
-            ) : (
-              <>
-                {DEFENSE_BUTTONS.map((b) => (
-                  <button key={b.outcome} type="button" className={`tally-counter-btn${b.outcome === 'missed' ? ' tally-counter-btn--miss' : ''}`} onClick={(e) => tapThenBlur(e, () => onTallyTackle(b.outcome))}>
-                    <span className="tally-counter-label">{b.label}</span>
-                    <span className="tally-counter-badge">{counts[b.countKey]}</span>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="tally-counter-btn"
-                  title="Opponent pass while we defend"
-                  aria-label="Opponent pass against us"
-                  onClick={(e) => tapThenBlur(e, () => onTallyDefensePass())}
-                >
-                  <span className="tally-counter-label">Pass</span>
-                  <span className="tally-counter-badge">{counts.defense_pass}</span>
-                </button>
-                {!owesOpponentConversion ? (
-                  <button
-                    type="button"
-                    className="tally-counter-btn tally-counter-btn--try-conceded"
-                    onClick={(e) => tapThenBlur(e, () => onTallyTryConceded())}
-                  >
-                    <span className="tally-counter-label">Try −</span>
-                    <span className="tally-counter-badge">{counts.try_conceded}</span>
-                  </button>
-                ) : null}
-              </>
-            )}
-            <button
-              type="button"
-              className="tally-counter-btn tally-counter-btn--pen-minus"
-              onClick={(e) =>
-                tapThenBlur(e, () => setPendingGridPenalty({ direction: 'conceded', phase: phaseContext }))
-              }
-            >
-              <span className="tally-counter-label">Pen −</span>
-              <span className="tally-counter-badge">{counts.penalty_conceded}</span>
-            </button>
-            <button
-              type="button"
-              className="tally-counter-btn tally-counter-btn--pen-plus"
-              onClick={(e) =>
-                tapThenBlur(e, () => setPendingGridPenalty({ direction: 'awarded', phase: phaseContext }))
-              }
-            >
-              <span className="tally-counter-label">Pen +</span>
-              <span className="tally-counter-badge">{counts.penalty_awarded}</span>
-            </button>
-            {mode === 'attack' ? (
-              <button
-                type="button"
-                className="tally-counter-btn tally-counter-btn--gold-filled"
-                title="Mark a positive system moment in attack"
-                aria-label="System moment — positive attack play"
-                onClick={(e) => tapThenBlur(e, () => onTallySystemMoment())}
-              >
-                <span className="tally-counter-label tally-counter-label--stacked">
-                  <span>System</span>
-                  <span>Moment</span>
-                </span>
-                <span className="tally-counter-badge">{counts.system_moment}</span>
-              </button>
-            ) : null}
-            {mode === 'defense' ? (
-              <button
-                type="button"
-                className="tally-counter-btn tally-counter-btn--gold-filled"
-                title="Mark a forced turnover on defense"
-                aria-label="Forced turnover — positive defensive play"
-                onClick={(e) => tapThenBlur(e, () => onTallyForcedTurnover())}
-              >
-                <span className="tally-counter-label tally-counter-label--stacked">
-                  <span>Forced</span>
-                  <span>Turnover</span>
-                </span>
-                <span className="tally-counter-badge">{counts.forced_turnover}</span>
-              </button>
-            ) : null}
+          <div className={`tally-grid${reorderMode ? ' tally-grid--reorder' : ''}`}>
+            {gridOrder.map((id, index) => renderGridButton(id, index))}
           </div>
 
           {pendingGridPenalty ? (
