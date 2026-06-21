@@ -26,6 +26,7 @@ describe('computePossessionStats', () => {
     expect(s.opp).toBe(0);
     expect(s.total).toBe(1);
     expect(s.passesPerPossessionUs).toBe(2);
+    expect(s.segments[0]?.endReason).toBe('conversion');
   });
 
   it('ends possession on knock-on after long pass chain', () => {
@@ -54,7 +55,7 @@ describe('computePossessionStats', () => {
     expect(s.total).toBe(2);
   });
 
-  it('counts opponent possession through try and conversion', () => {
+  it('counts failed restart receive as our possession then opponent spell', () => {
     const events: MatchEventRecord[] = [
       ev({ id: '1', kind: 'restart', matchTimeMs: 0, playPhaseContext: 'attack', setPieceOutcome: 'lost' }),
       ev({ id: '2', kind: 'pass', matchTimeMs: 5000, playPhaseContext: 'defense' }),
@@ -62,8 +63,10 @@ describe('computePossessionStats', () => {
       ev({ id: '4', kind: 'opponent_conversion', matchTimeMs: 55000, conversionOutcome: 'made' }),
     ];
     const s = computePossessionStats(events);
+    expect(s.us).toBe(1);
     expect(s.opp).toBe(1);
-    expect(s.us).toBe(0);
+    expect(s.segments[0]).toMatchObject({ side: 'us', endReason: 'restart_receive_lost' });
+    expect(s.segments[1]).toMatchObject({ side: 'opp', endReason: 'opponent_conversion' });
   });
 
   it('forced turnover starts our possession', () => {
@@ -77,5 +80,56 @@ describe('computePossessionStats', () => {
     expect(s.opp).toBe(1);
     expect(s.us).toBe(1);
     expect(s.total).toBe(2);
+  });
+
+  it('does not split one attack spell on repeated restart wins', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: '1', kind: 'restart', matchTimeMs: 0, playPhaseContext: 'attack', setPieceOutcome: 'won' }),
+      ev({ id: '2', kind: 'restart', matchTimeMs: 1000, playPhaseContext: 'attack', setPieceOutcome: 'won' }),
+      ev({ id: '3', kind: 'pass', matchTimeMs: 2000, playerId: 'a' }),
+      ev({ id: '4', kind: 'negative_action', matchTimeMs: 3000, negativeActionId: 'knock_on' }),
+    ];
+    const s = computePossessionStats(events);
+    expect(s.us).toBe(1);
+    expect(s.opp).toBe(0);
+  });
+
+  it('models scoring match with lost receives and try cycles', () => {
+    const events: MatchEventRecord[] = [];
+    let t = 0;
+    let id = 0;
+    const add = (kind: MatchEventRecord['kind'], extra: Partial<MatchEventRecord> = {}) => {
+      events.push(ev({ id: String(id++), kind, matchTimeMs: t, ...extra }));
+      t += 60_000;
+    };
+
+    // Opening receive won → try → conversion
+    add('restart', { playPhaseContext: 'attack', setPieceOutcome: 'won' });
+    add('pass', { playerId: 'a' });
+    add('try', { playerId: 'a' });
+    add('conversion', { conversionOutcome: 'made', playerId: 'a' });
+
+    // Three failed receives (our giveaways)
+    for (let i = 0; i < 3; i++) {
+      add('restart', { playPhaseContext: 'attack', setPieceOutcome: 'lost' });
+      add('pass', { playPhaseContext: 'defense' });
+      add('ruck', { playPhaseContext: 'defense', setPieceOutcome: 'won' });
+    }
+
+    // Two opponent scoring possessions
+    add('pass', { playPhaseContext: 'defense' });
+    add('opponent_try');
+    add('opponent_conversion', { conversionOutcome: 'made' });
+    add('restart', { playPhaseContext: 'attack', setPieceOutcome: 'won' });
+    add('pass', { playPhaseContext: 'defense' });
+    add('opponent_try');
+    add('opponent_conversion', { conversionOutcome: 'made' });
+
+    const s = computePossessionStats(events);
+    expect(s.us).toBeGreaterThanOrEqual(4); // 1 scoring + 3 failed receives
+    expect(s.opp).toBeGreaterThanOrEqual(2); // at least 2 scoring spells
+    expect(s.us).toBeGreaterThan(s.opp); // we scored more and lost more receives
+    expect(s.total).toBe(s.us + s.opp);
+    expect(s.segments.filter((x) => x.endReason === 'restart_receive_lost')).toHaveLength(3);
   });
 });

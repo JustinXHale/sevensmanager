@@ -3948,12 +3948,65 @@ button.live-stats-cell--btn.live-stats-cell--open {
   font-size: 0.875rem;
 }
 
-.possessions-expand-wrap {
-  margin-top: 0.75rem;
+.possessions-kpi-row {
+  margin-bottom: 0;
+}
+
+.possessions-kpi-btn {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.possessions-kpi-btn:hover {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.possessions-kpi-btn--open,
+.possessions-card--open .possessions-kpi-btn {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.06);
 }
 
 .possessions-expand-body {
-  margin-top: 0.65rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.possessions-segment-group + .possessions-segment-group {
+  margin-top: 1rem;
+}
+
+.possessions-segment-group-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.possessions-segment-range {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.possessions-segment-duration {
+  font-weight: 500;
+}
+
+.possessions-segment-reasons {
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .possessions-segment-side--us {

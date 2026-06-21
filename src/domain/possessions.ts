@@ -9,6 +9,7 @@ export type PossessionSegment = {
   startMs: number;
   endMs: number;
   period: number;
+  startReason: string;
   endReason: string;
   eventCount: number;
 };
@@ -36,29 +37,20 @@ function setPieceOutcome(e: MatchEventRecord): 'won' | 'lost' | 'other' {
   return 'other';
 }
 
-function possessionFromSetPiece(e: MatchEventRecord): PossessionSide | null {
-  const phase = e.playPhaseContext;
-  const outcome = setPieceOutcome(e);
-  if (outcome === 'other') return null;
-  if (phase === 'attack') return outcome === 'won' ? 'us' : 'opp';
-  return outcome === 'won' ? 'us' : 'opp';
-}
-
 function inferHolderFromEvent(e: MatchEventRecord): PossessionSide | null {
   if (e.kind === 'forced_turnover') return 'us';
   if (isOurPassEvent(e) || e.kind === 'line_break' || e.kind === 'try') return 'us';
   if (e.kind === 'pass' && e.playPhaseContext === 'defense') return 'opp';
   if (e.kind === 'opponent_try') return 'opp';
-  if (e.kind === 'tackle') return 'opp';
   return null;
 }
 
 /**
  * Count attacking possessions per team from the event log.
  *
- * A possession runs from gaining the ball through open play (passes, rucks, etc.)
- * until a turnover or until the conversion after a try. The next possession begins
- * on restart won/lost (or other clear gain/loss events).
+ * A possession runs from gaining the ball through open play until a turnover or
+ * until the conversion after a try. Restart receive lost counts as a brief our
+ * possession (giveaway) before opponent ball.
  */
 export function computePossessionStats(events: MatchEventRecord[]): PossessionStats {
   const sorted = sortMatchEventsByTime(events).filter((e) => e.deletedAt == null);
@@ -68,6 +60,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
   let pendingScore: PossessionSide | null = null;
   let segStartMs = 0;
   let segPeriod = 1;
+  let segStartReason = 'open_play';
   let segEvents = 0;
   let usPassesInSeg = 0;
   let oppPassesInSeg = 0;
@@ -80,6 +73,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
       startMs: segStartMs,
       endMs,
       period: segPeriod,
+      startReason: segStartReason,
       endReason: reason,
       eventCount: segEvents,
     });
@@ -92,23 +86,58 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
     oppPassesInSeg = 0;
   };
 
-  const openPossession = (side: PossessionSide, ms: number, period: number) => {
+  const openPossession = (side: PossessionSide, ms: number, period: number, startReason: string) => {
     holder = side;
     pendingScore = null;
     segStartMs = ms;
     segPeriod = period;
+    segStartReason = startReason;
     segEvents = 0;
     usPassesInSeg = 0;
     oppPassesInSeg = 0;
   };
 
-  const flipTo = (side: PossessionSide, e: MatchEventRecord, reason: string) => {
+  const closePendingScore = (e: MatchEventRecord) => {
     if (pendingScore != null) {
       closePossession(pendingScore, e.matchTimeMs, 'score_before_restart');
-    } else if (holder != null && holder !== side) {
-      closePossession(holder, e.matchTimeMs, reason);
     }
-    openPossession(side, e.matchTimeMs, e.period);
+  };
+
+  /** End the other side (if any) and open `side` unless we already hold the ball in open play. */
+  const gainPossession = (side: PossessionSide, e: MatchEventRecord, startReason: string, closeReason: string) => {
+    closePendingScore(e);
+    if (holder === side && pendingScore == null) return;
+    if (holder != null && holder !== side) {
+      closePossession(holder, e.matchTimeMs, closeReason);
+    }
+    openPossession(side, e.matchTimeMs, e.period, startReason);
+  };
+
+  const handleRestart = (e: MatchEventRecord, outcome: 'won' | 'lost') => {
+    closePendingScore(e);
+    const phase = e.playPhaseContext ?? 'attack';
+
+    if (phase === 'attack') {
+      if (outcome === 'won') {
+        gainPossession('us', e, 'restart_receive_won', 'restart');
+        return;
+      }
+      // Receiving kick and losing it: our brief possession, then opponent ball.
+      if (holder === 'opp') closePossession('opp', e.matchTimeMs, 'restart');
+      if (holder !== 'us') openPossession('us', e.matchTimeMs, e.period, 'restart_receive');
+      closePossession('us', e.matchTimeMs, 'restart_receive_lost');
+      openPossession('opp', e.matchTimeMs, e.period, 'restart_receive_lost');
+      return;
+    }
+
+    // Kicking off: opponent receives when we lose the contest on our kick.
+    if (outcome === 'lost') {
+      if (holder === 'us') closePossession('us', e.matchTimeMs, 'restart_kickoff');
+      gainPossession('opp', e, 'restart_kickoff_received', 'restart');
+      return;
+    }
+    if (holder === 'opp') closePossession('opp', e.matchTimeMs, 'restart');
+    gainPossession('us', e, 'restart_kickoff_won', 'restart');
   };
 
   const sideHolding = (): PossessionSide | null => pendingScore ?? holder;
@@ -121,7 +150,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
 
     if (e.kind === 'try') {
       if (holder === 'us' || holder == null) {
-        if (holder == null) openPossession('us', e.matchTimeMs, e.period);
+        if (holder == null) openPossession('us', e.matchTimeMs, e.period, 'try');
         pendingScore = 'us';
       }
       continue;
@@ -129,7 +158,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
 
     if (e.kind === 'opponent_try') {
       if (holder !== 'us') {
-        if (holder == null) openPossession('opp', e.matchTimeMs, e.period);
+        if (holder == null) openPossession('opp', e.matchTimeMs, e.period, 'opponent_try');
         pendingScore = 'opp';
       }
       continue;
@@ -150,7 +179,7 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
     }
 
     if (e.kind === 'forced_turnover') {
-      flipTo('us', e, 'forced_turnover');
+      gainPossession('us', e, 'forced_turnover', 'forced_turnover');
       continue;
     }
 
@@ -159,9 +188,9 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
       const phase = e.playPhaseContext ?? 'attack';
       if (dir === 'conceded' && phase === 'attack') {
         if (holder === 'us' || pendingScore === 'us') closePossession('us', e.matchTimeMs, 'penalty_conceded');
-        else flipTo('opp', e, 'penalty_conceded');
+        gainPossession('opp', e, 'penalty_conceded', 'penalty_conceded');
       } else if (dir === 'awarded' && phase === 'defense') {
-        flipTo('us', e, 'penalty_awarded');
+        gainPossession('us', e, 'penalty_awarded', 'penalty_awarded');
       } else if (dir === 'conceded' && phase === 'defense') {
         if (sideHolding() === 'opp') {
           closePossession('opp', e.matchTimeMs, 'penalty_conceded');
@@ -173,40 +202,42 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
     if (isTurnoverNegative(e)) {
       if (holder === 'us' || pendingScore === 'us') {
         closePossession('us', e.matchTimeMs, 'turnover_negative');
+      } else if (holder === 'opp' || pendingScore === 'opp') {
+        closePossession('opp', e.matchTimeMs, 'turnover_negative');
       }
       continue;
     }
 
     if (SET_PIECE_KINDS.has(e.kind)) {
-      const next = possessionFromSetPiece(e);
-      if (next == null) continue;
+      const outcome = setPieceOutcome(e);
+      if (outcome === 'other') continue;
+
       if (e.kind === 'restart') {
-        flipTo(next, e, 'restart');
+        handleRestart(e, outcome);
         continue;
       }
+
       const phase = e.playPhaseContext;
-      const outcome = setPieceOutcome(e);
       if (phase === 'attack' && outcome === 'lost') {
         if (holder === 'us' || pendingScore === 'us') closePossession('us', e.matchTimeMs, 'set_piece_lost');
-        flipTo('opp', e, 'set_piece_lost');
+        gainPossession('opp', e, 'set_piece_lost', 'set_piece_lost');
       } else if (phase === 'defense' && outcome === 'won') {
-        flipTo('us', e, 'set_piece_won');
+        gainPossession('us', e, 'set_piece_won', 'set_piece_won');
       } else if (phase === 'attack' && outcome === 'won') {
-        if (holder == null) openPossession('us', e.matchTimeMs, e.period);
-        else holder = 'us';
+        gainPossession('us', e, 'set_piece_won', 'set_piece_won');
       } else if (phase === 'defense' && outcome === 'lost') {
         if (sideHolding() === 'opp') {
           closePossession('opp', e.matchTimeMs, 'set_piece_lost');
         } else if (holder == null && pendingScore == null) {
-          openPossession('opp', e.matchTimeMs, e.period);
+          openPossession('opp', e.matchTimeMs, e.period, 'set_piece_lost');
         }
       }
       continue;
     }
 
-    if (holder == null) {
+    if (holder == null && pendingScore == null) {
       const inferred = inferHolderFromEvent(e);
-      if (inferred != null) openPossession(inferred, e.matchTimeMs, e.period);
+      if (inferred != null) openPossession(inferred, e.matchTimeMs, e.period, 'inferred');
     }
   }
 
@@ -253,4 +284,32 @@ export function aggregatePossessionStats(batches: MatchEventRecord[][]): Possess
     passesPerPossessionUs: us > 0 ? Math.round((totalUsPasses / us) * 10) / 10 : null,
     passesPerPossessionOpp: opp > 0 ? Math.round((totalOppPasses / opp) * 10) / 10 : null,
   };
+}
+
+/** Human-readable labels for possession segment reasons (UI + export). */
+export function possessionReasonLabel(reason: string): string {
+  const labels: Record<string, string> = {
+    conversion: 'Conversion',
+    opponent_conversion: 'Opp conversion',
+    forced_turnover: 'Forced turnover',
+    penalty_conceded: 'Penalty conceded',
+    penalty_awarded: 'Penalty awarded',
+    turnover_negative: 'Turnover (knock-on / neg)',
+    set_piece_lost: 'Set piece lost',
+    set_piece_won: 'Set piece won',
+    restart: 'Restart',
+    restart_receive_won: 'Restart receive won',
+    restart_receive: 'Restart receive',
+    restart_receive_lost: 'Restart receive lost',
+    restart_kickoff_received: 'Opp received kickoff',
+    restart_kickoff_won: 'Kickoff retained',
+    restart_kickoff: 'Kickoff',
+    score_before_restart: 'Try (before restart)',
+    open_at_end: 'Still in play at end of log',
+    open_play: 'Open play',
+    inferred: 'Inferred from event',
+    try: 'Try scored',
+    opponent_try: 'Opp try scored',
+  };
+  return labels[reason] ?? reason.replace(/_/g, ' ');
 }
