@@ -4,8 +4,12 @@ import { formatClock } from '@/domain/matchClock';
 import {
   aggregatePossessionStats,
   computePossessionStats,
+  formatPossessionDuration,
+  isInstantGiveawayPossession,
+  possessionDurationMs,
   possessionReasonLabel,
   type PossessionSegment,
+  type PossessionSideMetrics,
   type PossessionStats,
 } from '@/domain/possessions';
 import { SectionHelp, type GlossaryEntry } from '@/components/SectionHelp';
@@ -22,18 +26,40 @@ const POSSESSIONS_GLOSSARY: GlossaryEntry[] = [
     desc: 'Opponent attack spells from receiving the ball through their conversion or a turnover.',
   },
   {
-    abbr: 'Receive lost',
-    full: 'Restart receive lost',
-    desc: 'When you log Restart (Receiving kick) as L, that counts as a brief our possession ending in a giveaway before opponent ball.',
+    abbr: 'All',
+    full: 'All possessions',
+    desc: 'Mean and median match-clock duration across every possession, including instant failed receives (0:00).',
+  },
+  {
+    abbr: 'With ball',
+    full: 'With ball',
+    desc: 'Excludes instant giveaways (restart receive lost and 0:00 duration). Answers: once we retain the ball, how long do we hold it and how many passes do we log?',
+  },
+  {
+    abbr: 'Giveaways',
+    full: 'Instant giveaways',
+    desc: 'Failed restart receives and same-timestamp possessions — counted in totals but excluded from the With ball row.',
   },
   {
     abbr: 'Passes / poss',
     full: 'Passes per possession',
-    desc: 'Average passes logged during each completed possession spell (attack passes for us; Defense-tab opp passes for them).',
+    desc: 'Average passes logged per possession spell (attack passes for us; Defense-tab opp passes for them).',
   },
 ];
 
 export const POSSESSIONS_EXPAND_KEY = 'possessions:segments';
+
+const EMPTY_METRICS: PossessionSideMetrics = {
+  count: 0,
+  giveawayCount: 0,
+  avgDurationMs: null,
+  medianDurationMs: null,
+  passesPerPossession: null,
+  retainedCount: 0,
+  avgRetainedDurationMs: null,
+  medianRetainedDurationMs: null,
+  passesPerRetainedPossession: null,
+};
 
 const EMPTY_POSSESSION_STATS: PossessionStats = {
   us: 0,
@@ -42,13 +68,12 @@ const EMPTY_POSSESSION_STATS: PossessionStats = {
   segments: [],
   passesPerPossessionUs: null,
   passesPerPossessionOpp: null,
+  usMetrics: EMPTY_METRICS,
+  oppMetrics: EMPTY_METRICS,
 };
 
 function formatDuration(ms: number): string {
-  const sec = Math.max(0, Math.round(ms / 1000));
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+  return formatPossessionDuration(ms) === '—' ? '0:00' : formatPossessionDuration(ms)!;
 }
 
 function SegmentRow({
@@ -60,15 +85,20 @@ function SegmentRow({
   index: number;
   matchLabel?: string;
 }) {
-  const durationMs = Math.max(0, seg.endMs - seg.startMs);
+  const durationMs = possessionDurationMs(seg);
+  const giveaway = isInstantGiveawayPossession(seg);
   return (
-    <li className="live-stats-expand-row possessions-segment-row">
+    <li className={`live-stats-expand-row possessions-segment-row${giveaway ? ' possessions-segment-row--giveaway' : ''}`}>
       <span className="live-stats-expand-time tabular-nums">
         #{index + 1} · P{seg.period}{' '}
         <span className="possessions-segment-range">
           {formatClock(seg.startMs)} → {formatClock(seg.endMs)}
         </span>
         <span className="possessions-segment-duration muted"> ({formatDuration(durationMs)})</span>
+        {giveaway ? <span className="possessions-giveaway-badge">Giveaway</span> : null}
+        {seg.passCount > 0 ? (
+          <span className="possessions-pass-badge muted">{seg.passCount} pass{seg.passCount === 1 ? '' : 'es'}</span>
+        ) : null}
       </span>
       {matchLabel ? (
         <span className="live-stats-expand-match possessions-segment-match">{matchLabel}</span>
@@ -117,13 +147,63 @@ function SegmentGroup({
   );
 }
 
+function TimeMetricsRow({
+  label,
+  metrics,
+  oppLabel = 'opp passes / poss',
+}: {
+  label: string;
+  metrics: PossessionSideMetrics;
+  oppLabel?: string;
+}) {
+  const passLabel = label === 'Opposition' ? oppLabel : 'passes / poss';
+  return (
+    <tr>
+      <th scope="row">{label}</th>
+      <td className="tabular-nums">
+        {metrics.count === 0 ? (
+          '—'
+        ) : (
+          <>
+            avg {formatPossessionDuration(metrics.avgDurationMs)} · med{' '}
+            {formatPossessionDuration(metrics.medianDurationMs)}
+            {metrics.passesPerPossession != null ? (
+              <span className="possessions-time-pass muted">
+                {' '}
+                · {metrics.passesPerPossession} {passLabel}
+              </span>
+            ) : null}
+            {metrics.giveawayCount > 0 ? (
+              <span className="possessions-time-giveaway muted"> · {metrics.giveawayCount} giveaway</span>
+            ) : null}
+          </>
+        )}
+      </td>
+      <td className="tabular-nums">
+        {metrics.retainedCount === 0 ? (
+          '—'
+        ) : (
+          <>
+            avg {formatPossessionDuration(metrics.avgRetainedDurationMs)} · med{' '}
+            {formatPossessionDuration(metrics.medianRetainedDurationMs)}
+            {metrics.passesPerRetainedPossession != null ? (
+              <span className="possessions-time-pass muted">
+                {' '}
+                · {metrics.passesPerRetainedPossession} {passLabel}
+              </span>
+            ) : null}
+            <span className="possessions-time-retained muted"> · n={metrics.retainedCount}</span>
+          </>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 type Props = {
-  /** Single match or pooled flat list — use `eventBatches` when aggregating multiple games. */
   events?: MatchEventRecord[];
-  /** Per-match event lists (correct for global stats — avoids cross-game possession chains). */
   eventBatches?: MatchEventRecord[][];
   matchLabelsByMatchId?: Map<string, string>;
-  /** When true, KPI labels show pooled (Σ) suffix. */
   pooled?: boolean;
   expandedKey: string | null;
   onToggle: (key: string) => void;
@@ -159,8 +239,8 @@ export function PossessionsStatsSection({
       </div>
       <p className="muted tgs-card-lead">
         {pooled
-          ? 'Pooled attack phases across selected games — tap the counts for start/end times per possession.'
-          : 'Attack phases per team — tap the counts to see when each possession started and ended.'}
+          ? 'Pooled attack phases — tap counts for the possession list; duration uses match clock.'
+          : 'Attack phases per team — tap counts for start/end times. With ball excludes instant failed receives.'}
       </p>
       <div className="team-global-kpi-row possessions-kpi-row">
         <button
@@ -172,8 +252,10 @@ export function PossessionsStatsSection({
         >
           <span className="team-global-kpi-label">Us{sigma}</span>
           <span className="team-global-kpi-value tabular-nums">{stats.us}</span>
-          {stats.passesPerPossessionUs != null ? (
-            <span className="team-global-kpi-sub muted">{stats.passesPerPossessionUs} passes / poss</span>
+          {stats.usMetrics.giveawayCount > 0 ? (
+            <span className="team-global-kpi-sub muted">{stats.usMetrics.giveawayCount} giveaway</span>
+          ) : stats.usMetrics.passesPerPossession != null ? (
+            <span className="team-global-kpi-sub muted">{stats.usMetrics.passesPerPossession} passes / poss</span>
           ) : null}
         </button>
         <button
@@ -185,8 +267,8 @@ export function PossessionsStatsSection({
         >
           <span className="team-global-kpi-label">Opp{sigma}</span>
           <span className="team-global-kpi-value tabular-nums">{stats.opp}</span>
-          {stats.passesPerPossessionOpp != null ? (
-            <span className="team-global-kpi-sub muted">{stats.passesPerPossessionOpp} opp passes / poss</span>
+          {stats.oppMetrics.passesPerPossession != null ? (
+            <span className="team-global-kpi-sub muted">{stats.oppMetrics.passesPerPossession} opp passes / poss</span>
           ) : null}
         </button>
         <button
@@ -203,6 +285,25 @@ export function PossessionsStatsSection({
           </span>
         </button>
       </div>
+
+      {stats.total > 0 ? (
+        <div className="possessions-time-table-wrap">
+          <table className="possessions-time-table">
+            <thead>
+              <tr>
+                <th scope="col" />
+                <th scope="col">All possessions</th>
+                <th scope="col">With ball</th>
+              </tr>
+            </thead>
+            <tbody>
+              <TimeMetricsRow label="Attack" metrics={stats.usMetrics} />
+              <TimeMetricsRow label="Opposition" metrics={stats.oppMetrics} oppLabel="opp passes / poss" />
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       {stats.total === 0 ? (
         <p className="muted possessions-empty-hint">
           No possessions inferred yet. Log restarts (W/L), passes, tries with conversions, turnovers, or set pieces.

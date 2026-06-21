@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Match **Stats** (Tally, One Tap, Full): **Possessions** card with us / opp / total counts, passes per possession, and expandable possession segment list
 - Match **Stats** possessions: fixed restart-receive **lost** counting as our giveaway (not opponent-only); no duplicate splits on repeated restart wins; tap KPIs for start/end times by Attack vs Opposition
 - Team **Global stats**: **Possessions** card (pooled across games or single-match filter) with expandable segment list and match labels when viewing all games
+- Match and team **Possessions** card: **All possessions** vs **With ball** rows with avg/median duration and passes/poss; instant failed receives marked as giveaways and excluded from With ball
 - Tally and One Tap: **★ Star moment** button — bookmarks match + film clock for footage review; starred rows on Timeline show film time (filter **Starred moments**)
 - Tally **Attack**: filled gold **System Moment** circle at end of counter grid — logs positive attack system plays with match + film clock for timeline review
 - Match **Stats** (Tally / One Tap / Full): **Film bookmarks** section with starred + system moment counts, expandable event lists with film times, and scrub list sorted by film clock; Tally Attack card includes system moment count

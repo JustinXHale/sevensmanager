@@ -94,6 +94,27 @@ describe('computePossessionStats', () => {
     expect(s.opp).toBe(0);
   });
 
+  it('computes duration metrics with giveaways excluded from with-ball row', () => {
+    const events: MatchEventRecord[] = [
+      ev({ id: '1', kind: 'restart', matchTimeMs: 0, playPhaseContext: 'attack', setPieceOutcome: 'won' }),
+      ev({ id: '2', kind: 'pass', matchTimeMs: 10_000, playerId: 'a' }),
+      ev({ id: '3', kind: 'pass', matchTimeMs: 20_000, playerId: 'a' }),
+      ev({ id: '4', kind: 'negative_action', matchTimeMs: 30_000, negativeActionId: 'knock_on' }),
+      ev({ id: '5', kind: 'restart', matchTimeMs: 40_000, playPhaseContext: 'attack', setPieceOutcome: 'lost' }),
+      ev({ id: '6', kind: 'restart', matchTimeMs: 50_000, playPhaseContext: 'attack', setPieceOutcome: 'lost' }),
+    ];
+    const s = computePossessionStats(events);
+    expect(s.us).toBe(3);
+    expect(s.usMetrics.giveawayCount).toBe(2);
+    expect(s.usMetrics.retainedCount).toBe(1);
+    expect(s.usMetrics.avgDurationMs).toBeLessThan(s.usMetrics.avgRetainedDurationMs!);
+    expect(s.usMetrics.avgRetainedDurationMs).toBe(30_000);
+    expect(s.usMetrics.medianRetainedDurationMs).toBe(30_000);
+    expect(s.usMetrics.passesPerPossession).toBeCloseTo(2 / 3, 1);
+    expect(s.usMetrics.passesPerRetainedPossession).toBe(2);
+    expect(s.segments.every((seg) => typeof seg.passCount === 'number')).toBe(true);
+  });
+
   it('models scoring match with lost receives and try cycles', () => {
     const events: MatchEventRecord[] = [];
     let t = 0;

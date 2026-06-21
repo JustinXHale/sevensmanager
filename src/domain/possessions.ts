@@ -12,7 +12,22 @@ export type PossessionSegment = {
   startReason: string;
   endReason: string;
   eventCount: number;
+  /** Passes logged during this possession spell. */
+  passCount: number;
   matchId?: string;
+};
+
+export type PossessionSideMetrics = {
+  count: number;
+  /** Instant failed receives / same-timestamp possessions (excluded from "with ball" row). */
+  giveawayCount: number;
+  avgDurationMs: number | null;
+  medianDurationMs: number | null;
+  passesPerPossession: number | null;
+  retainedCount: number;
+  avgRetainedDurationMs: number | null;
+  medianRetainedDurationMs: number | null;
+  passesPerRetainedPossession: number | null;
 };
 
 export type PossessionStats = {
@@ -20,13 +35,83 @@ export type PossessionStats = {
   opp: number;
   total: number;
   segments: PossessionSegment[];
-  /** Our passes logged during our completed possessions. */
+  /** @deprecated Prefer `usMetrics.passesPerPossession`. */
   passesPerPossessionUs: number | null;
-  /** Opp passes logged during their completed possessions. */
+  /** @deprecated Prefer `oppMetrics.passesPerPossession`. */
   passesPerPossessionOpp: number | null;
+  usMetrics: PossessionSideMetrics;
+  oppMetrics: PossessionSideMetrics;
 };
 
 const SET_PIECE_KINDS = new Set<MatchEventRecord['kind']>(['scrum', 'lineout', 'ruck', 'restart']);
+
+/** Match-clock length of a completed possession spell. */
+export function possessionDurationMs(seg: PossessionSegment): number {
+  return Math.max(0, seg.endMs - seg.startMs);
+}
+
+/**
+ * Instant giveaways — e.g. restart receive lost at 0:00. Excluded from "with ball" duration stats.
+ */
+export function isInstantGiveawayPossession(seg: PossessionSegment): boolean {
+  return seg.endReason === 'restart_receive_lost' || possessionDurationMs(seg) === 0;
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function medianMs(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[mid]!;
+  return Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
+}
+
+function meanMs(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+}
+
+function computeSideMetrics(segments: PossessionSegment[], side: PossessionSide): PossessionSideMetrics {
+  const sideSegs = segments.filter((s) => s.side === side);
+  const count = sideSegs.length;
+  const durations = sideSegs.map(possessionDurationMs);
+  const totalPasses = sideSegs.reduce((n, s) => n + s.passCount, 0);
+  const giveaways = sideSegs.filter(isInstantGiveawayPossession);
+  const retained = sideSegs.filter((s) => !isInstantGiveawayPossession(s));
+  const retainedDurations = retained.map(possessionDurationMs);
+  const retainedPasses = retained.reduce((n, s) => n + s.passCount, 0);
+
+  return {
+    count,
+    giveawayCount: giveaways.length,
+    avgDurationMs: meanMs(durations),
+    medianDurationMs: medianMs(durations),
+    passesPerPossession: count > 0 ? round1(totalPasses / count) : null,
+    retainedCount: retained.length,
+    avgRetainedDurationMs: meanMs(retainedDurations),
+    medianRetainedDurationMs: medianMs(retainedDurations),
+    passesPerRetainedPossession:
+      retained.length > 0 ? round1(retainedPasses / retained.length) : null,
+  };
+}
+
+function buildPossessionStats(segments: PossessionSegment[]): PossessionStats {
+  const usMetrics = computeSideMetrics(segments, 'us');
+  const oppMetrics = computeSideMetrics(segments, 'opp');
+  return {
+    us: usMetrics.count,
+    opp: oppMetrics.count,
+    total: segments.length,
+    segments,
+    passesPerPossessionUs: usMetrics.passesPerPossession,
+    passesPerPossessionOpp: oppMetrics.passesPerPossession,
+    usMetrics,
+    oppMetrics,
+  };
+}
 
 function isTurnoverNegative(e: MatchEventRecord): boolean {
   return e.kind === 'negative_action';
@@ -65,8 +150,6 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
   let segEvents = 0;
   let usPassesInSeg = 0;
   let oppPassesInSeg = 0;
-  let totalUsPasses = 0;
-  let totalOppPasses = 0;
   let segMatchId: string | undefined = sorted[0]?.matchId;
 
   const closePossession = (side: PossessionSide, endMs: number, reason: string) => {
@@ -78,10 +161,9 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
       startReason: segStartReason,
       endReason: reason,
       eventCount: segEvents,
+      passCount: side === 'us' ? usPassesInSeg : oppPassesInSeg,
       matchId: segMatchId,
     });
-    if (side === 'us') totalUsPasses += usPassesInSeg;
-    else totalOppPasses += oppPassesInSeg;
     holder = null;
     pendingScore = null;
     segEvents = 0;
@@ -259,41 +341,16 @@ export function computePossessionStats(events: MatchEventRecord[]): PossessionSt
     closePossession(holder, last?.matchTimeMs ?? segStartMs, 'open_at_end');
   }
 
-  const us = segments.filter((s) => s.side === 'us').length;
-  const opp = segments.filter((s) => s.side === 'opp').length;
-
-  return {
-    us,
-    opp,
-    total: us + opp,
-    segments,
-    passesPerPossessionUs: us > 0 ? Math.round((totalUsPasses / us) * 10) / 10 : null,
-    passesPerPossessionOpp: opp > 0 ? Math.round((totalOppPasses / opp) * 10) / 10 : null,
-  };
+  return buildPossessionStats(segments);
 }
 
 export function aggregatePossessionStats(batches: MatchEventRecord[][]): PossessionStats {
-  let us = 0;
-  let opp = 0;
-  let totalUsPasses = 0;
-  let totalOppPasses = 0;
   const segments: PossessionSegment[] = [];
   for (const batch of batches) {
     const s = computePossessionStats(batch);
-    us += s.us;
-    opp += s.opp;
     segments.push(...s.segments);
-    if (s.passesPerPossessionUs != null) totalUsPasses += s.passesPerPossessionUs * s.us;
-    if (s.passesPerPossessionOpp != null) totalOppPasses += s.passesPerPossessionOpp * s.opp;
   }
-  return {
-    us,
-    opp,
-    total: us + opp,
-    segments,
-    passesPerPossessionUs: us > 0 ? Math.round((totalUsPasses / us) * 10) / 10 : null,
-    passesPerPossessionOpp: opp > 0 ? Math.round((totalOppPasses / opp) * 10) / 10 : null,
-  };
+  return buildPossessionStats(segments);
 }
 
 /** Human-readable labels for possession segment reasons (UI + export). */
@@ -322,4 +379,13 @@ export function possessionReasonLabel(reason: string): string {
     opponent_try: 'Opp try scored',
   };
   return labels[reason] ?? reason.replace(/_/g, ' ');
+}
+
+/** Format ms as m:ss for possession duration KPIs. */
+export function formatPossessionDuration(ms: number | null | undefined): string {
+  if (ms == null) return '—';
+  const sec = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
