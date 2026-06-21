@@ -6,6 +6,7 @@ import {
   orderPlayersInStatus,
   reconcileAllRosterOrders,
   reconcileOnFieldOrder,
+  sortAllRosterOrders,
 } from '@/domain/rosterDisplay';
 
 function player(id: string, number: number, status: PlayerRecord['status']): PlayerRecord {
@@ -70,5 +71,30 @@ describe('roster display order', () => {
     const ordered = orderPlayersInStatus(manyOn, 'on', null);
     expect(ordered).toHaveLength(8);
     expect(reconcileOnFieldOrder(null, manyOn)).toHaveLength(8);
+  });
+
+  it('sortAllRosterOrders sorts each group by number or name', () => {
+    const squad = [
+      { ...player('a', 8, 'on'), name: 'Zara' },
+      { ...player('b', 2, 'on'), name: 'Alex' },
+      { ...player('c', 5, 'bench'), name: 'Morgan' },
+      { ...player('d', 1, 'bench'), name: 'Blake' },
+    ];
+    expect(sortAllRosterOrders(squad, 'number')).toEqual({
+      on: ['b', 'a'],
+      bench: ['d', 'c'],
+      off: [],
+    });
+    expect(sortAllRosterOrders(squad, 'name')).toEqual({
+      on: ['b', 'a'],
+      bench: ['d', 'c'],
+      off: [],
+    });
+    const mixed = [
+      { ...player('x', 1, 'off'), name: 'Zara' },
+      { ...player('y', 8, 'off'), name: 'Alex' },
+    ];
+    expect(sortAllRosterOrders(mixed, 'number').off).toEqual(['x', 'y']);
+    expect(sortAllRosterOrders(mixed, 'name').off).toEqual(['y', 'x']);
   });
 });

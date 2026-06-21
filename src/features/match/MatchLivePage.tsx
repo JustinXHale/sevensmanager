@@ -90,6 +90,7 @@ import type { TallyPenaltyInfractionPick } from './TallyPenaltyInfractionPicker'
 import type { TallySetPieceChoice, TallySetPieceLogExtras } from './TallySetPieceStrip';
 import { buildMatchSummaryText } from '@/domain/matchSummary';
 import { MatchCompleteOverlay } from './MatchCompleteOverlay';
+import { MatchEditDialog } from './MatchEditDialog';
 import { RefClockBar } from './RefClockBar';
 import {
   RefClockSettingsDialog,
@@ -157,6 +158,8 @@ export function MatchLivePage() {
   /** Stable row order for on-field list (by player id); subs swap in place instead of re-sorting by jersey. */
   const [onFieldDisplayOrder, setOnFieldDisplayOrder] = useState<string[] | null>(null);
   const [clockSettingsOpen, setClockSettingsOpen] = useState(false);
+  const [matchEditOpen, setMatchEditOpen] = useState(false);
+  const openMatchEdit = useCallback(() => setMatchEditOpen(true), []);
   const [trackingMode, setTrackingMode] = useState<TrackingMode>(() => readStoredTrackingMode(matchId));
   const [tallyLayout, setTallyLayout] = useState<TallyLayout>(() => loadTallyLayout());
   const [tallyReorderMode, setTallyReorderMode] = useState(false);
@@ -282,12 +285,13 @@ export function MatchLivePage() {
         ...base,
         title: derivedFixtureLabel(match),
         subtitle: eventLabel,
+        onEditMatch: openMatchEdit,
       });
     } else {
       setTeamHeader(base);
     }
     return () => setTeamHeader(null);
-  }, [setTeamHeader, matchesListBack, match, events.length]);
+  }, [setTeamHeader, matchesListBack, match, events.length, openMatchEdit]);
 
   useEffect(() => {
     if (match?.teamId && matchId) {
@@ -1596,6 +1600,15 @@ export function MatchLivePage() {
           </button>
         </div>
       ) : null}
+      <MatchEditDialog
+        match={match ?? null}
+        open={matchEditOpen && match != null}
+        onClose={() => setMatchEditOpen(false)}
+        onSaved={(updated) => {
+          setMatch(updated);
+          setMatchEditOpen(false);
+        }}
+      />
     </div>
   );
 }

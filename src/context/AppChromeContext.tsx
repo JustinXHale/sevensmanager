@@ -17,6 +17,8 @@ export type TeamHeaderState = {
    * Saves vertical space; requires `backTo`.
    */
   minimalBackOnly?: boolean;
+  /** Match live header: pencil control beside the nav menu. */
+  onEditMatch?: () => void;
   /**
    * `/club/:id/competitions`: team name under app title + edit control in header.
    * Mutually exclusive with using `title`/`subtitle` for the default header stack.

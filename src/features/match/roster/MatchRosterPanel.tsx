@@ -9,8 +9,10 @@ import {
   orderPlayersInStatus,
   ordersEqual,
   reconcileAllRosterOrders,
+  sortAllRosterOrders,
   sortPlayersRefLogStyle,
   type RosterDisplayOrders,
+  type RosterGroupSortMode,
 } from '@/domain/rosterDisplay';
 import type { PlayerRecord, PlayerStatus } from '@/domain/player';
 import { ON_FIELD_MAX } from '@/domain/player';
@@ -64,6 +66,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
   const [subOffId, setSubOffId] = useState('');
   const [subOnId, setSubOnId] = useState('');
   const [banner, setBanner] = useState<string | null>(null);
+  const [groupSortMode, setGroupSortMode] = useState<RosterGroupSortMode>('number');
 
   const notify = useCallback(() => {
     onRosterUpdated?.();
@@ -207,6 +210,14 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
     notify();
   }
 
+  async function applyGroupSort(mode: RosterGroupSortMode) {
+    if (!session) return;
+    setGroupSortMode(mode);
+    const orders = sortAllRosterOrders(players, mode);
+    await persistOrders(session, orders);
+    notify();
+  }
+
   function openSubstitutionSheet() {
     setSubOffId(onField[0]?.id ?? '');
     setSubOnId(benchOrOff[0]?.id ?? '');
@@ -242,7 +253,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
   if (match === undefined || session === undefined) {
     return (
       <section className="card">
-        <p className="muted">Loading‚Ä¶</p>
+        <p className="muted">Loadingù</p>
       </section>
     );
   }
@@ -279,7 +290,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
           </>
         )}
         <p className="muted roster-seed-note">
-          Drag or use ‚ñ¥‚ñæ to set order in each group (e.g. on-field 8, 2, 5, 7). On field turns red when more
+          Drag or use ?? to set order in each group (e.g. on-field 8, 2, 5, 7). On field turns red when more
           than {ON_FIELD_MAX} players.
         </p>
 
@@ -293,10 +304,10 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
           >
             <span className="roster-expand-title">Your roster</span>
             <span className="muted roster-expand-count">
-              On {onC} ¬∑ Bench {benchC} ¬∑ Off {offC}
+              On {onC} ù Bench {benchC} ù Off {offC}
             </span>
             <span className="roster-expand-chevron" aria-hidden>
-              {squadExpanded ? '‚ñæ' : '‚ñ∏'}
+              {squadExpanded ? '?' : '?'}
             </span>
           </button>
 
@@ -304,12 +315,34 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
             <div className="roster-expand-body">
               <div className="roster-sub-inline">
                 <p className="muted roster-sub-meta">
-                  Current match clock: <strong>{matchTimeLabel}</strong> ¬∑{' '}
+                  Current match clock: <strong>{matchTimeLabel}</strong> ù{' '}
                   Period {session.period}
                 </p>
                 <button type="button" className="btn btn-secondary" onClick={() => openSubstitutionSheet()}>
                   Record substitution
                 </button>
+              </div>
+
+              <div className="roster-sort-row" role="group" aria-label="Sort roster groups">
+                <span className="muted roster-sort-label">Sort each group</span>
+                <label className="roster-sort-toggle">
+                  <input
+                    type="radio"
+                    name={`roster-sort-${matchId}`}
+                    checked={groupSortMode === 'number'}
+                    onChange={() => void applyGroupSort('number')}
+                  />
+                  By number
+                </label>
+                <label className="roster-sort-toggle">
+                  <input
+                    type="radio"
+                    name={`roster-sort-${matchId}`}
+                    checked={groupSortMode === 'name'}
+                    onChange={() => void applyGroupSort('name')}
+                  />
+                  By name
+                </label>
               </div>
 
               <RosterDragBoard
@@ -331,7 +364,7 @@ export function MatchRosterPanel({ matchId, onRosterUpdated, embedded = false }:
         open={subOpen}
         onClose={() => setSubOpen(false)}
         onConfirm={() => void confirmSubstitution()}
-        matchLabel={`${derivedFixtureLabel(match)} ¬∑ ${matchTimeLabel}`}
+        matchLabel={`${derivedFixtureLabel(match)} ù ${matchTimeLabel}`}
         onField={onField}
         benchOrOff={benchOrOff}
         offId={subOffId}

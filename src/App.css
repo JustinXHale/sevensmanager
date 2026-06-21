@@ -169,6 +169,13 @@
   white-space: nowrap;
 }
 
+.app-header-match-trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
 .app-header-drill {
   display: flex;
   align-items: center;
@@ -1889,7 +1896,14 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
   margin-bottom: 0.75rem;
+}
+
+.roster-sort-label {
+  font-size: 0.875rem;
+  margin-right: auto;
 }
 
 .roster-sort-toggle {

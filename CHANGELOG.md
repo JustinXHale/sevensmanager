@@ -15,6 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Team **Global stats**: **System moments** total in Overview (and per-match count on Points by match); respects match filter
 - Team **Global stats**: **Match** dropdown to filter all sections to a single game (or all games pooled)
 - Team **Match** tab: **×** on each match card deletes the match after confirm (roster, clock, and all events)
+- Team **Match** tab and live match header: **Edit match** (✎ / pencil) to change title, teams, opponent abbreviation, kickoff, location, and competition display text after creation
+- Match **Roster** tab: **Sort each group** by jersey number or player name (On field, Bench, and Off reorder together; drag order still available after)
 - Tally and One Tap: **★ Star moment** button — bookmarks match + film clock for footage review; starred rows on Timeline show film time (filter **Starred moments**)
 - Tally **Attack**: filled gold **System Moment** circle at end of counter grid — logs positive attack system plays with match + film clock for timeline review
 - Match **Stats** (Tally / One Tap / Full): **Film bookmarks** section with starred + system moment counts, expandable event lists with film times, and scrub list sorted by film clock; Tally Attack card includes system moment count

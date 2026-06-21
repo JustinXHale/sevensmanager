@@ -6,6 +6,7 @@ import type { MatchRecord } from '@/domain/match';
 import type { TeamRecord } from '@/domain/team';
 import { countActiveMatchEventsByMatchId } from '@/repos/matchEventsRepo';
 import { deleteMatch, listMatchesForTeam } from '@/repos/matchesRepo';
+import { MatchEditDialog } from '@/features/match/MatchEditDialog';
 import {
   DISPLAY_TIMEZONE_OPTIONS,
   DISPLAY_TIMEZONE_STORAGE_KEY,
@@ -26,6 +27,7 @@ export function TeamLivePanel({ team }: Props) {
   const [eventCountsByMatchId, setEventCountsByMatchId] = useState<Map<string, number>>(() => new Map());
   const [displayTimeZone, setDisplayTimeZone] = useState(() => getStoredDisplayTimeZone());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editMatch, setEditMatch] = useState<MatchRecord | null>(null);
   const menuWrapRef = useRef<HTMLDivElement>(null);
 
   const deviceTimeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -183,6 +185,15 @@ export function TeamLivePanel({ team }: Props) {
                     </Link>
                     <button
                       type="button"
+                      className="match-row-action"
+                      title={`Edit ${derivedFixtureLabel(m)}`}
+                      aria-label={`Edit ${derivedFixtureLabel(m)}`}
+                      onClick={() => setEditMatch(m)}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
                       className="match-row-delete btn-danger"
                       title={`Delete ${derivedFixtureLabel(m)}`}
                       aria-label={`Delete ${derivedFixtureLabel(m)}`}
@@ -227,6 +238,13 @@ export function TeamLivePanel({ team }: Props) {
           ) : null}
         </div>
       </div>
+
+      <MatchEditDialog
+        match={editMatch}
+        open={editMatch != null}
+        onClose={() => setEditMatch(null)}
+        onSaved={() => void refreshMatches()}
+      />
     </div>
   );
 }

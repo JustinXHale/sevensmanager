@@ -42,6 +42,52 @@ export function dedupeSquadPlayers(players: PlayerRecord[]): PlayerRecord[] {
 const byJerseyNumber = (a: PlayerRecord, b: PlayerRecord) =>
   (a.number ?? 999) - (b.number ?? 999);
 
+export type RosterGroupSortMode = 'number' | 'name';
+
+export function comparePlayersForRosterSort(
+  a: PlayerRecord,
+  b: PlayerRecord,
+  mode: RosterGroupSortMode,
+): number {
+  if (mode === 'name') {
+    const na = a.name.trim().toLocaleLowerCase();
+    const nb = b.name.trim().toLocaleLowerCase();
+    if (na !== nb) {
+      if (!na) return 1;
+      if (!nb) return -1;
+      const byName = na.localeCompare(nb);
+      if (byName !== 0) return byName;
+    }
+  }
+  const numCmp = byJerseyNumber(a, b);
+  if (numCmp !== 0) return numCmp;
+  return a.name.trim().localeCompare(b.name.trim());
+}
+
+/** Player ids in a status group sorted by jersey number or name. */
+export function sortStatusOrderIds(
+  players: PlayerRecord[],
+  status: PlayerStatus,
+  mode: RosterGroupSortMode,
+): string[] {
+  const inStatus = dedupeSquadPlayers(players).filter((p) => p.status === status);
+  return [...inStatus]
+    .sort((a, b) => comparePlayersForRosterSort(a, b, mode))
+    .map((p) => p.id);
+}
+
+/** Re-sort on / bench / off display order for every group. */
+export function sortAllRosterOrders(
+  players: PlayerRecord[],
+  mode: RosterGroupSortMode,
+): RosterDisplayOrders {
+  return {
+    on: sortStatusOrderIds(players, 'on', mode),
+    bench: sortStatusOrderIds(players, 'bench', mode),
+    off: sortStatusOrderIds(players, 'off', mode),
+  };
+}
+
 export type RosterDisplayOrders = {
   on: string[];
   bench: string[];
