@@ -54,6 +54,7 @@ import { formatMatchKickoffInZone, getStoredDisplayTimeZone } from '@/utils/disp
 import { AiInsightsSection } from '@/features/match/AiInsightsSection';
 import { MatchTimeBreakdownTable } from '@/features/match/MatchTimeBreakdownTable';
 import { InferredStatsSection } from '@/features/match/InferredStatsSection';
+import { PossessionsStatsSection } from '@/features/match/PossessionsStatsSection';
 import { RuckPhaseBreakdownPanel } from '@/features/match/RuckPhaseBreakdownPanel';
 import { SetPieceExpandBar, StatCard } from '@/features/match/statExpand';
 import { hasRuckBreakdownData } from '@/domain/inferredStats';
@@ -501,6 +502,14 @@ export function MatchStatsPanel({
         </section>
       ) : null}
 
+      <PossessionsStatsSection
+        events={events}
+        filmSession={filmSession}
+        expandedKey={expandedKey}
+        onToggle={toggleExpand}
+        idPrefix={idPrefix}
+      />
+
       {/* Overview */}
       {show('overview') && (
         <section className="card tgs-card">
@@ -546,15 +555,6 @@ export function MatchStatsPanel({
                   {inferred.attackPasses}{' \u00b7 '}{inferred.defensePasses}
                 </span>
                 <span className="team-global-kpi-sub muted">Attack \u00b7 Opp</span>
-              </div>
-            )}
-            {inferred.possessionsTotal > 0 && (
-              <div className="team-global-kpi">
-                <span className="team-global-kpi-label">Possessions</span>
-                <span className="team-global-kpi-value tabular-nums">
-                  {inferred.possessionsUs}{' \u00b7 '}{inferred.possessionsOpp}
-                </span>
-                <span className="team-global-kpi-sub muted">Us \u00b7 Opp · {inferred.possessionsTotal} total</span>
               </div>
             )}
           </div>

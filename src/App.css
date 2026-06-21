@@ -3943,6 +3943,29 @@ button.live-stats-cell--btn.live-stats-cell--open {
   border: 1px solid #252f3d;
 }
 
+.possessions-empty-hint {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.possessions-expand-wrap {
+  margin-top: 0.75rem;
+}
+
+.possessions-expand-body {
+  margin-top: 0.65rem;
+}
+
+.possessions-segment-side--us {
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.possessions-segment-side--opp {
+  font-weight: 600;
+  color: #f87171;
+}
+
 .live-stats-expand-time {
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
