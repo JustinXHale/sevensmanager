@@ -18,6 +18,8 @@ type Props = {
   running: boolean;
   halfTimeActive: boolean;
   halfTimeElapsedMs: number;
+  refStoppageActive: boolean;
+  refStoppageElapsedMs: number;
   matchComplete: boolean;
   /** Own team points (from logged tries / conversions). */
   ourScore: number;
@@ -32,6 +34,7 @@ type Props = {
   onAdvancePeriod: () => void;
   onHalftime: () => void;
   onResumeFromHalftime: () => void;
+  onToggleRefStoppage: () => void;
   onEndMatch: () => void;
   onOpenClockSettings: () => void;
 };
@@ -51,6 +54,8 @@ export function RefClockBar({
   running,
   halfTimeActive,
   halfTimeElapsedMs,
+  refStoppageActive,
+  refStoppageElapsedMs,
   matchComplete,
   ourScore,
   opponentScore,
@@ -61,6 +66,7 @@ export function RefClockBar({
   onAdvancePeriod,
   onHalftime,
   onResumeFromHalftime,
+  onToggleRefStoppage,
   onEndMatch,
   onOpenClockSettings,
 }: Props) {
@@ -68,13 +74,13 @@ export function RefClockBar({
   const matchLabel = matchClockMode === 'down' ? 'Match ↓' : 'Match';
   const periodLabel = periodClockMode === 'down' ? `P${period} ↓` : `P${period}`;
   const clockLocked = halfTimeActive || matchComplete;
-  const showVideoTime = filmTimeOffsetMs > 0 || videoDisplayMs > 0;
+  const showVideoTime = filmTimeOffsetMs > 0 || refStoppageActive || videoDisplayMs > matchDisplayMs;
 
   return (
     <div
       className={`ref-clock-wrap${halfTimeActive ? ' ref-clock-wrap--halftime' : ''}${
-        matchComplete ? ' ref-clock-wrap--complete' : ''
-      }`}
+        refStoppageActive ? ' ref-clock-wrap--stoppage' : ''
+      }${matchComplete ? ' ref-clock-wrap--complete' : ''}`}
     >
       <div
         className={`ref-clock-bar ref-clock-two-line ref-clock-bar--with-scores${
@@ -108,16 +114,39 @@ export function RefClockBar({
                   ) : null}
                 </span>
               </div>
-              <button
-                type="button"
-                className="ref-clk-tap ref-clk-tap--split"
-                title={running ? 'Pause' : 'Start'}
-                aria-label={running ? 'Pause clock' : 'Start clock'}
-                disabled={clockLocked}
-                onClick={onToggle}
-              >
-                {running ? '⏸' : '▶'}
-              </button>
+              <div className="ref-clk-controls">
+                <button
+                  type="button"
+                  className="ref-clk-tap ref-clk-tap--split"
+                  title={running ? 'Pause' : 'Start'}
+                  aria-label={running ? 'Pause clock' : 'Start clock'}
+                  disabled={clockLocked}
+                  onClick={onToggle}
+                >
+                  {running ? '⏸' : '▶'}
+                </button>
+                <button
+                  type="button"
+                  className={`ref-clk-tap ref-clk-tap--split ref-clk-tap--whistle${
+                    refStoppageActive ? ' ref-clk-tap--whistle-active' : ''
+                  }`}
+                  title={
+                    refStoppageActive
+                      ? 'End ref stoppage — match clock stays paused until you press play'
+                      : 'Ref stoppage — pause match clock; film time keeps running'
+                  }
+                  aria-label={refStoppageActive ? 'End ref stoppage' : 'Ref stoppage whistle'}
+                  aria-pressed={refStoppageActive}
+                  disabled={clockLocked}
+                  onClick={onToggleRefStoppage}
+                >
+                  <svg className="ref-clk-whistle-icon" viewBox="0 0 20 20" aria-hidden="true">
+                    <ellipse cx="6.5" cy="10" rx="4" ry="3" fill="currentColor" />
+                    <rect x="10" y="8.75" width="7" height="2.5" rx="0.5" fill="currentColor" />
+                    <circle cx="18.25" cy="10" r="1.25" fill="currentColor" />
+                  </svg>
+                </button>
+              </div>
               <div className="ref-clk-block ref-clk-block--period">
                 <span className="ref-clk-block-label" title="Current period; Next advances period">
                   {periodLabel}
@@ -208,6 +237,16 @@ export function RefClockBar({
           </span>
         </div>
       </div>
+
+      {refStoppageActive ? (
+        <div className="ref-clock-stoppage-banner" role="status" aria-live="polite">
+          <span className="ref-clock-stoppage-label">Ref stoppage</span>
+          <span className="ref-clock-stoppage-elapsed" title="Film time advancing">
+            {formatClock(refStoppageElapsedMs)}
+          </span>
+          <span className="ref-clock-stoppage-sub">Film running</span>
+        </div>
+      ) : null}
 
       {halfTimeActive ? (
         <div className="ref-clock-halftime-overlay" role="dialog" aria-label="Halftime" aria-modal="true">

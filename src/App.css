@@ -2604,13 +2604,45 @@ a.live-tab:focus-visible {
   min-height: 44px;
   height: auto;
   align-self: center;
-  margin: 0 0.05rem;
+  margin: 0;
   border-radius: 8px;
   border: 1px solid var(--border);
   border-left-color: var(--border-strong);
   border-right-color: var(--border-strong);
   font-size: 0.88rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.ref-clk-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.ref-clk-tap--whistle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.ref-clk-whistle-icon {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
+.ref-clk-tap--whistle-active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+.ref-clk-tap--whistle-active:hover:not(:disabled) {
+  background: #fde68a;
 }
 
 .ref-clk-row {
@@ -2732,6 +2764,39 @@ a.live-tab:focus-visible {
 .ref-tool-halftime {
   font-size: 0.62rem;
   letter-spacing: 0.02em;
+}
+
+.ref-clock-stoppage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.35rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  font-size: 0.72rem;
+  color: #92400e;
+}
+
+.ref-clock-stoppage-label {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.ref-clock-stoppage-elapsed {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.ref-clock-stoppage-sub {
+  opacity: 0.85;
+  font-size: 0.65rem;
+}
+
+.ref-clock-wrap--stoppage .ref-clk-digits--video {
+  color: #b45309;
 }
 
 .ref-tool-nudge {

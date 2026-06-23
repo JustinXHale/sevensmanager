@@ -11,6 +11,9 @@ import {
   currentPeriodDisplayForUi,
   currentPeriodElapsedDisplayMs,
   exitHalfTime,
+  enterRefStoppage,
+  exitRefStoppage,
+  refStoppageElapsedDisplayMs,
   filmTimeForDisplay,
   footageGapBeforeMatchMs,
   formatClock,
@@ -304,6 +307,36 @@ describe('matchClock', () => {
     expect(footageGapBeforeMatchMs(resumed, 8 * 60 * 1000)).toBe(120_000);
     expect(videoTimeDisplayMs(resumed, 0)).toBe(7 * 60 * 1000 + 48_000 + 120_000);
     expect(footageGapBeforeMatchMs(resumed, 6 * 60 * 1000)).toBe(0);
+  });
+
+  it('enterRefStoppage pauses match clock and advances video time via wall clock', () => {
+    const running = baseSession({
+      clockRunning: true,
+      anchorWallMs: 0,
+      elapsedMsInCurrentPeriod: 60_000,
+      filmTimeOffsetMs: 48_000,
+    });
+    const stopped = enterRefStoppage(running, 90_000);
+    expect(stopped.clockRunning).toBe(false);
+    expect(stopped.elapsedMsInCurrentPeriod).toBe(150_000);
+    expect(stopped.refStoppageActive).toBe(true);
+    expect(stopped.refStoppageStartedWallMs).toBe(90_000);
+    expect(cumulativeMatchTimeMs(stopped, 120_000)).toBe(150_000);
+    expect(videoTimeDisplayMs(stopped, 120_000)).toBe(150_000 + 48_000 + 30_000);
+    expect(refStoppageElapsedDisplayMs(stopped, 120_000)).toBe(30_000);
+  });
+
+  it('exitRefStoppage banks footage gap for video sync', () => {
+    const s = baseSession({
+      refStoppageActive: true,
+      refStoppageStartedWallMs: 1_000,
+      elapsedMsInCurrentPeriod: 5 * 60 * 1000,
+      filmTimeOffsetMs: 48_000,
+    });
+    const cleared = exitRefStoppage(s, 61_000);
+    expect(cleared.refStoppageActive).toBe(false);
+    expect(cleared.filmFootageGaps).toEqual([{ afterMatchMs: 5 * 60 * 1000, gapMs: 60_000 }]);
+    expect(videoTimeDisplayMs(cleared, 0)).toBe(5 * 60 * 1000 + 48_000 + 60_000);
   });
 
   it('applyFilmSyncToSession updates video time without changing match elapsed', () => {

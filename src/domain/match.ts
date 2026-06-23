@@ -51,6 +51,10 @@ export interface MatchSessionRecord {
   halfTimeActive?: boolean;
   /** Wall time when halftime started (for elapsed display). */
   halfTimeStartedWallMs?: number;
+  /** Ref whistle stoppage: match clock paused; film/video wall time keeps advancing. */
+  refStoppageActive?: boolean;
+  /** Wall time when ref stoppage started (for elapsed display and footage gap). */
+  refStoppageStartedWallMs?: number;
   /**
    * Film / wall clock (RefLog “game” clock): continuous elapsed for correlating with footage.
    * Independent of match stoppages.
@@ -124,6 +128,7 @@ export function normalizeSession(raw: MatchSessionRecord | undefined): MatchSess
     filmFootageGaps: raw.filmFootageGaps ?? [],
     playerMinutesMs: raw.playerMinutesMs ?? {},
     halfTimeActive: raw.halfTimeActive ?? false,
+    refStoppageActive: raw.refStoppageActive ?? false,
     matchComplete: raw.matchComplete ?? false,
     matchClockDisplayMode: raw.matchClockDisplayMode ?? 'up',
     matchCountdownLengthMs: raw.matchCountdownLengthMs ?? 14 * 60 * 1000,

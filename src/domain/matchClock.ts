@@ -296,9 +296,49 @@ export function halfTimeElapsedDisplayMs(session: MatchSessionRecord, nowMs: num
   return nowMs - session.halfTimeStartedWallMs;
 }
 
+/** Elapsed wall time since ref stoppage started (0 if not in stoppage). */
+export function refStoppageElapsedDisplayMs(session: MatchSessionRecord, nowMs: number): number {
+  if (!session.refStoppageActive || session.refStoppageStartedWallMs === undefined) return 0;
+  return nowMs - session.refStoppageStartedWallMs;
+}
+
+/** Pause match clock only; film/video time keeps advancing via wall clock. */
+export function enterRefStoppage(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
+  if (session.refStoppageActive) return session;
+  const s = pauseSession(session, nowMs);
+  return {
+    ...s,
+    refStoppageActive: true,
+    refStoppageStartedWallMs: nowMs,
+  };
+}
+
+/**
+ * End ref stoppage; bank wall-clock elapsed on the footage (match clock was paused).
+ */
+export function exitRefStoppage(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
+  if (!session.refStoppageActive || session.refStoppageStartedWallMs == null) {
+    return {
+      ...session,
+      refStoppageActive: false,
+      refStoppageStartedWallMs: undefined,
+    };
+  }
+  const gapMs = Math.max(0, nowMs - session.refStoppageStartedWallMs);
+  const afterMatchMs = cumulativeMatchTimeMs(session, nowMs);
+  const gaps = [...(session.filmFootageGaps ?? []), { afterMatchMs, gapMs }];
+  return {
+    ...session,
+    refStoppageActive: false,
+    refStoppageStartedWallMs: undefined,
+    filmFootageGaps: gaps,
+  };
+}
+
 /** Pause match + film clocks; start halftime wall timer. */
 export function enterHalfTime(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
   let s = pauseSession(session, nowMs);
+  s = exitRefStoppage(s, nowMs);
   s = pauseGameSession(s, nowMs);
   return {
     ...s,
@@ -333,6 +373,7 @@ export function exitHalfTime(session: MatchSessionRecord, nowMs: number): MatchS
 export function enterMatchComplete(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
   let s = pauseSession(session, nowMs);
   s = pauseGameSession(s, nowMs);
+  s = exitRefStoppage(s, nowMs);
   s = exitHalfTime(s, nowMs);
   return {
     ...s,
@@ -470,7 +511,8 @@ export function formatEventTimeWithFilm(
 export function videoTimeDisplayMs(session: MatchSessionRecord, nowMs: number): number {
   const matchMs = cumulativeMatchTimeMs(session, nowMs);
   const inProgressHt = session.halfTimeActive ? halfTimeElapsedDisplayMs(session, nowMs) : 0;
-  return matchMs + filmTimeOffsetMs(session) + footageGapBeforeMatchMs(session, matchMs) + inProgressHt;
+  const inProgressRef = session.refStoppageActive ? refStoppageElapsedDisplayMs(session, nowMs) : 0;
+  return matchMs + filmTimeOffsetMs(session) + footageGapBeforeMatchMs(session, matchMs) + inProgressHt + inProgressRef;
 }
 
 function lastFootageGapIndexAtOrBeforeMatchMs(session: MatchSessionRecord, matchMs: number): number {
@@ -549,6 +591,13 @@ export function syncSessionVideoTimeNow(
     return {
       ...session,
       halfTimeStartedWallMs: session.halfTimeStartedWallMs - delta,
+    };
+  }
+
+  if (session.refStoppageActive && session.refStoppageStartedWallMs != null) {
+    return {
+      ...session,
+      refStoppageStartedWallMs: session.refStoppageStartedWallMs - delta,
     };
   }
 

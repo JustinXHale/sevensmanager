@@ -26,9 +26,12 @@ import {
   currentPeriodDisplayForUi,
   enterHalfTime,
   enterMatchComplete,
+  enterRefStoppage,
   exitHalfTime,
   exitMatchComplete,
+  exitRefStoppage,
   halfTimeElapsedDisplayMs,
+  refStoppageElapsedDisplayMs,
   pauseSession,
   resumeSession,
   setMatchTotalFromDisplayedValue,
@@ -320,11 +323,12 @@ export function MatchLivePage() {
 
   useEffect(() => {
     const s = session;
-    if (!s?.clockRunning && !s?.halfTimeActive && !s?.matchComplete) return;
-    const ms = (s.halfTimeActive || s.matchComplete) && !s.clockRunning ? 1000 : 250;
+    if (!s?.clockRunning && !s?.halfTimeActive && !s?.refStoppageActive && !s?.matchComplete) return;
+    const ms =
+      (s.halfTimeActive || s.refStoppageActive || s.matchComplete) && !s.clockRunning ? 1000 : 250;
     const id = window.setInterval(() => setNowMs(Date.now()), ms);
     return () => window.clearInterval(id);
-  }, [session?.clockRunning, session?.halfTimeActive, session?.matchComplete, session]);
+  }, [session?.clockRunning, session?.halfTimeActive, session?.refStoppageActive, session?.matchComplete, session]);
 
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -453,8 +457,23 @@ export function MatchLivePage() {
       return;
     }
     const now = Date.now();
-    const flushed = flushPlayerMinutes(session, players, now);
+    let flushed = flushPlayerMinutes(session, players, now);
+    if (flushed.refStoppageActive && !flushed.clockRunning) {
+      flushed = exitRefStoppage(flushed, now);
+      await persist(resumeSession(flushed, now));
+      return;
+    }
     const next = flushed.clockRunning ? pauseSession(flushed, now) : resumeSession(flushed, now);
+    await persist(next);
+  }
+
+  async function onToggleRefStoppage() {
+    if (!session || session.halfTimeActive || session.matchComplete) return;
+    const now = Date.now();
+    const flushed = flushPlayerMinutes(session, players, now);
+    const next = flushed.refStoppageActive
+      ? exitRefStoppage(flushed, now)
+      : enterRefStoppage(flushed, now);
     await persist(next);
   }
 
@@ -1259,6 +1278,7 @@ export function MatchLivePage() {
   const videoDisplayMs = videoTimeDisplayMs(session, nowMs);
   const clockBlink = shouldBlinkMatchThreshold(session, nowMs);
   const halfTimeElapsedMs = halfTimeElapsedDisplayMs(session, nowMs);
+  const refStoppageElapsedMs = refStoppageElapsedDisplayMs(session, nowMs);
 
   return (
     <div className="live-match-shell">
@@ -1372,6 +1392,8 @@ export function MatchLivePage() {
             running={session.clockRunning}
             halfTimeActive={!!session.halfTimeActive}
             halfTimeElapsedMs={halfTimeElapsedMs}
+            refStoppageActive={!!session.refStoppageActive}
+            refStoppageElapsedMs={refStoppageElapsedMs}
             ourScore={ourRugbyScore}
             opponentScore={opponentRugbyScore}
             ourLabel={ourScoreboardLabel}
@@ -1382,6 +1404,7 @@ export function MatchLivePage() {
             matchComplete={!!session.matchComplete}
             onHalftime={() => void onHalftime()}
             onResumeFromHalftime={() => void onResumeFromHalftime()}
+            onToggleRefStoppage={() => void onToggleRefStoppage()}
             onEndMatch={() => void onEndMatch()}
             onOpenClockSettings={() => setClockSettingsOpen(true)}
           />
