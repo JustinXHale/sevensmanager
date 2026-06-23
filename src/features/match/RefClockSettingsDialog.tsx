@@ -406,7 +406,7 @@ export function RefClockSettingsDialog({
             <p className="muted ref-clock-settings-hint">
               Set <strong>Video time right now</strong> to what your player shows and tap{' '}
               <strong>Apply film sync</strong> — match clock is not changed. During a{' '}
-              <strong>ref stoppage</strong>, use the +30s / +1m / +2m buttons or set video time here
+              <strong>ref stoppage</strong>, use the ±1s / ±5s buttons or set video time here while you
               while you fast-forward past injury footage. Halftime on footage is banked on Resume match;
               this corrects drift (injury stoppages, short/long HT, etc.). Number pad: type digits only
               (e.g. <strong>1014</strong> → <strong>10:14</strong>).

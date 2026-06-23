@@ -42,6 +42,13 @@ export function suggestPhaseAfterForcedTurnover(): LivePhaseMode {
   return 'attack';
 }
 
+/** Knock-on ends our attacking spell → defense; opponent knock-on on defense → attack. */
+export function suggestPhaseAfterKnockOn(phase: PlayPhaseContext): LivePhaseMode | null {
+  if (phase === 'attack') return 'defense';
+  if (phase === 'defense') return 'attack';
+  return null;
+}
+
 /** After our conversion — receive their kickoff (sevens). */
 export function suggestPhaseAfterOurConversion(): LivePhaseMode {
   return 'attack';

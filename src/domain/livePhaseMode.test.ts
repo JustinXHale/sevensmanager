@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   suggestPhaseAfterFreeKick,
   suggestPhaseAfterForcedTurnover,
+  suggestPhaseAfterKnockOn,
   suggestPhaseAfterOpponentConversion,
   suggestPhaseAfterOurConversion,
   suggestPhaseAfterPenalty,
@@ -61,6 +62,14 @@ describe('suggestPhaseAfterFreeKick', () => {
 describe('turnover and scoring follow-ups', () => {
   it('forced turnover goes to attack', () => {
     expect(suggestPhaseAfterForcedTurnover()).toBe('attack');
+  });
+
+  it('knock-on on attack switches to defense', () => {
+    expect(suggestPhaseAfterKnockOn('attack')).toBe('defense');
+  });
+
+  it('knock-on on defense switches to attack', () => {
+    expect(suggestPhaseAfterKnockOn('defense')).toBe('attack');
   });
 
   it('conversions go to attack for kickoff receive', () => {

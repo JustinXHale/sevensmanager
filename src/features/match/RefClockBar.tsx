@@ -2,7 +2,12 @@ import type { MatchClockDisplayMode, PeriodClockDisplayMode } from '@/domain/mat
 import { formatClock } from '@/domain/matchClock';
 
 const NUDGE_MS = 5_000;
-const VIDEO_NUDGE_MS = [30_000, 60_000, 120_000] as const;
+const VIDEO_NUDGE_MS = [-5_000, -1_000, 1_000, 5_000] as const;
+
+function formatVideoNudgeLabel(ms: number): string {
+  const sec = Math.abs(ms / 1000);
+  return ms < 0 ? `−${sec}s` : `+${sec}s`;
+}
 
 type Props = {
   period: number;
@@ -245,15 +250,16 @@ export function RefClockBar({
           <span className="ref-clock-stoppage-video" title="Video player position (match clock is frozen)">
             Video {formatClock(videoDisplayMs)}
           </span>
-          <span className="ref-clock-stoppage-cluster" title="Fast-forward video time as you scrub past injury or stoppage footage">
+          <span className="ref-clock-stoppage-cluster" title="Adjust video time in small steps while match clock stays frozen">
             {VIDEO_NUDGE_MS.map((ms) => (
               <button
                 key={ms}
                 type="button"
                 className="ref-clock-stoppage-nudge"
+                aria-label={`${formatVideoNudgeLabel(ms)} video time`}
                 onClick={() => onNudgeVideoTime(ms)}
               >
-                +{ms >= 60_000 ? `${ms / 60_000}m` : `${ms / 1000}s`}
+                {formatVideoNudgeLabel(ms)}
               </button>
             ))}
           </span>

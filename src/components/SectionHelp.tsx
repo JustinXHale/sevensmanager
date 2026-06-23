@@ -285,7 +285,7 @@ export const TRACKING_GLOSSARY: GlossaryEntry[] = [
   { abbr: 'FK', full: 'Free kick', desc: 'Free kick at the set piece.', group: 'Set pieces' },
   { abbr: 'P+/P−', full: 'Penalty at set piece', desc: 'Penalty awarded (won) or conceded (lost) at that scrum, lineout, ruck, or restart.', group: 'Set pieces' },
   { abbr: '★ Star moment', full: 'Film bookmark', desc: 'Filled button on Tally / One Tap — marks the current match and film clock so you can jump to that point in footage from the Timeline.', group: 'Tracking' },
-  { abbr: 'Phase auto-switch', full: 'Attack / Defense tab', desc: 'After turnovers (penalty awarded on defense, conceded on attack, forced turnover, set-piece W/L), the tab switches automatically. Tries wait until the conversion is logged.', group: 'Tracking' },
+  { abbr: 'Phase auto-switch', full: 'Attack / Defense tab', desc: 'After turnovers (penalty awarded on defense, conceded on attack, forced turnover, knock-on, set-piece W/L), the tab switches automatically. Tries wait until the conversion is logged.', group: 'Tracking' },
   { abbr: 'Video offset', full: 'Film / video sync', desc: 'Clock settings — video time when match is 0:00 (e.g. 0:48) and Video time right now to match your player. Halftime on footage is banked on Resume match; edit right now to fix drift (offset in 1st half, HT gap after).', group: 'Clock' },
   { abbr: 'FT', full: 'Full time', desc: 'End the match — pauses clocks and shows the final score; you can reopen from Resume match.', group: 'Clock' },
 ];

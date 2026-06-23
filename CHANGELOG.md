@@ -36,10 +36,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 
 ### Changed
-- Ref stoppage: **+30s / +1m / +2m** video buttons and clock settings **Apply film sync** advance video time only (match clock stays frozen) while you scrub past injury footage
+- Ref stoppage: **±1s / ±5s** video buttons and clock settings **Apply film sync** advance video time only (match clock stays frozen) while you scrub past injury footage
 - Live match clock: ref stoppage whistle moved beside the play/pause button
 
 ### Fixed
+- Tally / One Tap **knock-on** auto-switches Attack / Defense tab (attack → defense) like other possession turnovers
 - Ref stoppage: match clock resumes automatically when the whistle is turned off (if it was running when stoppage started)
 - Live clock **−5s / +5s** nudge no longer pauses the match timer when the clock is running
 - Clock settings **Apply film sync** updates video time only (no match-clock validation); main Apply skips match/period when unchanged; cancel clears stale error banner

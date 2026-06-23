@@ -106,6 +106,7 @@ import { SectionHelp, TRACKING_GLOSSARY } from '@/components/SectionHelp';
 import { writeRecentMatch } from '@/components/AppNavDrawer';
 import {
   suggestPhaseAfterForcedTurnover,
+  suggestPhaseAfterKnockOn,
   suggestPhaseAfterOpponentConversion,
   suggestPhaseAfterOurConversion,
   suggestPhaseAfterFreeKick,
@@ -731,6 +732,7 @@ export function MatchLivePage() {
     if (kind === 'negative_action') {
       if (!pick.negativeActionId) return;
       setBanner(null);
+      const phase = livePhaseMode === 'defense' ? 'defense' : 'attack';
       await addMatchEvent({
         matchId,
         kind: 'negative_action',
@@ -739,9 +741,15 @@ export function MatchLivePage() {
         playerId,
         zoneId: pick.zoneId,
         negativeActionId: pick.negativeActionId,
+        playPhaseContext: phase,
       });
       await load();
-      setActionToast({ text: ACTION_ACK.negative_action, key: Date.now() });
+      if (pick.negativeActionId === 'knock_on') {
+        const phaseNext = applyPhaseSwitch(suggestPhaseAfterKnockOn(phase));
+        setActionToast({ text: `Knock-on logged${phaseSwitchSuffix(phaseNext)}`, key: Date.now() });
+      } else {
+        setActionToast({ text: ACTION_ACK.negative_action, key: Date.now() });
+      }
       return;
     }
     if (kind === 'try') {
@@ -991,21 +999,26 @@ export function MatchLivePage() {
     setBanner(null);
     const isOffload = kind === 'offload';
     const isKnockOn = kind === 'knock_on';
+    const phase = livePhaseMode === 'defense' ? 'defense' : 'attack';
     const eventKind = isOffload ? 'pass' : isKnockOn ? 'negative_action' : kind;
     await addMatchEvent({
       matchId,
       kind: eventKind,
       matchTimeMs: cumulativeMatchTimeMs(session, Date.now()),
       period: session.period,
+      ...(isKnockOn ? { playPhaseContext: phase } : {}),
       ...(isOffload ? { passVariant: 'offload' as const } : kind === 'pass' ? { passVariant: 'standard' as const } : {}),
       ...(isKnockOn ? { negativeActionId: 'knock_on' as const } : {}),
     });
     await load();
+    if (isKnockOn) {
+      const phaseNext = applyPhaseSwitch(suggestPhaseAfterKnockOn(phase));
+      setActionToast({ text: `Knock-on logged${phaseSwitchSuffix(phaseNext)}`, key: Date.now() });
+      return;
+    }
     const ack = isOffload
       ? 'Offload logged'
-      : isKnockOn
-        ? 'Knock-on logged'
-        : ACTION_ACK[kind as keyof typeof ACTION_ACK];
+      : ACTION_ACK[kind as keyof typeof ACTION_ACK];
     setActionToast({ text: ack, key: Date.now() });
   }
 
