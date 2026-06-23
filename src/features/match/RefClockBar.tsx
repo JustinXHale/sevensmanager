@@ -2,6 +2,7 @@ import type { MatchClockDisplayMode, PeriodClockDisplayMode } from '@/domain/mat
 import { formatClock } from '@/domain/matchClock';
 
 const NUDGE_MS = 5_000;
+const VIDEO_NUDGE_MS = [30_000, 60_000, 120_000] as const;
 
 type Props = {
   period: number;
@@ -19,7 +20,6 @@ type Props = {
   halfTimeActive: boolean;
   halfTimeElapsedMs: number;
   refStoppageActive: boolean;
-  refStoppageElapsedMs: number;
   matchComplete: boolean;
   /** Own team points (from logged tries / conversions). */
   ourScore: number;
@@ -35,6 +35,7 @@ type Props = {
   onHalftime: () => void;
   onResumeFromHalftime: () => void;
   onToggleRefStoppage: () => void;
+  onNudgeVideoTime: (deltaMs: number) => void;
   onEndMatch: () => void;
   onOpenClockSettings: () => void;
 };
@@ -55,7 +56,6 @@ export function RefClockBar({
   halfTimeActive,
   halfTimeElapsedMs,
   refStoppageActive,
-  refStoppageElapsedMs,
   matchComplete,
   ourScore,
   opponentScore,
@@ -67,6 +67,7 @@ export function RefClockBar({
   onHalftime,
   onResumeFromHalftime,
   onToggleRefStoppage,
+  onNudgeVideoTime,
   onEndMatch,
   onOpenClockSettings,
 }: Props) {
@@ -241,10 +242,22 @@ export function RefClockBar({
       {refStoppageActive ? (
         <div className="ref-clock-stoppage-banner" role="status" aria-live="polite">
           <span className="ref-clock-stoppage-label">Ref stoppage</span>
-          <span className="ref-clock-stoppage-elapsed" title="Film time advancing">
-            {formatClock(refStoppageElapsedMs)}
+          <span className="ref-clock-stoppage-video" title="Video player position (match clock is frozen)">
+            Video {formatClock(videoDisplayMs)}
           </span>
-          <span className="ref-clock-stoppage-sub">Film running</span>
+          <span className="ref-clock-stoppage-cluster" title="Fast-forward video time as you scrub past injury or stoppage footage">
+            {VIDEO_NUDGE_MS.map((ms) => (
+              <button
+                key={ms}
+                type="button"
+                className="ref-clock-stoppage-nudge"
+                onClick={() => onNudgeVideoTime(ms)}
+              >
+                +{ms >= 60_000 ? `${ms / 60_000}m` : `${ms / 1000}s`}
+              </button>
+            ))}
+          </span>
+          <span className="ref-clock-stoppage-sub">Match paused</span>
         </div>
       ) : null}
 

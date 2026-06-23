@@ -31,7 +31,7 @@ import {
   exitMatchComplete,
   exitRefStoppage,
   halfTimeElapsedDisplayMs,
-  refStoppageElapsedDisplayMs,
+  nudgeSessionVideoTimeMs,
   pauseSession,
   resumeSession,
   setMatchTotalFromDisplayedValue,
@@ -479,6 +479,12 @@ export function MatchLivePage() {
       return;
     }
     await persist(enterRefStoppage(flushed, now));
+  }
+
+  async function onNudgeVideoTime(deltaMs: number) {
+    if (!session?.refStoppageActive) return;
+    const now = Date.now();
+    await persist(nudgeSessionVideoTimeMs(session, now, deltaMs));
   }
 
   async function onAdjustMatch(deltaMs: number) {
@@ -1282,7 +1288,6 @@ export function MatchLivePage() {
   const videoDisplayMs = videoTimeDisplayMs(session, nowMs);
   const clockBlink = shouldBlinkMatchThreshold(session, nowMs);
   const halfTimeElapsedMs = halfTimeElapsedDisplayMs(session, nowMs);
-  const refStoppageElapsedMs = refStoppageElapsedDisplayMs(session, nowMs);
 
   return (
     <div className="live-match-shell">
@@ -1397,7 +1402,6 @@ export function MatchLivePage() {
             halfTimeActive={!!session.halfTimeActive}
             halfTimeElapsedMs={halfTimeElapsedMs}
             refStoppageActive={!!session.refStoppageActive}
-            refStoppageElapsedMs={refStoppageElapsedMs}
             ourScore={ourRugbyScore}
             opponentScore={opponentRugbyScore}
             ourLabel={ourScoreboardLabel}
@@ -1409,6 +1413,7 @@ export function MatchLivePage() {
             onHalftime={() => void onHalftime()}
             onResumeFromHalftime={() => void onResumeFromHalftime()}
             onToggleRefStoppage={() => void onToggleRefStoppage()}
+            onNudgeVideoTime={(d) => void onNudgeVideoTime(d)}
             onEndMatch={() => void onEndMatch()}
             onOpenClockSettings={() => setClockSettingsOpen(true)}
           />

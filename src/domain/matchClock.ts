@@ -622,6 +622,16 @@ export function syncSessionVideoTimeNow(
   };
 }
 
+/** Bump displayed video time without changing match or period clocks. */
+export function nudgeSessionVideoTimeMs(
+  session: MatchSessionRecord,
+  nowMs: number,
+  deltaMs: number,
+): MatchSessionRecord {
+  const desired = Math.max(0, videoTimeDisplayMs(session, nowMs) + deltaMs);
+  return syncSessionVideoTimeNow(session, nowMs, desired);
+}
+
 /** Effective offset for display helpers that take a single offset number. */
 export function filmDisplayOffsetForMatchMs(session: MatchSessionRecord, matchMs: number): number {
   return filmTimeOffsetMs(session) + footageGapBeforeMatchMs(session, matchMs);

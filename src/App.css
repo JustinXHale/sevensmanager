@@ -2768,11 +2768,12 @@ a.live-tab:focus-visible {
 
 .ref-clock-stoppage-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.35rem 0.5rem;
   margin-top: 0.35rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 0.35rem;
   background: #fffbeb;
   border: 1px solid #fcd34d;
@@ -2785,9 +2786,31 @@ a.live-tab:focus-visible {
   letter-spacing: 0.02em;
 }
 
-.ref-clock-stoppage-elapsed {
+.ref-clock-stoppage-video {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.ref-clock-stoppage-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ref-clock-stoppage-nudge {
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  border: 1px solid #f59e0b;
+  background: #fff;
+  color: #b45309;
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.ref-clock-stoppage-nudge:hover {
+  background: #fef3c7;
 }
 
 .ref-clock-stoppage-sub {

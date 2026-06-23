@@ -24,6 +24,7 @@ import {
   applyFilmSyncToSession,
   clockDisplayMatchesSession,
   syncSessionVideoTimeNow,
+  nudgeSessionVideoTimeMs,
   videoTimeDisplayMs,
   pauseGameSession,
   pauseSession,
@@ -403,6 +404,31 @@ describe('matchClock', () => {
     const synced = syncSessionVideoTimeNow(s, 61_000, 7 * 60 * 1000 + 48_000 + 55_000);
     expect(synced.halfTimeStartedWallMs).toBe(6_000);
     expect(videoTimeDisplayMs(synced, 61_000)).toBe(7 * 60 * 1000 + 48_000 + 55_000);
+  });
+
+  it('syncSessionVideoTimeNow shifts ref stoppage wall anchor while stoppage is active', () => {
+    const s = baseSession({
+      refStoppageActive: true,
+      refStoppageStartedWallMs: 1_000,
+      elapsedMsInCurrentPeriod: 5 * 60 * 1000,
+      filmTimeOffsetMs: 48_000,
+    });
+    const synced = syncSessionVideoTimeNow(s, 31_000, 5 * 60 * 1000 + 48_000 + 90_000);
+    expect(synced.refStoppageStartedWallMs).toBe(-59_000);
+    expect(cumulativeMatchTimeMs(synced, 31_000)).toBe(5 * 60 * 1000);
+    expect(videoTimeDisplayMs(synced, 31_000)).toBe(5 * 60 * 1000 + 48_000 + 90_000);
+  });
+
+  it('nudgeSessionVideoTimeMs advances video only during ref stoppage', () => {
+    const s = baseSession({
+      refStoppageActive: true,
+      refStoppageStartedWallMs: 1_000,
+      elapsedMsInCurrentPeriod: 5 * 60 * 1000,
+      filmTimeOffsetMs: 48_000,
+    });
+    const nudged = nudgeSessionVideoTimeMs(s, 11_000, 60_000);
+    expect(cumulativeMatchTimeMs(nudged, 11_000)).toBe(5 * 60 * 1000);
+    expect(videoTimeDisplayMs(nudged, 11_000)).toBe(5 * 60 * 1000 + 48_000 + 70_000);
   });
 
   it('videoTimeDisplayMs includes in-progress halftime wall time', () => {

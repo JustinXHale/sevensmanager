@@ -36,6 +36,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - One Tap player rows: green **!** (penalty awarded) alongside red **!** (penalty conceded); attack/defense-specific infraction lists in the penalty picker
 
 ### Changed
+- Ref stoppage: **+30s / +1m / +2m** video buttons and clock settings **Apply film sync** advance video time only (match clock stays frozen) while you scrub past injury footage
 - Live match clock: ref stoppage whistle moved beside the play/pause button
 
 ### Fixed
