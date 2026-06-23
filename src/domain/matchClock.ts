@@ -305,11 +305,13 @@ export function refStoppageElapsedDisplayMs(session: MatchSessionRecord, nowMs: 
 /** Pause match clock only; film/video time keeps advancing via wall clock. */
 export function enterRefStoppage(session: MatchSessionRecord, nowMs: number): MatchSessionRecord {
   if (session.refStoppageActive) return session;
+  const resumeOnExit = session.clockRunning;
   const s = pauseSession(session, nowMs);
   return {
     ...s,
     refStoppageActive: true,
     refStoppageStartedWallMs: nowMs,
+    refStoppageResumeClock: resumeOnExit,
   };
 }
 
@@ -322,6 +324,7 @@ export function exitRefStoppage(session: MatchSessionRecord, nowMs: number): Mat
       ...session,
       refStoppageActive: false,
       refStoppageStartedWallMs: undefined,
+      refStoppageResumeClock: undefined,
     };
   }
   const gapMs = Math.max(0, nowMs - session.refStoppageStartedWallMs);
@@ -331,6 +334,7 @@ export function exitRefStoppage(session: MatchSessionRecord, nowMs: number): Mat
     ...session,
     refStoppageActive: false,
     refStoppageStartedWallMs: undefined,
+    refStoppageResumeClock: undefined,
     filmFootageGaps: gaps,
   };
 }

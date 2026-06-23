@@ -55,6 +55,8 @@ export interface MatchSessionRecord {
   refStoppageActive?: boolean;
   /** Wall time when ref stoppage started (for elapsed display and footage gap). */
   refStoppageStartedWallMs?: number;
+  /** Match clock was running when stoppage started — resume on whistle-off. */
+  refStoppageResumeClock?: boolean;
   /**
    * Film / wall clock (RefLog “game” clock): continuous elapsed for correlating with footage.
    * Independent of match stoppages.

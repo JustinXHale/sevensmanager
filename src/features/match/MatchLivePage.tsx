@@ -471,10 +471,14 @@ export function MatchLivePage() {
     if (!session || session.halfTimeActive || session.matchComplete) return;
     const now = Date.now();
     const flushed = flushPlayerMinutes(session, players, now);
-    const next = flushed.refStoppageActive
-      ? exitRefStoppage(flushed, now)
-      : enterRefStoppage(flushed, now);
-    await persist(next);
+    if (flushed.refStoppageActive) {
+      const resumeClock = flushed.refStoppageResumeClock;
+      let next = exitRefStoppage(flushed, now);
+      if (resumeClock) next = resumeSession(next, now);
+      await persist(next);
+      return;
+    }
+    await persist(enterRefStoppage(flushed, now));
   }
 
   async function onAdjustMatch(deltaMs: number) {

@@ -320,6 +320,7 @@ describe('matchClock', () => {
     expect(stopped.clockRunning).toBe(false);
     expect(stopped.elapsedMsInCurrentPeriod).toBe(150_000);
     expect(stopped.refStoppageActive).toBe(true);
+    expect(stopped.refStoppageResumeClock).toBe(true);
     expect(stopped.refStoppageStartedWallMs).toBe(90_000);
     expect(cumulativeMatchTimeMs(stopped, 120_000)).toBe(150_000);
     expect(videoTimeDisplayMs(stopped, 120_000)).toBe(150_000 + 48_000 + 30_000);

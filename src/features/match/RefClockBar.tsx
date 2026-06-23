@@ -132,7 +132,7 @@ export function RefClockBar({
                   }`}
                   title={
                     refStoppageActive
-                      ? 'End ref stoppage — match clock stays paused until you press play'
+                      ? 'End ref stoppage — match clock resumes'
                       : 'Ref stoppage — pause match clock; film time keeps running'
                   }
                   aria-label={refStoppageActive ? 'End ref stoppage' : 'Ref stoppage whistle'}
